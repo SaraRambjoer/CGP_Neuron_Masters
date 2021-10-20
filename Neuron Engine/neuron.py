@@ -94,11 +94,23 @@ class Neuron():
 
             if outputs[0] >= 1.0:
                 self.dendrites.append(Axon(self.axon_initialization_data, self.neuron_engine, self.signal_arity, self.counter, self))
-                self.neuron_engine.add_action_to_queue(lambda _: self.dendrites[-1].run_action_controller(), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda _: self.dendrites[-1].run_action_controller(), 
+                    timestep + 1, 
+                    self.id
+                )
                 
             if outputs[1] >= 1.0:
-                self.neuron_engine.add_action_to_queue(lambda: self.run_signal_axon(outputs[2:], timestep + 1), timestep + 1, self.id)
-                self.neuron_engine.add_action_to_queue(lambda: self.run_signal_dendrite(outputs[2:], timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_signal_axon(outputs[2:], timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_signal_dendrite(outputs[2:], timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
 
      
     def run_axon_birth(self, timestep):
@@ -114,11 +126,23 @@ class Neuron():
 
             if outputs[0] >= 1.0:
                 self.axons.append(Axon(self.axon_initialization_data, self.neuron_engine, self.signal_arity, self.counter, self))
-                self.neuron_engine.add_action_to_queue(lambda _: self.axons[-1].run_action_controller(), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda _: self.axons[-1].run_action_controller(), 
+                    timestep + 1,
+                    self.id
+                )
             
             if outputs[1] >= 1.0:
-                self.neuron_engine.add_action_to_queue(lambda: self.run_signal_axon(outputs[2:], timestep + 1), timestep + 1, self.id)
-                self.neuron_engine.add_action_to_queue(lambda: self.run_signal_dendrite(outputs[2:], timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_signal_axon(outputs[2:], timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_signal_dendrite(outputs[2:], timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
     
     def set_signal_inputs(self, program, signals):
         for num in range(len(signals)):
@@ -136,11 +160,26 @@ class Neuron():
 
         if outputs[0] >= 1.0:
             for dendrite in self.dendrites:
-                self.neuron_engine.add_action_to_queue(lambda: dendrite.run_recieve_signal_neuron(outputs[1+self.internal_state_variable_count:], timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: dendrite.run_recieve_signal_neuron(
+                        outputs[1+self.internal_state_variable_count:], 
+                        timestep + 1
+                    ), 
+                    timestep + 1, 
+                    self.id
+                )
 
         if outputs[1] >= 1.0:
-            self.neuron_engine.add_action_to_queue(lambda: self.run_signal_axon(outputs[2:], timestep + 1), timestep + 1, self.id)
-            self.neuron_engine.add_action_to_queue(lambda: self.run_signal_dendrite(outputs[2:], timestep + 1), timestep + 1, self.id)
+            self.neuron_engine.add_action_to_queue(
+                lambda: self.run_signal_axon(outputs[2:], timestep + 1), 
+                timestep + 1, 
+                self.id
+            )
+            self.neuron_engine.add_action_to_queue(
+                lambda: self.run_signal_dendrite(outputs[2:], timestep + 1), 
+                timestep + 1, 
+                self.id
+            )
     
 
     def run_signal_axon(self, signals, timestep):
@@ -155,7 +194,14 @@ class Neuron():
 
         if outputs[0] >= 1.0:
             for axon in self.axons:
-                self.neuron_engine.add_action_to_queue(lambda: axon.run_recieve_signal_neuron(outputs[1 + self.internal_state_variable_count:], timestep + 1 ), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: axon.run_recieve_signal_neuron(
+                        outputs[1 + self.internal_state_variable_count:], 
+                        timestep + 1
+                    ), 
+                    timestep + 1, 
+                    self.id
+                )
     
     
     def run_recieve_signal_dendrite(self, signals, timestep):
@@ -170,14 +216,26 @@ class Neuron():
                 self.internal_states[num] += outputs[3 + num]
 
             if outputs[1] >= 1.0:
-                self.neuron_engine.add_action_to_queue(lambda: self.run_signal_dendrite(outputs[3:], timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_signal_dendrite(outputs[3:], timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
 
             if outputs[2] >= 1.0:
-                self.neuron_engine.add_action_to_queue(lambda: self.run_signal_axon(outputs[3:], timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_signal_axon(outputs[3:], timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
 
 
             if outputs[0] >= 1.0:
-                self.neuron_engine.add_action_to_queue(lambda: self.run_action_controller(timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_action_controller(timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
     
     def run_recieve_signal_axon(self, signals, timestep):
         if not self.dying:
@@ -191,14 +249,26 @@ class Neuron():
                 self.internal_states[num] += outputs[3 + num]
 
             if outputs[1] >= 1.0:
-                self.neuron_engine.add_action_to_queue(lambda: self.run_signal_dendrite(outputs[3:], timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_signal_dendrite(outputs[3:], timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
 
             if outputs[2] >= 1.0:
-                self.neuron_engine.add_action_to_queue(lambda: self.run_signal_axon(outputs[3:], timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_signal_axon(outputs[3:], timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
 
 
             if outputs[0] >= 1.0:
-                self.neuron_engine.add_action_to_queue(lambda: self.run_action_controller(timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_action_controller(timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
         
     def run_recieve_reward(self, reward, timestep):
         if not self.dying:
@@ -211,7 +281,11 @@ class Neuron():
                 self.internal_states[num] += outputs[1 + num]
 
             if outputs[0] >= 1.0:
-                self.neuron_engine.add_action_to_queue(lambda: self.run_action_controller(timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_action_controller(timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
 
     def run_move(self, timestep):
         if not self.dying:
@@ -227,8 +301,16 @@ class Neuron():
             z_translation_neg = 1.0 if outputs[5] <= -1.0 else 0.0
 
             if outputs[6] >= 1.0:
-                self.neuron_engine.add_action_to_queue(lambda: self.run_signal_axon(outputs[7:], timestep + 1), timestep + 1, self.id)
-                self.neuron_engine.add_action_to_queue(lambda: self.run_signal_dendrite(outputs[7:], timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_signal_axon(outputs[7:], timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_signal_dendrite(outputs[7:], timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
             
             self.x += x_translation_pos - x_translation_neg
             self.y += -y_translation_neg + y_translation_pos
@@ -254,8 +336,16 @@ class Neuron():
                 # send death signal optionally
                 if outputs[1] >= 1.0:
                     # notice doing it at current timestep, breaking normal sequence, because dendrite.die is called at next timestep
-                    self.neuron_engine.add_action_to_queue(lambda: self.run_signal_axon(outputs[2:], timestep), timestep, self.id)
-                    self.neuron_engine.add_action_to_queue(lambda: self.run_signal_dendrite(outputs[2:], timestep), timestep, self.id)
+                    self.neuron_engine.add_action_to_queue(
+                        lambda: self.run_signal_axon(outputs[2:], timestep), 
+                        timestep, 
+                        self.id
+                    )
+                    self.neuron_engine.add_action_to_queue(
+                        lambda: self.run_signal_dendrite(outputs[2:], timestep), 
+                        timestep, 
+                        self.id
+                    )
     
     def run_neuron_birth(self, timestep):
         if not self.dying:
@@ -265,7 +355,11 @@ class Neuron():
             outputs = self.neuron_birth_program.run_presetinputs()
             if outputs[0] >= 1.0:
                 new_neuron = self.neuron_engine.add_neuron((self.x, self.y, self.z), self.outputs[1:])
-                self.neuron_engine.add_action_to_queue(lambda: new_neuron.birth(timestep + 1), timestep + 1, new_neuron.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: new_neuron.birth(timestep + 1), 
+                    timestep + 1, 
+                    new_neuron.id
+                )
     
 
     def run_action_controller(self, timestep):
@@ -279,7 +373,8 @@ class Neuron():
                 if output >= 1.0:
                     self.neuron_engine.add_action_to_queue(
                         lambda: self.program_order[num](timestep + 1),
-                        timestep + 1
+                        timestep + 1,
+                        self.id
                     )
 
 
@@ -374,13 +469,25 @@ class Axon():
                 self.internal_states[num] += outputs[3 + num]
 
             if outputs[1] >= 1.0:
-                self.neuron_engine.add_action_to_queue(lambda: self.run_signal_dendrite(outputs[3:], timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_signal_dendrite(outputs[3:], timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
 
             if outputs[2] >= 1.0:
-                self.neuron_engine.add_action_to_queue(lambda: self.run_signal_neuron(outputs[3:], timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_signal_neuron(outputs[3:], timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
 
             if outputs[0] >= 1.0:
-                self.neuron_engine.add_action_to_queue(lambda: self.run_action_controller(timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_action_controller(timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
 
         elif self.connected_dendrite is None:
             self.seek_dendrite_connection()
@@ -393,7 +500,11 @@ class Axon():
                 self.internal_states[num] += outputs[3 + num]
 
             if outputs[1] >= 1.0:
-                self.neuron_engine.add_action_to_queue(lambda: self.run_signal_dendrite(outputs[3:], timestep + 1), timestep + 1, self.id)
+                self.neuron_engine.add_action_to_queue(
+                    lambda: self.run_signal_dendrite(outputs[3:], timestep + 1), 
+                    timestep + 1, 
+                    self.id
+                )
 
             if outputs[2] >= 1.0:
                 self.neuron_engine.add_action_to_queue(

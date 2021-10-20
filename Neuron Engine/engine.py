@@ -30,7 +30,15 @@ class NeuronEngine():
         self.action_queue = []
         self.timestep_indexes = []
         self.debugging = debugging
+        self.timestep = 0  # TODO Add tracking which timestep we are on
     
+    def get_current_timestep(self):
+        return self.timestep
+    
+    def update_neuron_position(self, neuron, neuron_pos):
+        # TODO, update grid
+        pass
+
     def init_grids(self):
         self.grids = {}
         for n1 in range(self.grid_count):
@@ -91,6 +99,7 @@ class NeuronEngine():
         pass
 
     def add_action_to_queue(self, action, timestep):
+        # TODO update such that it functions with id's and removing them on death
         timesteps = [x[0] for x in self.timestep_indexes]
         timestep_relative_order = 0
         for x in timesteps:
@@ -106,8 +115,16 @@ class NeuronEngine():
             for x in self.timestep_indexes[timestep_relative_order+1:]:
                 x[1] = x[1]+1
 
+    def remove_neuron(self, neuron):
+        pass
+        # TODO handle removing neuron with id from queue on death, along with their dendrites and axons, while
+        # should also handle breaking connections
+        # should use a helepr function for removing form queue whihc also works with axons and dendrites
 
-
+    def add_neuron(self, neuron_pos, neuron_internal_state):
+        pass
+        # TODO, called on neuron birth. Add to grid and other ways fo tracking existing neurons. 
+        # Returns copy of neuron
 
 class Grid():
     def __init__(self, x, y, z, size) -> None:

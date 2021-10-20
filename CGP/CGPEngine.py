@@ -1,9 +1,14 @@
 import math
 import random
-
+from ..HelperClasses import Counter
 from numpy.core.fromnumeric import sort, var
 from numpy.lib.function_base import average
 from numpy.ma import count
+
+# IDEA for functions: 
+# common math operations, then threshold units giving binary output, then logic gate stuff
+# possible actions are 1's and 0's, maybe except changing internal state variables
+# inputs should also be common numbers, i.e. 1, 2, 10
 
 CPGNodeTypes = [
     "ADDI",
@@ -27,14 +32,6 @@ def randchoice(alternative_list):
     index = random.randint(0, max)
     return alternative_list[index]
 
-
-class Counter:
-    def __init__(self) -> None:
-        self.count = 0
-
-    def counterval(self):
-        self.count += 1
-        return self.count
 
 class NodeAbstract():
     def __init__(self) -> None:
@@ -258,7 +255,16 @@ class CGPProgram:
             raise Exception("None in outputs detected")
         self.reset()
         return outputs
-    
+
+    def run_presetinputs(self):
+        for input_node in self.input_nodes:
+            input_node.alert_subscribers()
+        outputs = []
+        for index in self.output_indexes:
+            output = self.nodes[index].output
+            outputs.append(output)
+        return outputs
+
     def get_active_nodes(self):
         self.reset()
         for node in self.input_nodes:
@@ -597,6 +603,7 @@ class EvolutionController():
         # This could be done faster, currently it is O(n*log(n)), 
         # which would be really bad for large population sizes
         gen_data.sort(key=lambda x: x[1], reverse=True)
+        # TODO Endre til at bare en løsnings egne barn kan erstatte løsningen
         self.population = [x[0] for x in gen_data[:self.population_size]]
         self.fitness = [x[1] for x in gen_data[:self.population_size]]
         print(max(self.fitness), average(self.fitness), var(self.fitness),  # To get a gauge of variance in the population and performance

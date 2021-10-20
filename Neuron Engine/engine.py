@@ -15,8 +15,8 @@ class NeuronEngine():
     def __init__(self, input_arity, output_arity, grid_count, grid_size, actions_max, debugging = False):
         self.input_arity = input_arity
         self.output_arity = output_arity
-        self.grid_count = grid_count
-        self.grid_size = grid_size
+        self.grid_count = grid_count  # Grids in grid grid per dimension
+        self.grid_size = grid_size   # neurons per grid per dimension
         self.actions_max = actions_max
         self.actions_count = 0
         self.input_neurons = []
@@ -35,9 +35,99 @@ class NeuronEngine():
     def get_current_timestep(self):
         return self.timestep
     
-    def update_neuron_position(self, neuron, neuron_pos):
-        # TODO, update grid
-        pass
+    # RFE assumes knowledge of neuron class properties
+    def update_neuron_position(self, neuron, neuron_pos_loc):
+        neuron_grid = neuron.grid
+        (xg, yg, zg) = (neuron_grid.x, neuron_grid.y, neuron_grid.z)
+        (xl, yl, zl) = neuron_pos_loc
+        new_xg, new_yg, new_zg = (0, 0, 0)
+        new_loc_x, new_loc_y, new_loc_g = (0, 0, 0)
+        new_glob_x, new_glob_y, new_glob_z = (0, 0, 0)
+        # TODO fix this, finish pattern and use it in each dimension
+        def _modify_pattern(local_pos, grid_size, global_pos, grid_pos, grid_count):
+            if local_pos > grid_size:
+                if grid_pos < grid_count:
+                    new_local = 0
+                    new_grid = grid_pos + 1
+                    new_global = global_pos + 1
+                else: 
+                    new_local = local_pos - 1
+                    new_grid = grid_pos
+                    new_global = global_pos
+            elif local_pos < 0:
+                if grid_pos > 0:
+                    new_local = grid_size
+                    new_grid = grid_pos - 1
+                    new_global = global_pos - 1
+                else: 
+                    new_local = local_pos + 1
+                    new_glob = global_pos
+                    new_grid = grid_pos
+            else: 
+                new_grid = grid_pos
+                new_local = local_pos
+                new_global = ??? # TODO global pos is fucked because it needs to be set when moving in a direction
+                # or info about direction needs to be transmitted, as it is missing info for this step. 
+
+
+        # RFE horrible knowledge duplication
+        if xl > self.grid_size:
+            if xg < self.grid_size:
+                new_loc_x = 0
+                new_xg = xg + 1
+                new_glob_x = neuron.x_glob + 1
+            else:
+                new_loc_x = xl - 1
+                new_xg = xg
+                new_glob_x = neuron.x_glob
+        elif xl < 0:
+            if xg > 0:
+                new_loc_x = self.grid_size
+                new_xg = xg - 1
+                new_glob_x = neuron.x_glob - 1
+            else: 
+                new_loc_x = 0
+                new_glob_x = neuron.x_glob
+        if yl > self.grid_size:
+            if yg < self.grid_size:
+                new_loc_y = 0
+                new_yg = yg + 1
+                new_glob_x = neuron.y_glob + 1
+            else:
+                new_yg = yg
+                new_loc_y = self.grid_size
+                new_glob_y = neuron.y_glob
+        elif yl < 0:
+            if yg > 0:
+                new_loc_y = self.grid_size
+                new_yg = yg - 1
+                new_glob_y = neuron.y_glob - 1
+            else:
+                new_loc_y = 0
+                new_yg = yg
+                new_glob_y = neuron.y_glob
+        if xl > self.grid_size:
+            if xg < self.grid_size:
+                new_loc_z = 0
+                new_zg = zg + 1
+                new_glob_z = neuron.z_glob + 1
+            else:
+                new_zg = zg
+                new_loc_z = self.grid_size
+                new_glob_z = neuron.z_glob
+        elif zl < 0:
+            if zl > 0:
+                new_loc_z = self.grid_size
+                new_zg = zg - 1
+                new_glob_z = neuron.z_glob - 1
+            else:
+                new_loc_z = 0
+                new_zg = zg
+                new_glob_z = neuron.z_glob + 1
+        
+
+
+        # return new grid and new local position in grid and new global position (in case of edges)
 
     def init_grids(self):
         self.grids = {}

@@ -14,7 +14,8 @@ class Neuron():
                 z_loc,
                 signal_arity,
                 hox_variants,
-                counter) -> None:
+                counter,
+                grid) -> None:
         
         self.counter = counter
         self.id = self.counter.counterval()
@@ -64,7 +65,7 @@ class Neuron():
         self.hox_variants = hox_variants
         self.selected_hox_variant = None
         self.run_hox_selection()
-
+        self.grid = grid
 
     # TODO add changing internal state variables on most of these mofos
     def run_hox_selection(self):
@@ -312,10 +313,15 @@ class Neuron():
                     self.id
                 )
             
-            self.x += x_translation_pos - x_translation_neg
-            self.y += -y_translation_neg + y_translation_pos
-            self.z += -z_translation_neg + z_translation_pos
-            self.neuron_engine.update_neuron_position(self, (self.x, self.y, self.z))
+            self.x_loc += x_translation_pos - x_translation_neg
+            self.y_loc += -y_translation_neg + y_translation_pos
+            self.z_loc += -z_translation_neg + z_translation_pos
+        
+            self.grid, (self.x_loc, self.y_loc, self.z_loc), (self.x_glob, self.y_glob, self.z_glob) = \
+                self.neuron_engine.update_neuron_position(
+                    self, 
+                    (self.x_loc, self.y_loc, self.z_loc)
+                )
             for axon in self.axons:
                 axon.update_pos(self.x_glob, self.y_glob, self.z_glob)
     

@@ -1,8 +1,30 @@
 # here define the world space
 import random
+from neuron import Neuron, Axon
+import math
 
 class NeuronEngine():
-    def __init__(self, input_arity, output_arity, grid_count, grid_size, actions_max, debugging = False):
+    def __init__(self,
+                 input_arity, 
+                 output_arity, 
+                 grid_count, 
+                 grid_size, 
+                 actions_max, 
+                 neuron_initialization_data,
+                 axon_initialization_data,
+                 signal_arity,
+                 hox_variant_count,
+                 counter,
+                 instances_per_iteration,
+                 debugging = False):
+
+        self.instances_per_iteration = instances_per_iteration
+        self.neuron_initialization_data = neuron_initialization_data
+        self.axon_initialization_data = axon_initialization_data
+        self.signal_arity = signal_arity
+        self.hox_variant_count = hox_variant_count
+        self.counter = counter
+
         self.input_arity = input_arity
         self.output_arity = output_arity
         self.grid_count = grid_count  # Grids in grid grid per dimension
@@ -10,18 +32,39 @@ class NeuronEngine():
         self.actions_max = actions_max
         self.actions_count = 0
         self.input_neurons = []
-        for _ in range(input_arity):
-            self.input_neurons.append(InputNeuron())
+        middle_grid_input = math.floor(grid_count/2)
+        middle_grid_output = math.floor(grid_count/2+1)
+        self.init_grids()
+        if input_arity > grid_size:
+            raise Exception("grid size too small to contain inputs")
+        if output_arity > grid_size: 
+            raise Exception("grid size too small to contain outputs")
+        for num in range(input_arity):
+            # think input neurons (sensors) and output neurons
+            # (acuators) are close together in the human brain, right?
+            # Because they evovled first? 
+            # So try to put them close to each other (ex. adjacent grids in the middle)
+            self.input_neurons.append(InputNeuron(
+                self.grids[middle_grid_input][middle_grid_input][middle_grid_input], 
+                middle_grid_input*grid_size + num, middle_grid_input*grid_size + num, 
+                middle_grid_input*grid_size + num))
         self.output_neurons = []
         for _ in range(output_arity):
-            self.output_neurons.append(OutputNeuron())
-        self.init_grids()
-        self.init_neurons()
+            self.output_neurons.append(OutputNeuron(
+                self.grids[middle_grid_output][middle_grid_output][middle_grid_output],
+                middle_grid_output*grid_size + num,
+                middle_grid_output*grid_size + num,
+                middle_grid_output*grid_size + num))
+        self.neurons = []
+        self.init_neurons(middle_grid_input)
         self.action_queue = []
         self.timestep_indexes = []
         self.debugging = debugging
-        self.timestep = 0  # TODO Add tracking which timestep we are on
-        self.free_connection_grids = []
+        self.timestep = 0 
+        self.free_connection_grids = [
+            self.grids[middle_grid_input][middle_grid_input][middle_grid_input],
+            self.grids[middle_grid_output][middle_grid_output][middle_grid_output]
+        ]
     
     def get_size_in_neuron_positions_one_dim(self):
         return self.grid_count * self.grid_size
@@ -86,9 +129,9 @@ class NeuronEngine():
                 for n3 in range(self.grid_count):
                     self.grids["".join(str(n1), str(n2), str(n3))] = Grid(n1, n2, n3, self.grid_size, self)
     
-    def init_neurons(self):
-        pass
-        # TODO Should set up input and output neurons properly, as well as the one starting neuron. 
+    def init_neurons(self, middle_grid_input):
+        self.add_neuron((middle_grid_input, middle_grid_input, middle_grid_input), 
+                         [0 for _ in range(self.neuron_initialization_data['internal_state_variable_count'])])
         
     def reset(self):
         self.actions_count = 0
@@ -124,22 +167,62 @@ class NeuronEngine():
         return (x0-x1)**2 + (y0-y1)**2 + (z0-z1)**2
     
     def run_sample(self, input_sample):
-        # TODO set input neurons to values in input sample
-        # TODO setup action queue.
-        # Consists of elements (timestep, action_func)
-        # reset actions_count
-        self.actions_count = 0
+        for num in range(self.input_neurons):
+            self.input_neurons[num].value = input_sample.value
         self.action_queue = []
+        for input_neuron in self.input_neurons:
+            for axon in input_neuron.subscribers:
+                self.add_action_to_queue(
+                    axon.run_recieve_signal_dendrite(
+                        [input_neuron.value for _ in range(self.signal_arity)],
+                        0
+                    ),
+                    0,
+                    axon.id
+                )
+        self.timestep = 0
+        self.actions_count = 0
         while len(self.action_queue > 0) and self.actions_count < self.actions_max:
             timestep, action, _ = self.action_queue.pop(0)
             action(self)  # runs action
             self.timestep = timestep
             self.actions_count += 1
-        # TODO get output from output neurnos, return it
+        outputs = [output_neuron.value for output_neuron in self.output_neurons]
+        return outputs
 
-    def run(self, inputs, eval_func):
+    def run(self, problem):
         # for every sample in inputs run it, some way of evaluating result as well
-        pass
+        # run run_sample for each sample some amount of times
+        # then use eval function of problem class to give reward
+        # Assumes goal is to minimize error
+        cumulative_error = 0
+        for num in range(self.instances_per_iteration):
+            instance = problem.get_problem_instance()
+            result = self.run_sample(instance)
+            error = problem.error(instance, result)
+            cumulative_error += error
+            reward = problem.get_reward(error)
+            self.action_queue = []
+            self.timestep = 0
+            self.actions_count = 0
+            for neuron in self.neurons:
+                self.add_action_to_queue(
+                    neuron.run_recieve_reward(reward, 0),
+                    0,
+                    neuron.id
+                )
+                for axon in neuron.dendrites + neuron.axons:
+                    self.add_action_to_queue(
+                        axon.run_recieve_reward(reward, 0),
+                        0,
+                        axon.id
+                    )
+            while len(self.action_queue) > 0:
+                timestep, action, _ = self.action_queue.pop(0)
+                action()  # runs action
+                self.timestep = timestep
+                self.actions_count += 1
+        return cumulative_error/self.instances_per_iteration
 
     def add_action_to_queue(self, action, timestep, id):
         timesteps = [x[0] for x in self.timestep_indexes]
@@ -174,9 +257,24 @@ class NeuronEngine():
         self.remove_actions_id(nid)
 
     def add_neuron(self, neuron_pos, neuron_internal_state):
-        new_neuron = Neuron()
-        # TODO, called on neuron birth. Add to grid and other ways fo tracking existing neurons. 
-        # Returns copy of neuron
+        grid = self.grids[neuron_pos[0]//self.grid_size][neuron_pos[1]//self.grid_size][neuron_pos[2]//self.grid_size]
+        new_neuron = Neuron(
+            neuron_initialization_data = self.neuron_initialization_data, 
+            axon_initialization_data = self.axon_initialization_data,
+            neuron_engine = self,
+            x_glob = neuron_pos[0],
+            y_glob = neuron_pos[1],
+            z_glob = neuron_pos[2],
+            x_loc = neuron_pos[0] % self.grid_size,
+            y_loc = neuron_pos[1] % self.grid_size,
+            z_loc = neuron_pos[2] % self.grid_size,
+            signal_arity = self.signal_arity,
+            hox_variants = self.hox_variant_count,
+            counter = self.counter,
+            grid = grid
+        )
+        grid.add_neuron(new_neuron)
+        self.neurons.append(new_neuron)
     
     def remove_dendrite(self, dendrite):
         self.remove_actions_id(dendrite.id)
@@ -215,8 +313,11 @@ class Grid():
     def remove_neuron(self, neuron):
         if neuron in self.neurons:
             self.neurons.remove(neuron)
+    
+    def add_neuron(self, neuron):
+        if neuron not in self.neurons:
+            self.neurons.append(neuron)
                
-
 
 class InputNeuron(Neuron):
     def __init__(self, grid, x, y, z) -> None:
@@ -225,6 +326,18 @@ class InputNeuron(Neuron):
         self.x = x
         self.y = y
         self.z = z
+        self.subscribers = []
+        self.value = None
+    
+    def run_accept_connection(self, dendrite, timestep):
+        return not dendrite in self.subscribers
+    
+    def add_subscriber(self, target):
+        if target not in self.subscribers:
+            self.subscribers.append(target)
+    
+    def remove_subscriber(self, target):
+        self.subscribers.remove(target)
 
 class OutputNeuron(Neuron):
     def __init__(self, grid, x, y, z) -> None:
@@ -233,3 +346,18 @@ class OutputNeuron(Neuron):
         self.x = x
         self.y = y
         self.z = z
+        self.subscribers = []
+        self.value = None
+
+    def run_accept_connection(self, dendrite, timestep):
+        return dendrite not in self.subscribers
+    
+    def add_subscriber(self, target):
+        if target not in self.subscribers:
+            self.subscribers.append(target)
+    
+    def remove_subscriber(self, target):
+        self.subscribers.remove(target)
+
+    def run_recieve_signal_axon(self, signals, timestep):
+        self.value = signals[0] 

@@ -1,6 +1,8 @@
 
 import math
-import numpy as np 
+import numpy as np
+
+from neuron_engine.engine import InputNeuron, OutputNeuron 
 
 def addqueue(neuron_engine, lambdafunc, timestep, id):
     neuron_engine.add_action_to_queue(
@@ -40,8 +42,8 @@ class Neuron():
         self.die_program = self.neuron_initialization_data['die_program']
         self.neuron_birth_program = self.neuron_initialization_data['neuron_birth_program']
         self.action_controller_program = self.neuron_initialization_data['action_controller_program']
-        self.internal_state_variable_count = self.neuron_initialization_data['internal_state_variable_count']
         self.hox_variant_selection_program = self.neuron_initialization_data['hox_variant_selection_program']
+        self.internal_state_variable_count = self.neuron_initialization_data['internal_state_variable_count']
 
         self.program_order = [
             lambda t: self.run_dendrite_birth(t),
@@ -85,7 +87,6 @@ class Neuron():
         for num in range(self.internal_state_variable_count):
             self.internal_states[num] += deltas
 
-    # TODO add changing internal state variables on most of these mofos (WIP)
     def run_hox_selection(self):
         if not self.dying:
             self.hox_variant_selection_program.reset()
@@ -185,10 +186,6 @@ class Neuron():
         self.set_global_pos(self.signal_axon_program, range(len(signals), len(signals)+3))
         self.set_internal_state_inputs(self.signal_axon_program)
         outputs = self.signal_axon_program.run_presetinputs()
-
-        for num in range(self.internal_state_variable_count):
-            self.internal_states[num] += outputs[1 + num]
-
         if outputs[0] >= 1.0:
             for dendrite in self.dendrites:
                 self.addqueue(
@@ -200,7 +197,7 @@ class Neuron():
                 )
         
         if outputs[1+self.signal_arity] >= 1.0:
-            self.update_internal_state(outputs[1+self.signal_arity:1+self.signal_arity+self.internal_state_variable_count])
+            self.update_internal_state(outputs[2+self.signal_arity:2+self.signal_arity+self.internal_state_variable_count])
         
         if outputs[-1] >= 1.0:
             self.addqueue(
@@ -244,9 +241,6 @@ class Neuron():
             self.set_global_pos(self.signal_axon_program, range(len(signals), len(signals+3)))
             self.set_internal_state_inputs(self.recieve_axon_signal_program)
             outputs = self.recieve_axon_signal_program.run_presetinputs()
-
-            for num in range(self.internal_state_variable_count):
-                self.internal_states[num] += outputs[3 + num]
 
             if outputs[1] >= 1.0:
                 self.addqueue(
@@ -306,8 +300,9 @@ class Neuron():
             self.set_global_pos(self.recieve_reward_program, (1, 2, 3))
             self.set_internal_state_inputs(self.recieve_reward_program)
             outputs = self.recieve_reward_program.run_presetinputs()
-            for num in range(self.internal_state_variable_count):
-                self.internal_states[num] += outputs[1 + num]
+
+            if outputs[1] > 1.0:
+                self.update_internal_state(outputs[2:2+self.internal_state_variable_count])
 
             if outputs[0] >= 1.0:
                 self.addqueue(
@@ -427,7 +422,8 @@ class Neuron():
 
     def set_internal_state_inputs(self, program):
         num = 0
-        for input_node in program.inputs[-self.internal_state_variable_count:]:
+        initial = program.input_nodes.index(None)
+        for input_node in program.inputs[initial:initial+self.internal_state_variable_count]:
             input_node.set_output(self.internal_states[num])
             num += 1
     
@@ -457,7 +453,7 @@ class Axon():
         self.id = self.counter.counterval()
 
         self.recieve_signal_neuron_program = axon_initialization_data['recieve_signal_neuron_program']
-        self.recieve_signal_dendrite_program = axon_initialization_data['recieve_signal_dendrite_program']
+        self.recieve_signal_axon_program = axon_initialization_data['recieve_signal_dendrite_program']
         self.signal_dendrite_program =  axon_initialization_data['signal_dendrite_program']
         self.signal_neuron_program =  axon_initialization_data['signal_neuron_program']
         self.accept_connection_program = axon_initialization_data['accept_connection_program']
@@ -644,16 +640,19 @@ class Axon():
                 self.conneced_dendrite.internal_states
             outputs = self.break_connection_program.run(program_inputs)
             if outputs[0] >= 1.0:
-                self.connected_dendrite.connected_dendrite = None
-                if not self.connected_dendrite.dying: 
-                    self.connected_dendrite.neuron.grid.add_free_dendrite(self.connected_dendrite)
-                    if timestep is not None: 
-                        self.addqueue(
-                            lambda: self.connected_dendrite.seek_dendrite_connection(), 
-                            timestep + 1
-                        )
-                    else:
-                        self.connected_dendrite.seek_dendrite_connection()
+                if type(self.connected_dendrite) == Axon:
+                    self.connected_dendrite.connected_dendrite = None
+                    if not self.connected_dendrite.dying: 
+                        self.connected_dendrite.neuron.grid.add_free_dendrite(self.connected_dendrite)
+                        if timestep is not None: 
+                            self.addqueue(
+                                lambda: self.connected_dendrite.seek_dendrite_connection(), 
+                                timestep + 1
+                            )
+                        else:
+                            self.connected_dendrite.seek_dendrite_connection()
+                else:
+                    self.connected_dendrite.remove_subscriber(self)
                 self.connected_dendrite = None
                 if not self.dying: 
                     self.neuron.grid.add_free_dendrite(self)
@@ -676,7 +675,8 @@ class Axon():
                     lambda: self.run_action_controller(timestep + 1), 
                     timestep + 1
                 )
-            self.update_internal_state(outputs[2:2+self.internal_state_variable_count])
+            if outputs[1] >= 1.0:
+                self.update_internal_state(outputs[2:2+self.internal_state_variable_count])
     
     def run_die(self, timestep):
         if not self.dying: 
@@ -713,16 +713,21 @@ class Axon():
                 break
             elif target_dendrite.run_accept_connection(self, timestep):
                 if self.run_accept_connection(target_dendrite, timestep):
-                    target_dendrite.connected_dendrite = self
-                    self.connected_dendrite = target_dendrite
-                    target_dendrite.neuron.grid.remove_free_dendrite(target_dendrite)
+                    if not type(target_dendrite) == OutputNeuron and not type(target_dendrite) == InputNeuron:
+                        target_dendrite.connected_dendrite = self
+                        self.connected_dendrite = target_dendrite
+                        target_dendrite.neuron.grid.remove_free_dendrite(target_dendrite)
+                    else:
+                        self.connected_dendrite = target_dendrite
+                        target_dendrite.add_subscriber(self)
                     return True
         self.neuron.grid.add_free_dendrite(self)
 
 
     def set_internal_state_inputs(self, program):
         num = 0
-        for input_node in program.inputs[-self.internal_state_variable_count:]:
+        initial = program.inputs.index(None)
+        for input_node in program.inputs[initial:initial+self.internal_state_variable_count]:
             input_node.set_output(self.internal_states[num])
             num += 1
     

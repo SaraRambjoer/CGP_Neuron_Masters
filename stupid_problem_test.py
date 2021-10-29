@@ -1,4 +1,4 @@
-import random
+from HelperClasses import randchoice
 
 input_arity = 4
 output_arity = 1
@@ -46,12 +46,13 @@ class StupidProblem():
         self.output_arity = 1
 
     def get_problem_instance(self):
-        return random.choice(self.true_samples + self.false_samples)
+        return randchoice(self.true_samples + self.false_samples)
 
     # MSE 
     def error(self, problem, solution):
+        solution = solution[0]
         if solution is None:
-            return -1
+            return 2000.0
         if problem in self.true_samples:
             return (1-solution)**2
         else:

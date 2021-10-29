@@ -1,6 +1,6 @@
 import math
 import random
-from ..HelperClasses import Counter
+from HelperClasses import Counter, randchoice
 from numpy.core.fromnumeric import sort, var
 from numpy.lib.function_base import average
 from numpy.ma import count
@@ -15,23 +15,37 @@ CPGNodeTypes = [
     "SUBI",
     "MULT",
     "DIVI",
-    "SINU"
+    "SINU",
+    "NOT",
+    "GTE",
+    "ISZERO",
+    "AND",
+    "NAND",
+    "XOR",
+    "OR",
+    "EQ",
+    "ROUND"  # TO 1 or 0
 ]
+# TODO IMPLEMENT ALL OF THESE
 
 NodeTypeArity = {
     "ADDI":2,
     "SUBI":2,
     "MULT":2,
     "DIVI":2,
-    "SINU":1
+    "SINU":1,
+    "NOT":1,
+    "GTE":2,
+    "ISZERO":1,
+    "OR":2,
+    "AND":2,
+    "NAND":2,
+    "XOR":2,
+    "EQ":2,
+    "ROUND":1
 }
-
-def randchoice(alternative_list):
-    random.seed(random.randint(0, 1000000))
-    max = len(alternative_list)-1
-    index = random.randint(0, max)
-    return alternative_list[index]
-
+oneary = [x[0] for x in NodeTypeArity.items() if x[1] == 1]
+twoary = [x[0] for x in NodeTypeArity.items() if x[1] == 2]
 
 class NodeAbstract():
     def __init__(self) -> None:
@@ -67,6 +81,14 @@ class CGPNode(NodeAbstract):
         else:
             self.arity = self.type.arity
 
+    def gettype(self):
+        return_string_parts = []
+        if type(self.type) is not CGPModuleType:
+            return_string_parts.append(self.type)
+        else:
+            return_string_parts.append("CGPModuleType placeholder, input arity: " + str(self.type.arity))
+        return "   |   ".join(return_string_parts)
+
     def input_ready(self):
         if len(self.inputs) > self.arity:
             raise Exception("Inputs greater than node type arity on input_ready")
@@ -75,28 +97,48 @@ class CGPNode(NodeAbstract):
         self.ready_inputs += 1
         if type(self.type) is CGPModuleType and self.ready_inputs == self.arity:
             self.output = self.type.run([x.output for x in self.inputs])
-        elif self.ready_inputs == 2 and (
-            self.type == "ADDI" or
-            self.type == "SUBI" or
-            self.type == "MULT" or
-            self.type == "DIVI"):
+        elif self.ready_inputs == 2 and self.type in twoary:
+            x0 = self.inputs[0].output
+            x1 = self.inputs[1].output
             if self.type == "ADDI":
-                self.output = self.inputs[0].output + self.inputs[1].output
+                self.output = x0 + x1
             elif self.type == "SUBI":
-                self.output = self.inputs[0].output - self.inputs[1].output
+                self.output = x0 - x1
             elif self.type == "MULT":
-                self.output = self.inputs[0].output * self.inputs[1].output
+                self.output = x0 * x1
             elif self.type == "DIVI":
-                if self.inputs[1].output == 0:
+                if x1 == 0:
                     self.output = 0.0
                 else:
-                    self.output = self.inputs[0].output / self.inputs[1].output
+                    self.output = x0 / x1
+            elif self.type == "GTE":
+                self.output = 1 if x1 > x0 else 0.0
+            elif self.type == "EQ":
+                self.output = 1 if x1 == x0 else 0.0
+            elif self.type == "AND":
+                self.output = x0 if x0 == x1 else False
+            elif self.type == "NAND":
+                self.output = 1.0 if x0 != x1 else 0.0
+            elif self.type == "XOR":
+                self.output = 1.0 if x0 != x1 and (x0 == 1.0 or x1 == 1.0) else 0.0
+            elif self.type == "OR":
+                self.output = 1.0 if x0 == 1.0 or x1 == 1.0 else 0.0
             self.alert_subscribers()
-        elif self.ready_inputs >= 1 and (
-            self.type == "SINU"
-            ):
-            self.output = math.sin(self.inputs[0].output)
+        elif self.ready_inputs >= 1 and self.type in oneary:
+            x0 = self.inputs[0].output
+            if self.type == "SINU":
+                if self.inputs[0] == float('inf'):
+                    self.output = 0.0
+                else:
+                    self.output = math.sin(x0)
+            elif self.type == "ROUND":
+                self.output = 1.0 if x0 >= 0.5 else 0.0
+            elif self.type == "ISZERO":
+                self.output = 1.0 if x0 == 0.0 else 0.0
+            elif self.type == "NOT":
+                self.output = max(1.0 - x0, 0.0)
             self.alert_subscribers()
+             
 
     def change_type(self, newtype):
         self.type = newtype
@@ -161,6 +203,7 @@ class InputCGPNode(NodeAbstract):
         self.id = self.counter.counterval()
         self.row_depth = 0
         self.debugging = debugging
+        self.output = None
     
     def set_output(self, float_val):
         self.output = float_val
@@ -178,17 +221,21 @@ class InputCGPNode(NodeAbstract):
     def reset(self):
         self.output = None
     
+    def gettype(self):
+        return "Input node"
+    
 def genRandomNode(existing_nodes, counter, priority_nodes=None, debug=False):
     # TODO This approach to row depth won't work, because several nodes may have same depth...
     # Issue is that when hooking these nodes one may create a loop, so we need to be able to partition
-    # the nodes around the node being swapped out. 
+    # the nodes around the node being swapped out.
+    # ^^ I think this was fixed by introducing counter unique ids but I can't quite remember lmao
     if priority_nodes:  # For use when favoring some nodes, i.e. swapping out subgraph with random subgraph
         #use_nodes = priority_nodes
         use_nodes = existing_nodes
     else:
         use_nodes = existing_nodes
     node_type = randchoice(CPGNodeTypes)
-    if node_type in ["ADDI", "SUBI", "MULT", "DIVI"]:
+    if node_type in twoary:
         if len(use_nodes) < 2:
             if priority_nodes:
                 parent1 = use_nodes[0]
@@ -197,7 +244,7 @@ def genRandomNode(existing_nodes, counter, priority_nodes=None, debug=False):
             parent1 = randchoice(use_nodes)
             parent2 = randchoice(use_nodes)
         node = CGPNode(node_type, [parent1, parent2], counter, max((parent1.row_depth, parent2.row_depth))+1, debug)
-    elif node_type in ["SINU"]:
+    elif node_type in oneary:
         parent1 = randchoice(use_nodes)
         node = CGPNode(node_type, [parent1], counter, parent1.row_depth+1, debug)
     node.validate()
@@ -380,6 +427,14 @@ class CGPProgram:
     def validate_nodes(self):
         for node in self.nodes:
             node.validate()
+    
+    def get_input_none_index(self):
+        index = 0
+        for input_node in self.input_nodes:
+            if input_node.output is None:
+                return index
+            index += 1
+        raise Exception("None not found in input nodes. Make sure to reset program.")
 
     def deepcopy(self):
         # Returns deep copy of self
@@ -563,6 +618,22 @@ class CGPProgram:
         return eval_score
 
 
+def subgraph_crossover(mate1, mate2, subgraph_extract_count, subgraph_size):
+    mate1_active_nodes = mate1.get_active_nodes()
+    mate2_active_nodes = mate2.get_active_nodes()
+    mate1_inactive_nodes = [x for x in mate1.nodes if x not in mate1_active_nodes]
+    mate2_inactive_nodes = [x for x in mate2.nodes if x not in mate2_active_nodes]
+    mate1_subgraphs = mate1.extract_subgraphs(subgraph_size, min(subgraph_extract_count, len(mate2_active_nodes)))
+    mate2_subgraphs = mate1.extract_subgraphs(subgraph_size, min(subgraph_extract_count, len(mate1_active_nodes)))
+
+    for subgraph in mate1_subgraphs:
+        target = randchoice(mate2_inactive_nodes)
+        target.change_type(subgraph)
+    for subgraph in mate2_subgraphs:
+        target = randchoice(mate1_inactive_nodes)
+        target.change_type(subgraph)
+
+
 class EvolutionController():
     def __init__(self, population_size, child_count, input_arity, output_arity, debugging, max_size, subgraph_extract_count, subgraph_max_size):
         if population_size % 2 == 1:
@@ -614,19 +685,8 @@ class EvolutionController():
     
     def crossover(self, mate1, mate2):
         # Code duplication issues
-        mate1_active_nodes = mate1.get_active_nodes()
-        mate2_active_nodes = mate2.get_active_nodes()
-        mate1_inactive_nodes = [x for x in mate1.nodes if x not in mate1_active_nodes]
-        mate2_inactive_nodes = [x for x in mate2.nodes if x not in mate2_active_nodes]
-        mate1_subgraphs = mate1.extract_subgraphs(self.subgraph_max_size, min(self.subgraph_extract_count, len(mate2_active_nodes)))
-        mate2_subgraphs = mate1.extract_subgraphs(self.subgraph_max_size, min(self.subgraph_extract_count, len(mate1_active_nodes)))
-
-        for subgraph in mate1_subgraphs:
-            target = randchoice(mate2_inactive_nodes)
-            target.change_type(subgraph)
-        for subgraph in mate2_subgraphs:
-            target = randchoice(mate1_inactive_nodes)
-            target.change_type(subgraph)
+        subgraph_crossover(mate1, mate2, self.subgraph_extract_count, self.subgraph_max_size)
+        
         
 
 

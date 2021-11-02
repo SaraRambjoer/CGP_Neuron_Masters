@@ -20,3 +20,5 @@ class Logger:
             "Connection pairs: " + ", ".join(connection_pairs) + "\n" + 
             "Output_nodes: " + ", ".join([str(node.id) for node in output_nodes])
         )
+    
+    

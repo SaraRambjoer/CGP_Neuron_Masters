@@ -26,7 +26,6 @@ CPGNodeTypes = [
     "EQ",
     "ROUND"  # TO 1 or 0
 ]
-# TODO IMPLEMENT ALL OF THESE
 
 NodeTypeArity = {
     "ADDI":2,
@@ -88,6 +87,12 @@ class CGPNode(NodeAbstract):
         else:
             return_string_parts.append("CGPModuleType placeholder, input arity: " + str(self.type.arity))
         return "   |   ".join(return_string_parts)
+    
+    def __str__(self) -> str:
+        if type(self.type) is not CGPModuleType:
+            return self.type
+        else:
+            return f"CGPModule({str(self.type.arity)})"
 
     def input_ready(self):
         if len(self.inputs) > self.arity:
@@ -107,7 +112,8 @@ class CGPNode(NodeAbstract):
             elif self.type == "MULT":
                 self.output = x0 * x1
             elif self.type == "DIVI":
-                if x1 == 0:
+                # To handle very low values to avoid infinity values
+                if x1 >= -0.0005 and x1 <= 0.0005:
                     self.output = 0.0
                 else:
                     self.output = x0 / x1
@@ -127,10 +133,13 @@ class CGPNode(NodeAbstract):
         elif self.ready_inputs >= 1 and self.type in oneary:
             x0 = self.inputs[0].output
             if self.type == "SINU":
-                if self.inputs[0] == float('inf'):
+                if x0 >= float('inf')-1 or x0 >= 999999999999:
                     self.output = 0.0
                 else:
-                    self.output = math.sin(x0)
+                    try:
+                        self.output = math.sin(x0)
+                    except ValueError:  # For some reason the above doesn't always catch inf, so...
+                        self.output = 0
             elif self.type == "ROUND":
                 self.output = 1.0 if x0 >= 0.5 else 0.0
             elif self.type == "ISZERO":
@@ -204,6 +213,9 @@ class InputCGPNode(NodeAbstract):
         self.row_depth = 0
         self.debugging = debugging
         self.output = None
+        self.type = "InputNode"
+        self.arity = 0
+        self.inputs = []
     
     def set_output(self, float_val):
         self.output = float_val
@@ -223,6 +235,9 @@ class InputCGPNode(NodeAbstract):
     
     def gettype(self):
         return "Input node"
+    
+    def __str__(self) -> str:
+        return self.type
     
 def genRandomNode(existing_nodes, counter, priority_nodes=None, debug=False):
     # TODO This approach to row depth won't work, because several nodes may have same depth...
@@ -304,6 +319,8 @@ class CGPProgram:
         return outputs
 
     def run_presetinputs(self):
+        if None in [x.output for x in self.input_nodes]:
+            raise Exception("All outputs not set")
         for input_node in self.input_nodes:
             input_node.alert_subscribers()
         outputs = []
@@ -616,6 +633,22 @@ class CGPProgram:
             output.append(self.run(input_tuple))
         eval_score = eval_func(output)
         return eval_score
+    
+    def __eq__(self, o: object) -> bool:
+        ownnodes = self.input_nodes + self.nodes
+        onodes = o.input_nodes + o.nodes
+        if not len(ownnodes) == len(onodes):
+            return False
+        elif self.input_arity != o.input_arity:
+            return False
+        elif [x.id for x in ownnodes] != [x.id for x in onodes]:
+            return False
+        elif self.output_indexes != o.output_indexes:
+            return False
+        return True
+    
+    def __str__(self) -> str:
+        return "-".join([str(x) for x in self.input_nodes]) + "-" + "-".join([str(x) for x in self.nodes]) + "-".join([str(x) for x in self.output_indexes])
 
 
 def subgraph_crossover(mate1, mate2, subgraph_extract_count, subgraph_size):
@@ -674,7 +707,6 @@ class EvolutionController():
         # This could be done faster, currently it is O(n*log(n)), 
         # which would be really bad for large population sizes
         gen_data.sort(key=lambda x: x[1], reverse=True)
-        # TODO Endre til at bare en løsnings egne barn kan erstatte løsningen
         self.population = [x[0] for x in gen_data[:self.population_size]]
         self.fitness = [x[1] for x in gen_data[:self.population_size]]
         print(max(self.fitness), average(self.fitness), var(self.fitness),  # To get a gauge of variance in the population and performance

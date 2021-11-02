@@ -85,6 +85,14 @@ class Genome:
             returned_genomes.append(new_genome)
 
         return returned_genomes
+    def __eq__(self, o: object) -> bool:
+        equa = self.hex_selector_genome == o.hex_selector_genome
+        for num in range(len(self.function_chromosomes)):
+            equa = equa and self.function_chromosomes[num] == o.function_chromosomes[num]
+    
+
+    def __str__(self) -> str:
+        return str(self.hex_selector_genome) + "\n----\n" + "\n-----\n".join([str(x) for x in self.function_chromosomes])
 
 # TODO use parameters in parameter genome for controlling this
 def generalized_cgp_crossover(parent1, parent2, child_count):
@@ -121,6 +129,12 @@ class HexSelectorGenome:
                 )
             )
         return outputs
+    
+    def __eq__(self, o: object) -> bool:
+        return self.program == o.program
+
+    def __str__(self) -> str:
+        return str(self.program)
 
 
 class FunctionChromosome:
@@ -151,6 +165,14 @@ class FunctionChromosome:
             child1.hex_variants[x].program = n1
             child2.hex_variants[x].program = n2
         return child1, child2
+    
+    def __eq__(self, o: object) -> bool:
+        equa = True
+        for num in range(len(self.hex_variants)):
+            equa = equa and self.hex_variants[num] == o.hex_variants[num]
+    
+    def __str__(self) -> str:
+        return self.func_name + "\n" + "\n".join([str(x) for x in self.hex_variants])
 
 class HexFunction:
     def __init__(self, input_arity, output_arity, counter) -> None:
@@ -164,6 +186,12 @@ class HexFunction:
 
     def crossover(self, other_func, child_count) -> None: 
         return generalized_cgp_crossover(self, other_func, child_count)
+    
+    def __eq__(self, o: object) -> bool:
+        return self.program == o.program
+
+    def __str__(self) -> str:
+        return str(self.program)
 
 
 class ParameterGenome:

@@ -17,3 +17,6 @@ def randchoice(alternative_list):
     max = len(alternative_list)-1
     index = int(math.ceil(randval*max))
     return alternative_list[index]
+
+def randcheck(val):
+    return random.random() < val

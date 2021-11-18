@@ -1,7 +1,9 @@
 # here define the world space
-from HelperClasses import randchoice, randcheck
+from HelperClasses import randchoice, randcheck, listmult
 import math
 import numpy as np
+
+# TODO add ID's to logging
 
 class NeuronEngine():
     def __init__(self,
@@ -16,8 +18,10 @@ class NeuronEngine():
                  hox_variant_count,
                  counter,
                  instances_per_iteration,
+                 logger,
                  debugging = False):
 
+        self.logger = logger
         self.instances_per_iteration = instances_per_iteration
         self.neuron_initialization_data = neuron_initialization_data
         self.axon_initialization_data = axon_initialization_data
@@ -121,7 +125,7 @@ class NeuronEngine():
         for n1 in range(self.grid_count):
             for n2 in range(self.grid_count):
                 for n3 in range(self.grid_count):
-                    self.grids[n1][n2][n3] = Grid(n1, n2, n3, self.grid_size, self)
+                    self.grids[n1][n2][n3] = Grid(n1, n2, n3, self.grid_size, self, self.logger)
         self.free_connection_grids = [
             self.grids[self.middle_grid_input][self.middle_grid_input][self.middle_grid_input],
             self.grids[self.middle_grid_output][self.middle_grid_output][self.middle_grid_output]
@@ -139,14 +143,15 @@ class NeuronEngine():
             self.input_neurons.append(InputNeuron(
                 self.grids[self.middle_grid_input][self.middle_grid_input][self.middle_grid_input], 
                 self.middle_grid_input*self.grid_size + num, self.middle_grid_input*self.grid_size + num, 
-                self.middle_grid_input*self.grid_size + num))
+                self.middle_grid_input*self.grid_size + num, self.logger))
         self.output_neurons = []
         for _ in range(self.output_arity):
             self.output_neurons.append(OutputNeuron(
                 self.grids[self.middle_grid_output][self.middle_grid_output][self.middle_grid_output],
                 self.middle_grid_output*self.grid_size + num,
                 self.middle_grid_output*self.grid_size + num,
-                self.middle_grid_output*self.grid_size + num))
+                self.middle_grid_output*self.grid_size + num,
+                self.logger))
 
         
     def reset(self):
@@ -341,7 +346,8 @@ class NeuronEngine():
             signal_arity = self.signal_arity,
             hox_variants = self.hox_variant_count,
             counter = self.counter,
-            grid = grid
+            grid = grid,
+            logger = self.logger
         )
         new_neuron.internal_states = neuron_internal_state
         grid.add_neuron(new_neuron)
@@ -360,7 +366,8 @@ class NeuronEngine():
         self.remove_actions_id(dendrite.id)
 
 class Grid():
-    def __init__(self, x, y, z, size, neuron_engine) -> None:
+    def __init__(self, x, y, z, size, neuron_engine, logger) -> None:
+        self.logger = logger
         self.x = x
         self.y = y
         self.z = z
@@ -404,8 +411,9 @@ class Grid():
                
 
 class InputNeuron():
-    def __init__(self, grid, x, y, z) -> None:
+    def __init__(self, grid, x, y, z, logger) -> None:
         # should know which grid it is in
+        self.logger = logger
         self.grid = grid
         grid.add_neuron(self)
         self.x = x
@@ -425,8 +433,9 @@ class InputNeuron():
         self.subscribers.remove(target)
 
 class OutputNeuron():
-    def __init__(self, grid, x, y, z) -> None:
+    def __init__(self, grid, x, y, z, logger) -> None:
         # should know which grid it is in 
+        self.logger = logger
         self.grid = grid
         grid.add_neuron(self)
         self.x = x
@@ -460,10 +469,11 @@ def addqueue(neuron_engine, lambdafunc, timestep, id):
 
 
 class CellObjectSuper:
-    def __init__(self):
+    def __init__(self, logger):
         self.x_glob = None
         self.y_glob = None
         self.z_glob = None
+        self.logger = logger
 
     def set_global_pos(self, program, indexes):
         if type(self) is Neuron:
@@ -508,8 +518,9 @@ class Neuron(CellObjectSuper):
                 signal_arity,
                 hox_variants,
                 counter,
-                grid) -> None:
-        super(CellObjectSuper, self).__init__()
+                grid,
+                logger) -> None:
+        super(Neuron, self).__init__(logger)
         self.counter = counter
         self.id = self.counter.counterval()
         self.neuron_initialization_data = neuron_initialization_data
@@ -554,7 +565,9 @@ class Neuron(CellObjectSuper):
     def addqueue(self, lambdafunc, timestep):
         addqueue(self.neuron_engine, lambdafunc, timestep, self.id)
 
+    # TODO: Axon missing hox selection
     def run_hox_selection(self):
+        self.logger.log("cgp_function_exec", "neuron, hox selection")
         if not self.dying:
             self.hox_variant_selection_program.reset()
             self.set_global_pos(self.hox_variant_selection_program, (0, 1, 2))
@@ -584,6 +597,7 @@ class Neuron(CellObjectSuper):
 
 
     def run_dendrite_birth(self, timestep):
+        self.logger.log("cgp_function_exec", "neuron, dendrite_birth")
         if not self.dying:
             # TODO REALLY missing something in input, none in output
             self.axon_birth_program.reset()
@@ -596,7 +610,7 @@ class Neuron(CellObjectSuper):
                 self.internal_states[num] += outputs[1 + num]
 
             if randcheck(outputs[0]):
-                self.dendrites.append(Axon(self.axon_initialization_data, self.neuron_engine, self.signal_arity, self.counter, self))
+                self.dendrites.append(Axon(self.axon_initialization_data, self.neuron_engine, self.signal_arity, self.counter, self, self.logger))
                 # TODO sometimes gives list index out of range
                 dendrite = self.dendrites[-1]
                 self.addqueue(
@@ -614,8 +628,7 @@ class Neuron(CellObjectSuper):
                     timestep + 1
                 )
             
-            if randcheck(outputs[2+self.signal_arity]):
-                self.update_internal_state(outputs[3+self.signal_arity:3+self.signal_arity+self.internal_state_variable_count])
+            self.update_internal_state(listmult(outputs[3+self.signal_arity:3+self.signal_arity+self.internal_state_variable_count], outputs[2+self.signal_arity]))
             
             if randcheck(outputs[-1]):
                 self.addqueue(
@@ -625,6 +638,7 @@ class Neuron(CellObjectSuper):
 
      
     def run_axon_birth(self, timestep):
+        self.logger.log("cgp_function_exec", "neuron, axon birth")
         if not self.dying:
             self.axon_birth_program.reset()
             self.set_global_pos(self.axon_birth_program, (0, 1, 2))
@@ -636,7 +650,7 @@ class Neuron(CellObjectSuper):
                 self.internal_states[num] += outputs[1 + num]
 
             if randcheck(outputs[0]):
-                self.axons.append(Axon(self.axon_initialization_data, self.neuron_engine, self.signal_arity, self.counter, self))
+                self.axons.append(Axon(self.axon_initialization_data, self.neuron_engine, self.signal_arity, self.counter, self, self.logger))
                 axon = self.axons[-1]
                 self.addqueue(
                     lambda: axon.run_action_controller(timestep+1), 
@@ -653,10 +667,9 @@ class Neuron(CellObjectSuper):
                     timestep + 1
                 )
             
-            if randcheck([2+self.signal_arity]):
-                self.update_internal_state(outputs[3+self.signal_arity:3+self.signal_arity+self.internal_state_variable_count])
+            self.update_internal_state(listmult(outputs[3+self.signal_arity:3+self.signal_arity+self.internal_state_variable_count], outputs[2+self.signal_arity]))
             
-            if randcheck([-1]):
+            if randcheck(outputs[-1]):
                 self.addqueue(
                     lambda: self.run_action_controller(timestep + 1),
                     timestep + 1
@@ -669,6 +682,7 @@ class Neuron(CellObjectSuper):
             program.input_nodes[num].set_output(signals[num])
 
     def run_signal_dendrite(self, signals, timestep):
+        self.logger.log("cgp_function_exec", "neuron, signal dendrite")
         self.signal_axon_program.reset()
         self.set_signal_inputs(self.signal_axon_program, signals)
         self.set_global_pos(self.signal_axon_program, range(len(signals), len(signals)+3))
@@ -684,8 +698,7 @@ class Neuron(CellObjectSuper):
                     timestep + 1
                 )
         
-        if randcheck(outputs[1+self.signal_arity]):
-            self.update_internal_state(outputs[2+self.signal_arity:2+self.signal_arity+self.internal_state_variable_count])
+        self.update_internal_state(listmult(outputs[2+self.signal_arity:2+self.signal_arity+self.internal_state_variable_count], outputs[1+self.signal_arity]))
         
         if randcheck(outputs[-1]):
             self.addqueue(
@@ -695,6 +708,7 @@ class Neuron(CellObjectSuper):
     
 
     def run_signal_axon(self, signals, timestep):
+        self.logger.log("cgp_function_exec", "neuron, signal axon")
         self.signal_axon_program.reset()
         self.set_signal_inputs(self.signal_axon_program, signals)
         self.set_global_pos(self.signal_axon_program, range(len(signals), len(signals)+3))
@@ -711,8 +725,7 @@ class Neuron(CellObjectSuper):
                     timestep + 1
                 )
         
-        if randcheck(outputs[1+self.signal_arity]):
-            self.update_internal_state(outputs[2+self.signal_arity:2+self.signal_arity+self.internal_state_variable_count])
+        self.update_internal_state(listmult(outputs[2+self.signal_arity:2+self.signal_arity+self.internal_state_variable_count], outputs[1+self.signal_arity]))
         
         if randcheck(outputs[-1]):
             self.addqueue(
@@ -723,6 +736,7 @@ class Neuron(CellObjectSuper):
     
     
     def run_recieve_signal_dendrite(self, signals, timestep):
+        self.logger.log("cgp_function_exec", "neuron, recieve signal dendrite")
         if not self.dying: 
             self.recieve_axon_signal_program.reset()
             self.set_signal_inputs(self.recieve_axon_signal_program, signals)
@@ -749,10 +763,10 @@ class Neuron(CellObjectSuper):
                     timestep + 1
                 )
             
-            if randcheck(outputs[3+self.signal_arity]):
-                self.update_internal_state(outputs[3+self.signal_arity:3+self.internal_state_variable_count+self.signal_arity])
+            self.update_internal_state(listmult(outputs[3+self.signal_arity:3+self.internal_state_variable_count+self.signal_arity], outputs[3+self.signal_arity]))
     
     def run_recieve_signal_axon(self, signals, timestep):
+        self.logger.log("cgp_function_exec", "neuron, signal axon")
         if not self.dying:
             self.recieve_axon_signal_program.reset()
             self.set_signal_inputs(self.recieve_axon_signal_program, signals)
@@ -760,7 +774,7 @@ class Neuron(CellObjectSuper):
             self.set_internal_state_inputs(self.recieve_axon_signal_program)
             outputs = self.recieve_axon_signal_program.run_presetinputs()
 
-            self.update_internal_state(outputs[3:3+self.internal_state_variable_count])
+            self.update_internal_state(listmult(outputs[4+self.signal_arity:4+self.signal_arity+self.internal_state_variable_count], outputs[3+self.signal_arity]))
 
             if randcheck(outputs[1]):
                 self.addqueue(
@@ -782,6 +796,7 @@ class Neuron(CellObjectSuper):
                 )
         
     def run_recieve_reward(self, reward, timestep):
+        self.logger.log("cgp_function_exec", "neuron, recieve reward")
         if not self.dying:
             self.recieve_reward_program.reset()
             self.recieve_reward_program.input_nodes[0].set_output(reward)
@@ -789,8 +804,7 @@ class Neuron(CellObjectSuper):
             self.set_internal_state_inputs(self.recieve_reward_program)
             outputs = self.recieve_reward_program.run_presetinputs()
 
-            if randcheck(outputs[1]):
-                self.update_internal_state(outputs[2:2+self.internal_state_variable_count])
+            self.update_internal_state(listmult(outputs[2:2+self.internal_state_variable_count], outputs[1]))
 
             if randcheck(outputs[0]):
                 self.addqueue(
@@ -799,6 +813,7 @@ class Neuron(CellObjectSuper):
                 )
 
     def run_move(self, timestep):
+        self.logger.log("cgp_function_exec", "neuron, move")
         if not self.dying:
             self.move_program.reset()
             self.set_global_pos(self.move_program, (0, 1, 2))
@@ -837,6 +852,7 @@ class Neuron(CellObjectSuper):
                 axon.update_pos(self.x_glob, self.y_glob, self.z_glob)
     
     def run_die(self, timestep):
+        self.logger.log("cgp_function_exec", "neuron, die")
         if not self.dying:
             self.die_program.reset()
             self.set_global_pos(self.die_program, (0, 1, 2))
@@ -863,6 +879,7 @@ class Neuron(CellObjectSuper):
                     )
     
     def run_neuron_birth(self, timestep):
+        self.logger.log("cgp_function_exec", "neuron, neuron birth")
         if not self.dying:
             self.neuron_birth_program.reset()
             self.set_global_pos(self.neuron_birth_program, (0, 1, 2))
@@ -881,13 +898,14 @@ class Neuron(CellObjectSuper):
                     self.signal_arity,
                     self.hox_variants,
                     self.counter,
-                    self.grid)
+                    self.grid,
+                    logger = self.logger)
                 new_neuron.internal_states = outputs[1:1+new_neuron.internal_state_variable_count]
                 self.neuron_engine.add_neuron_created(new_neuron)
 
-                if randcheck(outputs[1+new_neuron.internal_state_variable_count]):
-                    self.update_internal_state(
-                        outputs[2+new_neuron.internal_state_variable_count:2+new_neuron.internal_state_variable_count+self.internal_state_variable_count])
+                self.update_internal_state(
+                    listmult(outputs[2+new_neuron.internal_state_variable_count:2+new_neuron.internal_state_variable_count+self.internal_state_variable_count],
+                        outputs[1+new_neuron.internal_state_variable_count]))
                 self.addqueue(
                     lambda: new_neuron.run_action_controller(timestep + 1), 
                     timestep + 1
@@ -895,6 +913,7 @@ class Neuron(CellObjectSuper):
     
     # Change state? Gen signals? 
     def run_action_controller(self, timestep):
+        self.logger.log("cgp_function_exec", "neuron, action controller")
         if not self.dying:
             self.action_controller_program.reset()
             self.set_global_pos(self.action_controller_program, (0, 1, 2))
@@ -927,8 +946,9 @@ class Axon(CellObjectSuper):
                  neuron_engine,
                  signal_arity,
                  counter,
-                 neuron) -> None:
-        super(CellObjectSuper, self).__init__()
+                 neuron,
+                 logger) -> None:
+        super(Axon, self).__init__(logger)
         self.signal_arity = signal_arity
         self.counter = counter
         self.id = self.counter.counterval()
@@ -1004,6 +1024,7 @@ class Axon(CellObjectSuper):
         return outputs
 
     def run_recieve_signal_neuron(self, signals, timestep):
+        self.logger.log("cgp_function_exec", "axon, recieve signal neuron")
         if not self.dying and self.connected_dendrite is not None:
             outputs = self.recieve_signal_setup(self.recieve_signal_neuron_program, signals)
             if randcheck(outputs[1]):
@@ -1012,47 +1033,47 @@ class Axon(CellObjectSuper):
                     timestep + 1
                 )
 
-            if randchoice(outputs[2]):
+            if randcheck(outputs[2]):
                 self.addqueue(
                     lambda: self.run_signal_neuron(outputs[3:3+self.signal_arity], timestep + 1), 
                     timestep + 1
                 )
 
-            if randchoice(outputs[0]):
+            if randcheck(outputs[0]):
                 self.addqueue(
                     lambda: self.run_action_controller(timestep + 1), 
                     timestep + 1
                 )
-            if randchoice(outputs[self.signal_arity+3]):
-                self.update_internal_state(outputs[self.signal_arity+4:self.signal_arity+self.internal_state_variable_count+4])
+
+            self.update_internal_state(listmult(outputs[self.signal_arity+4:self.signal_arity+self.internal_state_variable_count+4], outputs[self.signal_arity+3]))
 
         elif self.connected_dendrite is None:
             self.seek_dendrite_connection()
     
     def run_recieve_signal_dendrite(self, signals, timestep):
+        self.logger.log("cgp_function_exec", "axon, recieve signal dendrite")
         if not self.dying and self.connected_dendrite is not None:
             outputs = self.recieve_signal_setup(self.recieve_signal_axon_program, signals)
         
-            if randchoice(outputs[1]):
+            if randcheck(outputs[1]):
                 self.addqueue(
                     lambda: self.run_signal_dendrite(outputs[3:3+self.signal_arity], timestep + 1), 
                     timestep + 1
                 )
 
-            if randchoice(outputs[2]):
+            if randcheck(outputs[2]):
                 self.addqueue(
                     lambda: self.run_signal_neuron(outputs[3:3+self.signal_arity], timestep + 1), 
                     timestep + 1
                 )
 
-            if randchoice(outputs[0]):
+            if randcheck(outputs[0]):
                 self.addqueue(
                     lambda: self.run_action_controller(timestep + 1), 
                     timestep + 1
                 )
             
-            if randchoice(outputs[self.signal_arity+3]):
-                self.update_internal_state(outputs[self.signal_arity+4:self.signal_arity+self.internal_state_variable_count+4])
+            self.update_internal_state(listmult(outputs[self.signal_arity+4:self.signal_arity+self.internal_state_variable_count+4], outputs[self.signal_arity+3]))
         
         elif self.connected_dendrite is None:
             self.seek_dendrite_connection()
@@ -1066,31 +1087,30 @@ class Axon(CellObjectSuper):
         return program.run_presetinputs()
 
     def run_signal_neuron(self, signals, timestep):
+        self.logger.log("cgp_function_exec", "axon, signal neuron")
         if not self.dying: 
             outputs = self.send_signal_setup(self.signal_neuron_program, signals)
-            if randchoice(outputs[0]):
+            if randcheck(outputs[0]):
                 self.addqueue(
                     lambda: self.neuron.run_recieve_signal_axon(
                         outputs[1:1+self.signal_arity],
                         timestep + 1),
                     timestep + 1
                 )
-            if randchoice(outputs[1+self.signal_arity]):
-                self.update_internal_state(outputs[2+self.signal_arity:2+self.signal_arity+self.internal_state_variable_count])
-            if randchoice(outputs[-1]):
+
+            self.update_internal_state(listmult(outputs[2+self.signal_arity:2+self.signal_arity+self.internal_state_variable_count], outputs[1+self.signal_arity]))
+
+            if randcheck(outputs[-1]):
                 self.addqueue(
                     lambda: self.run_action_controller(timestep+1),
                     timestep + 1
                 )
-# TODO: Remove all checks for output like >= 1.0 as they do not give a smooth fitness landscape. 
-# Instead do scaling up to 1 for internal state adjustment, 
-# probability for action controller
 # Always send signals and such when doing it directly and not through action controller
-# For action controller do probability scaling up to 1
     def run_signal_dendrite(self, signals, timestep):
+        self.logger.log("cgp_function_exec", "axon, signal dendrite")
         if not self.dying and self.connected_dendrite is not None: 
             outputs = self.send_signal_setup(self.signal_dendrite_program, signals)
-            if randchoice(outputs[0]):
+            if randcheck(outputs[0]):
                 if type(self.connected_dendrite) is Neuron:
                     self.addqueue(
                         lambda: self.connected_dendrite.run_recieve_signal_axon(
@@ -1099,9 +1119,10 @@ class Axon(CellObjectSuper):
                         timestep + 1
                     )
                 # elif output TODO
-            if randchoice(outputs[1+self.signal_arity] >= 1.0):
-                self.update_internal_state(outputs[2+self.signal_arity:2+self.signal_arity+self.internal_state_variable_count])
-            if randchoice(outputs[-1] >= 1.0):
+
+            self.update_internal_state(listmult(outputs[2+self.signal_arity:2+self.signal_arity+self.internal_state_variable_count], outputs[1+self.signal_arity]))
+
+            if randcheck(outputs[-1] >= 1.0):
                 self.addqueue(
                     lambda: self.run_action_controller(timestep + 1),
                     timestep + 1
@@ -1111,6 +1132,7 @@ class Axon(CellObjectSuper):
             self.seek_dendrite_connection(timestep)
         
     def run_accept_connection(self, dendrite, timestep = None):
+        self.logger.log("cgp_function_exec", "axon, accept connection")
         if not self.dying and self.connected_dendrite is None:
             self.accept_connection_program.reset()
             if type(dendrite) == Axon:
@@ -1124,14 +1146,16 @@ class Axon(CellObjectSuper):
                     [dendrite.x, dendrite.y, dendrite.z] + \
                     [0 for x in range(len(self.internal_states))]
             outputs = self.accept_connection_program.run(program_inputs)
-            if randchoice(outputs[0]):
+            if randcheck(outputs[0]):
                 return True
-            if randchoice(outputs[1]):
-                self.update_internal_state(outputs[2:2+self.internal_state_variable_count])
+
+            self.update_internal_state(listmult(outputs[2:2+self.internal_state_variable_count], outputs[1]))
+
             return False
         return False # shouldn't happen maybe check for this TODO indicates fault in seek_dendrite_connection code
     
     def run_break_connection(self, timestep = None): 
+        self.logger.log("cgp_function_exec", "axon, break connection")
         if not self.dying and self.connected_dendrite is not None: 
             self.break_connection_program.reset()
             if type(self.connected_dendrite) == Axon:
@@ -1151,7 +1175,7 @@ class Axon(CellObjectSuper):
                     ] + \
                     [0 for x in range(len(self.internal_states))]
             outputs = self.break_connection_program.run(program_inputs)
-            if randchoice(outputs[0]):
+            if randcheck(outputs[0]):
                 if type(self.connected_dendrite) == Axon:
                     self.connected_dendrite.connected_dendrite = None
                     if not self.connected_dendrite.dying: 
@@ -1177,26 +1201,28 @@ class Axon(CellObjectSuper):
                         self.seek_dendrite_connection()
 
     def run_recieve_reward(self, reward, timestep): 
+        self.logger.log("cgp_function_exec", "axon, recieve reward")
         if not self.dying: 
             self.recieve_reward_program.reset()
             program_inputs = [self.parent_x_glob, self.parent_y_glob, self.parent_z_glob] + \
                 self.internal_states + [reward]
             outputs = self.recieve_reward_program.run(program_inputs)
-            if randchoice(outputs[0]):
+            if randcheck(outputs[0]):
                 self.addqueue(
                     lambda: self.run_action_controller(timestep + 1), 
                     timestep + 1
                 )
-            if randchoice(outputs[1]):
-                self.update_internal_state(outputs[2:2+self.internal_state_variable_count])
+
+            self.update_internal_state(listmult(outputs[2:2+self.internal_state_variable_count], outputs[1]))
     
     def run_die(self, timestep):
+        self.logger.log("cgp_function_exec", "axon, die")
         if not self.dying: 
             self.die_program.reset()
             program_inputs = [self.parent_x_glob, self.parent_y_glob, self.parent_z_glob] + \
                 self.internal_states
             outputs = self.die_program.run(program_inputs)
-            if randchoice(outputs[0]):
+            if randcheck(outputs[0]):
                 self.dying = True
                 self.addqueue(
                     lambda: self.run_signal_dendrite(outputs[1:1+self.signal_arity], timestep),
@@ -1212,6 +1238,7 @@ class Axon(CellObjectSuper):
                 )
 
     def seek_dendrite_connection(self, timestep = None):
+        self.logger.log("cgp_function_exec", "axon, seek dendrite connection")
         dim_size = self.neuron_engine.get_size_in_neuron_positions_one_dim()
         max_x_dist = dim_size - self.parent_x_glob
         max_y_dist = dim_size - self.parent_y_glob
@@ -1239,6 +1266,7 @@ class Axon(CellObjectSuper):
 
 
     def run_action_controller(self, timestep):
+        self.logger.log("cgp_function_exec", "axon, action controller")
         self.action_controller_program.reset()
         self.set_global_pos(self.action_controller_program, (0, 1, 2))
         self.set_internal_state_inputs(self.action_controller_program)

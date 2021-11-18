@@ -36,7 +36,7 @@ if __name__ == "__main__":
     neuron_function_arities = [  # by order above
         [dimensions+neuron_internal_states+1, 4+signal_dimensionality+neuron_internal_states],  # axon birth
         [signal_dimensionality+dimensions+neuron_internal_states, 2 + signal_dimensionality + neuron_internal_states],  # signal axon
-        [signal_dimensionality + dimensions + neuron_internal_states, 3+neuron_internal_states+signal_dimensionality],  # recieve signal axon
+        [signal_dimensionality + dimensions + neuron_internal_states, 4+neuron_internal_states+signal_dimensionality],  # recieve signal axon
         [1 + dimensions + neuron_internal_states, 2 + neuron_internal_states],  # reciee reward
         [neuron_internal_states + dimensions, 7+neuron_internal_states],  # move
         [dimensions + neuron_internal_states, 2+neuron_internal_states],  # die
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     import CGPEngine
     # initialize the genome(s)
     all_function_arities = neuron_function_arities + dendrite_function_arities
-    genome_count = 16
+    genome_count = 2
     genomes = []
     for num in range(genome_count):
         genomes.append(Genome(
@@ -130,7 +130,8 @@ if __name__ == "__main__":
             signal_arity = signal_dimensionality,
             hox_variant_count = hox_variant_count,
             counter = counter,
-            instances_per_iteration = 100
+            instances_per_iteration = 100,
+            logger = logger
         )
         result = engine.run(problem)
         genome_results.append(result)
@@ -156,13 +157,14 @@ if __name__ == "__main__":
                     output_arity = problem.output_arity,
                     grid_count = 6,
                     grid_size = 10,
-                    actions_max = 60,
+                    actions_max = 250,
                     neuron_initialization_data = neuron_initialization_data,
                     axon_initialization_data = axon_initialization_data,
                     signal_arity = signal_dimensionality,
                     hox_variant_count = hox_variant_count,
                     counter = counter,
-                    instances_per_iteration = 50
+                    instances_per_iteration = 100,
+                    logger = logger
                 )
                 engines.append(engine)
 

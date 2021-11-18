@@ -380,6 +380,7 @@ class CGPProgram:
     def simple_mutate(self):
         self.validate_nodes()
         #self.fix_row()
+        active_nodes = [x.id for x in self.get_active_nodes()]
         output_change_chance = 0.1
         subgraph_size_max = 5
         node_swap_chance = 1.0
@@ -406,10 +407,12 @@ class CGPProgram:
                 node.validate()
             return None
         def _simple_mutate(nodes):
+            effected_nodes = []
             for node in nodes:
                 if random.random() < node_link_mutate_chance:
                     # Normally there is a "maximal output connections" per node paramter too, in this version
                     # this is not implemented
+                    effected_nodes.append(node.id)
                     input_from = randchoice([x for x in (self.nodes + self.input_nodes) if x.row_depth < node.row_depth])
                     while len(node.inputs) >= node.arity:
                         to_remove = node.inputs[randchoice(range(0, node.arity))]
@@ -417,14 +420,20 @@ class CGPProgram:
                         to_remove.subscribers.remove(node)
                     node.add_connection(input_from)
                 if random.random() < node_type_mutate_chance:
+                    effected_nodes.append(node.id)
                     node.change_type(randchoice(CPGNodeTypes))
                 node.validate()
+            return effected_nodes
 
         self.validate_nodes()
         output_node_alternatives = []
         while len(output_node_alternatives) == 0:
             self.reset()
-            _simple_mutate(self.nodes)
+
+            # Keep mutating until genotype change
+            #effected_nodes = _simple_mutate(self.nodes)
+            #while len([x for x in effected_nodes if x in active_nodes]) == 0:
+            #    effected_nodes = _simple_mutate(self.nodes)
             self.validate_input_node_array()
             self.validate_nodes()
             for node in self.input_nodes:

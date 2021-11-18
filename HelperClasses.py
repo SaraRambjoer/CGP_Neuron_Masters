@@ -63,4 +63,7 @@ def drawProgram(active_nodes, output_nodes, input_nodes):
     #plt.savefig(str(time.time()) + ".png", format="PNG")
 
 def randcheck(val):
-    return random.random() < val
+    return random.random() <= val
+
+def listmult(the_list, val):
+    return [x*val for x in the_list]

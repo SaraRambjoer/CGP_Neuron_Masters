@@ -6,7 +6,7 @@ class Logger:
     def log(self, message_type, message):
         if message_type not in self.ignored_messages_list:
             with open(self.output_filepath, 'a') as f:
-                f.writelines(message_type + ": " + message)
+                f.writelines(message_type + ": " + message + "\n")
         
     def log_cgp_program(self, active_nodes, output_nodes):
         node_types = [f"({node.id}, {node.gettype()})" for node in active_nodes]

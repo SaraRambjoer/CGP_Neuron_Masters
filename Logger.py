@@ -2,11 +2,15 @@ class Logger:
     def __init__(self, output_filepath, ignored_messages_list = []) -> None:
         self.output_filepath = output_filepath
         self.ignored_messages_list = ignored_messages_list
+        self.backlog = []
 
     def log(self, message_type, message):
         if message_type not in self.ignored_messages_list:
-            with open(self.output_filepath, 'a') as f:
-                f.writelines(message_type + ": " + message + "\n")
+            self.backlog.append(message_type + ": " + message + "\n")
+            if len(self.backlog) >= 1000:
+                with open(self.output_filepath, 'a') as f:
+                    f.writelines(self.backlog)
+                self.backlog = []
         
     def log_cgp_program(self, active_nodes, output_nodes):
         node_types = [f"({node.id}, {node.gettype()})" for node in active_nodes]

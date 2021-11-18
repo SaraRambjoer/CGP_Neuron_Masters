@@ -6,7 +6,7 @@ if __name__ == "__main__":
     from pathos.multiprocessing import Pool
     problem = stupid_problem_test.StupidProblem()
     # Setup logging
-    logger = Logger.Logger("log.txt", ["CGPProgram image"])
+    logger = Logger.Logger("log.txt", ["CGPProgram image", "cgp_function_exec_prio1", "cgp_function_exec_prio2"])
     # Setup CGP genome
     # - define a counter
     from HelperClasses import Counter, randchoice, drawProgram
@@ -124,7 +124,7 @@ if __name__ == "__main__":
             output_arity = problem.output_arity,
             grid_count = 6,
             grid_size = 10,
-            actions_max = 120,
+            actions_max = 250,
             neuron_initialization_data = neuron_init,
             axon_initialization_data = axon_init,
             signal_arity = signal_dimensionality,
@@ -133,9 +133,9 @@ if __name__ == "__main__":
             instances_per_iteration = 100,
             logger = logger
         )
-        result = engine.run(problem)
-        genome_results.append(result)
-    genomes = list(zip(genomes, genome_results))
+        result, base_problems = engine.run(problem)
+        genome_results.append((result, base_problems))
+    genomes = list(zip(genomes, [x[0] for x in genome_results], [x[1] for x in genome_results]))
     # TODO Crossover breaks function chromosome in genome
     for num in range(learning_iterations):    
         new_genomes = []
@@ -174,6 +174,8 @@ if __name__ == "__main__":
             #with Pool() as p:
             #    results = p.map(multiprocess_code, list(zip(new_genomes, [stupid_problem_test.StupidProblem() for _ in range(len(new_genomes))])))
             genome_results = [engine.run(problem) for engine in engines]
+            base_problems = [x[1] for x in genome_results]
+            genome_results = [x[0] for x in genome_results]
             # all children of a parent compete for the parents spots
 
             def _draw_program_data(genome):
@@ -201,12 +203,12 @@ if __name__ == "__main__":
                 if genome_results[num2] >= parent1score:
                     #_draw_program_data(genomes[indexes[0]][0])
                     #_draw_program_data(new_genomes[num2])
-                    genomes[indexes[0]] = (new_genomes[num2], genome_results[num2])
+                    genomes[indexes[0]] = (new_genomes[num2], genome_results[num2], base_problems[num2])
                     parent1score = genome_results[num2] 
                 elif genome_results[num2] >= parent2score:
-                    genomes[indexes[1]] = (new_genomes[num2], genome_results[num2])
+                    genomes[indexes[1]] = (new_genomes[num2], genome_results[num2], base_problems[num2])
                     parent2score = genome_results[num2]
-        print(num, [x[1] for x in genomes])
+        print(num, [f"{x[1]}, {x[2]}" for x in genomes])
         #_genomes = [x[0] for x in genomes]
         #for gen in _genomes:
         #  print(str(gen))

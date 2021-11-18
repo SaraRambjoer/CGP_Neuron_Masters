@@ -235,14 +235,26 @@ class NeuronEngine():
         self.reset()
         cumulative_error = 0
         exec_instances = 0
+        
+        base_problems = {"no outputs" : 0, 
+                        "no neurons" : 0, 
+                        "no input connections" : 0, 
+                        "no output connections" : 0,
+                        "no connections" : 0}
+
         for num in range(self.instances_per_iteration):
             exec_instances += 1
             self.changed = False
             instance = problem.get_problem_instance()
             result = self.run_sample(instance)
             error = problem.error(instance, result)
+            if error == 1000:
+                base_problems["no outputs"] += 1
+            else: 
+                self.not_changed_count = 0  # No need to change if it is working
             if len(self.neurons) == 0:
-              error += 2000
+                base_problems["no neurons"] += 1
+                error += 1000
             no_input_connections = True
             # Always bad
             for node in self.input_neurons:
@@ -250,7 +262,24 @@ class NeuronEngine():
                     no_input_connections = False
                     break
             if no_input_connections:
-                error += 2000
+                base_problems["no input connections"] += 1
+                error += 1000
+            no_output_connections = True
+            for node in self.output_neurons:
+                if len(node.subscribers) != 0:
+                    no_output_connections = False
+                    break
+            if no_output_connections:
+                base_problems["no output connections"] += 1
+                error += 1000
+            
+            no_neuron_connections = True
+            for node in self.neurons:
+                if len(node.axons) != 0 or len(node.dendrites) != 0:
+                    no_neuron_connections = False
+            if no_neuron_connections:
+                base_problems["no connections"] += 1
+                error += 1000
             
             cumulative_error += error
             reward = problem.get_reward(error)
@@ -280,12 +309,14 @@ class NeuronEngine():
                 self.action_index += 1
             if not self.changed:
                 if self.not_changed_count > 10:
+                    cumulative_error += (self.instances_per_iteration - num)*6000
+                    exec_instances = self.instances_per_iteration
                     break
                 else:
                     self.not_changed_count += 1
             else:
                 self.not_changed_count = 0
-        return cumulative_error/exec_instances
+        return cumulative_error/exec_instances, base_problems
 
     def add_action_to_queue(self, action, timestep, id):
         if action is None:
@@ -567,7 +598,7 @@ class Neuron(CellObjectSuper):
 
     # TODO: Axon missing hox selection
     def run_hox_selection(self):
-        self.logger.log("cgp_function_exec", "neuron, hox selection")
+        self.logger.log("cgp_function_exec_prio1", "neuron, hox selection")
         if not self.dying:
             self.hox_variant_selection_program.reset()
             self.set_global_pos(self.hox_variant_selection_program, (0, 1, 2))
@@ -597,7 +628,7 @@ class Neuron(CellObjectSuper):
 
 
     def run_dendrite_birth(self, timestep):
-        self.logger.log("cgp_function_exec", "neuron, dendrite_birth")
+        self.logger.log("cgp_function_exec_prio1", "neuron, dendrite_birth")
         if not self.dying:
             # TODO REALLY missing something in input, none in output
             self.axon_birth_program.reset()
@@ -638,7 +669,7 @@ class Neuron(CellObjectSuper):
 
      
     def run_axon_birth(self, timestep):
-        self.logger.log("cgp_function_exec", "neuron, axon birth")
+        self.logger.log("cgp_function_exec_prio1", "neuron, axon birth")
         if not self.dying:
             self.axon_birth_program.reset()
             self.set_global_pos(self.axon_birth_program, (0, 1, 2))
@@ -682,7 +713,7 @@ class Neuron(CellObjectSuper):
             program.input_nodes[num].set_output(signals[num])
 
     def run_signal_dendrite(self, signals, timestep):
-        self.logger.log("cgp_function_exec", "neuron, signal dendrite")
+        self.logger.log("cgp_function_exec_prio2", "neuron, signal dendrite")
         self.signal_axon_program.reset()
         self.set_signal_inputs(self.signal_axon_program, signals)
         self.set_global_pos(self.signal_axon_program, range(len(signals), len(signals)+3))
@@ -708,7 +739,7 @@ class Neuron(CellObjectSuper):
     
 
     def run_signal_axon(self, signals, timestep):
-        self.logger.log("cgp_function_exec", "neuron, signal axon")
+        self.logger.log("cgp_function_exec_prio2", "neuron, signal axon")
         self.signal_axon_program.reset()
         self.set_signal_inputs(self.signal_axon_program, signals)
         self.set_global_pos(self.signal_axon_program, range(len(signals), len(signals)+3))
@@ -736,7 +767,7 @@ class Neuron(CellObjectSuper):
     
     
     def run_recieve_signal_dendrite(self, signals, timestep):
-        self.logger.log("cgp_function_exec", "neuron, recieve signal dendrite")
+        self.logger.log("cgp_function_exec_prio2", "neuron, recieve signal dendrite")
         if not self.dying: 
             self.recieve_axon_signal_program.reset()
             self.set_signal_inputs(self.recieve_axon_signal_program, signals)
@@ -766,7 +797,7 @@ class Neuron(CellObjectSuper):
             self.update_internal_state(listmult(outputs[3+self.signal_arity:3+self.internal_state_variable_count+self.signal_arity], outputs[3+self.signal_arity]))
     
     def run_recieve_signal_axon(self, signals, timestep):
-        self.logger.log("cgp_function_exec", "neuron, signal axon")
+        self.logger.log("cgp_function_exec_prio2", "neuron, recieve signal axon")
         if not self.dying:
             self.recieve_axon_signal_program.reset()
             self.set_signal_inputs(self.recieve_axon_signal_program, signals)
@@ -796,7 +827,7 @@ class Neuron(CellObjectSuper):
                 )
         
     def run_recieve_reward(self, reward, timestep):
-        self.logger.log("cgp_function_exec", "neuron, recieve reward")
+        self.logger.log("cgp_function_exec_prio1", "neuron, recieve reward")
         if not self.dying:
             self.recieve_reward_program.reset()
             self.recieve_reward_program.input_nodes[0].set_output(reward)
@@ -813,7 +844,7 @@ class Neuron(CellObjectSuper):
                 )
 
     def run_move(self, timestep):
-        self.logger.log("cgp_function_exec", "neuron, move")
+        self.logger.log("cgp_function_exec_prio1", "neuron, move")
         if not self.dying:
             self.move_program.reset()
             self.set_global_pos(self.move_program, (0, 1, 2))
@@ -852,7 +883,7 @@ class Neuron(CellObjectSuper):
                 axon.update_pos(self.x_glob, self.y_glob, self.z_glob)
     
     def run_die(self, timestep):
-        self.logger.log("cgp_function_exec", "neuron, die")
+        self.logger.log("cgp_function_exec_prio1", "neuron, die")
         if not self.dying:
             self.die_program.reset()
             self.set_global_pos(self.die_program, (0, 1, 2))
@@ -879,7 +910,7 @@ class Neuron(CellObjectSuper):
                     )
     
     def run_neuron_birth(self, timestep):
-        self.logger.log("cgp_function_exec", "neuron, neuron birth")
+        self.logger.log("cgp_function_exec_prio1", "neuron, neuron birth")
         if not self.dying:
             self.neuron_birth_program.reset()
             self.set_global_pos(self.neuron_birth_program, (0, 1, 2))
@@ -913,7 +944,7 @@ class Neuron(CellObjectSuper):
     
     # Change state? Gen signals? 
     def run_action_controller(self, timestep):
-        self.logger.log("cgp_function_exec", "neuron, action controller")
+        self.logger.log("cgp_function_exec_prio1", "neuron, action controller")
         if not self.dying:
             self.action_controller_program.reset()
             self.set_global_pos(self.action_controller_program, (0, 1, 2))
@@ -1024,7 +1055,7 @@ class Axon(CellObjectSuper):
         return outputs
 
     def run_recieve_signal_neuron(self, signals, timestep):
-        self.logger.log("cgp_function_exec", "axon, recieve signal neuron")
+        self.logger.log("cgp_function_exec_prio2", "axon, recieve signal neuron")
         if not self.dying and self.connected_dendrite is not None:
             outputs = self.recieve_signal_setup(self.recieve_signal_neuron_program, signals)
             if randcheck(outputs[1]):
@@ -1051,7 +1082,7 @@ class Axon(CellObjectSuper):
             self.seek_dendrite_connection()
     
     def run_recieve_signal_dendrite(self, signals, timestep):
-        self.logger.log("cgp_function_exec", "axon, recieve signal dendrite")
+        self.logger.log("cgp_function_exec_prio2", "axon, recieve signal dendrite")
         if not self.dying and self.connected_dendrite is not None:
             outputs = self.recieve_signal_setup(self.recieve_signal_axon_program, signals)
         
@@ -1087,7 +1118,7 @@ class Axon(CellObjectSuper):
         return program.run_presetinputs()
 
     def run_signal_neuron(self, signals, timestep):
-        self.logger.log("cgp_function_exec", "axon, signal neuron")
+        self.logger.log("cgp_function_exec_prio2", "axon, signal neuron")
         if not self.dying: 
             outputs = self.send_signal_setup(self.signal_neuron_program, signals)
             if randcheck(outputs[0]):
@@ -1107,7 +1138,7 @@ class Axon(CellObjectSuper):
                 )
 # Always send signals and such when doing it directly and not through action controller
     def run_signal_dendrite(self, signals, timestep):
-        self.logger.log("cgp_function_exec", "axon, signal dendrite")
+        self.logger.log("cgp_function_exec_prio2", "axon, signal dendrite")
         if not self.dying and self.connected_dendrite is not None: 
             outputs = self.send_signal_setup(self.signal_dendrite_program, signals)
             if randcheck(outputs[0]):
@@ -1132,7 +1163,7 @@ class Axon(CellObjectSuper):
             self.seek_dendrite_connection(timestep)
         
     def run_accept_connection(self, dendrite, timestep = None):
-        self.logger.log("cgp_function_exec", "axon, accept connection")
+        self.logger.log("cgp_function_exec_prio2", "axon, accept connection")
         if not self.dying and self.connected_dendrite is None:
             self.accept_connection_program.reset()
             if type(dendrite) == Axon:
@@ -1155,7 +1186,7 @@ class Axon(CellObjectSuper):
         return False # shouldn't happen maybe check for this TODO indicates fault in seek_dendrite_connection code
     
     def run_break_connection(self, timestep = None): 
-        self.logger.log("cgp_function_exec", "axon, break connection")
+        self.logger.log("cgp_function_exec_prio2", "axon, break connection")
         if not self.dying and self.connected_dendrite is not None: 
             self.break_connection_program.reset()
             if type(self.connected_dendrite) == Axon:
@@ -1201,7 +1232,7 @@ class Axon(CellObjectSuper):
                         self.seek_dendrite_connection()
 
     def run_recieve_reward(self, reward, timestep): 
-        self.logger.log("cgp_function_exec", "axon, recieve reward")
+        self.logger.log("cgp_function_exec_prio1", "axon, recieve reward")
         if not self.dying: 
             self.recieve_reward_program.reset()
             program_inputs = [self.parent_x_glob, self.parent_y_glob, self.parent_z_glob] + \
@@ -1216,7 +1247,7 @@ class Axon(CellObjectSuper):
             self.update_internal_state(listmult(outputs[2:2+self.internal_state_variable_count], outputs[1]))
     
     def run_die(self, timestep):
-        self.logger.log("cgp_function_exec", "axon, die")
+        self.logger.log("cgp_function_exec_prio1", "axon, die")
         if not self.dying: 
             self.die_program.reset()
             program_inputs = [self.parent_x_glob, self.parent_y_glob, self.parent_z_glob] + \
@@ -1238,7 +1269,7 @@ class Axon(CellObjectSuper):
                 )
 
     def seek_dendrite_connection(self, timestep = None):
-        self.logger.log("cgp_function_exec", "axon, seek dendrite connection")
+        self.logger.log("cgp_function_exec_prio2", "axon, seek dendrite connection")
         dim_size = self.neuron_engine.get_size_in_neuron_positions_one_dim()
         max_x_dist = dim_size - self.parent_x_glob
         max_y_dist = dim_size - self.parent_y_glob
@@ -1266,7 +1297,7 @@ class Axon(CellObjectSuper):
 
 
     def run_action_controller(self, timestep):
-        self.logger.log("cgp_function_exec", "axon, action controller")
+        self.logger.log("cgp_function_exec_prio2", "axon, action controller")
         self.action_controller_program.reset()
         self.set_global_pos(self.action_controller_program, (0, 1, 2))
         self.set_internal_state_inputs(self.action_controller_program)

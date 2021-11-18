@@ -52,7 +52,7 @@ class StupidProblem():
     def error(self, problem, solution):
         solution = solution[0]
         if solution is None:
-            return 2000.0
+            return 1000.0
         if problem in self.true_samples:
             return (1-solution)**2
         else:

@@ -35,7 +35,7 @@ def str_to_list(inputstr):
     return outputlist
 
 true_samples = [str_to_list(x) for x in true_samples]
-false_samples = [str_to_list(x) for x in true_samples]
+false_samples = [str_to_list(x) for x in false_samples]
 
 # TODO use template for an abstract problem class
 class StupidProblem():
@@ -52,7 +52,7 @@ class StupidProblem():
     def error(self, problem, solution):
         solution = solution[0]
         if solution is None:
-            return 1000.0
+            return 2.0
         if problem in self.true_samples:
             return (1-solution)**2
         else:

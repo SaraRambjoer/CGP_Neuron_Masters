@@ -99,7 +99,7 @@ def generalized_cgp_crossover(parent1, parent2, child_count):
     program_child_1 = parent1.program.deepcopy()
     program_child_2 = parent2.program.deepcopy()
     CGPEngine.subgraph_crossover(program_child_1, program_child_2, 12, 12)
-    children = program_child_1.produce_children(1) + program_child_2.produce_children(1)
+    children = program_child_1.produce_children(1) + program_child_2.produce_children(1) + parent1.program.deepcopy().produce_children(1) + parent2.program.deepcopy().produce_children(1)
     return children
 
 class HexSelectorGenome:
@@ -158,13 +158,19 @@ class FunctionChromosome:
         crossover_point = randchoice(range(0, len(self.hex_variants)))
         child1 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter)
         child2 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter)
+        child3 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter)
+        child4 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter)
         child1.hex_variants = self.hex_variants[:crossover_point] + other_chromosome.hex_variants[crossover_point:]
         child2.hex_variants = other_chromosome.hex_variants[:crossover_point] + self.hex_variants[crossover_point:]
+        child3.hex_variants = self.hex_variants
+        child4.hex_variants = other_chromosome.hex_variants
         for x in range(0, len(self.hex_variants)):
-            [n1, n2] = child1.hex_variants[x].crossover(child2.hex_variants[x], 2)
+            [n1, n2, n3, n4] = child1.hex_variants[x].crossover(child2.hex_variants[x], 2)
             child1.hex_variants[x].program = n1
             child2.hex_variants[x].program = n2
-        return child1, child2
+            child3.hex_variants[x].program = n3
+            child3.hex_variants[x].program = n4
+        return child1, child2, child3, child4
     
     def __eq__(self, o: object) -> bool:
         equa = True

@@ -11,9 +11,9 @@ if __name__ == "__main__":
     # - define a counter
     from HelperClasses import Counter, randchoice, drawProgram
     counter = Counter()
-    neuron_internal_states = 3
-    dendrite_internal_states = 3
-    signal_dimensionality = 3
+    neuron_internal_states = 1
+    dendrite_internal_states = 1
+    signal_dimensionality = 1
     dimensions = 3
     hox_variant_count = 1
 
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     neuron_function_arities = [  # by order above
         [dimensions+neuron_internal_states+1, 4+signal_dimensionality+neuron_internal_states],  # axon birth
         [signal_dimensionality+dimensions+neuron_internal_states, 2 + signal_dimensionality + neuron_internal_states],  # signal axon
-        [signal_dimensionality + dimensions + neuron_internal_states, 4+neuron_internal_states+signal_dimensionality],  # recieve signal axon
+        [signal_dimensionality + dimensions + neuron_internal_states, 2 + neuron_internal_states+signal_dimensionality],  # recieve signal axon
         [1 + dimensions + neuron_internal_states, 2 + neuron_internal_states],  # reciee reward
         [neuron_internal_states + dimensions, 7+neuron_internal_states],  # move
         [dimensions + neuron_internal_states, 2+neuron_internal_states],  # die
@@ -57,8 +57,8 @@ if __name__ == "__main__":
         'action_controller_program'
     ]
     dendrite_function_arities = [
-        [dendrite_internal_states + signal_dimensionality + dimensions, 4+signal_dimensionality+dendrite_internal_states],
-        [dendrite_internal_states + signal_dimensionality + dimensions, 4+signal_dimensionality+dendrite_internal_states],
+        [dendrite_internal_states + signal_dimensionality + dimensions, 2+signal_dimensionality+dendrite_internal_states],
+        [dendrite_internal_states + signal_dimensionality + dimensions, 2+signal_dimensionality+dendrite_internal_states],
         [dimensions + dendrite_internal_states + signal_dimensionality, 4+signal_dimensionality+dendrite_internal_states],
         [dimensions + dendrite_internal_states + signal_dimensionality, 4+signal_dimensionality+dendrite_internal_states],
         [dimensions + dendrite_internal_states + dimensions + dendrite_internal_states, 2+dendrite_internal_states], # Accept connection
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     import CGPEngine
     # initialize the genome(s)
     all_function_arities = neuron_function_arities + dendrite_function_arities
-    genome_count = 2
+    genome_count = 40
     genomes = []
     for num in range(genome_count):
         genomes.append(Genome(
@@ -124,13 +124,12 @@ if __name__ == "__main__":
             output_arity = problem.output_arity,
             grid_count = 6,
             grid_size = 10,
-            actions_max = 250,
+            actions_max = 70,
             neuron_initialization_data = neuron_init,
             axon_initialization_data = axon_init,
             signal_arity = signal_dimensionality,
             hox_variant_count = hox_variant_count,
-            counter = counter,
-            instances_per_iteration = 100,
+            instances_per_iteration = 50,
             logger = logger
         )
         result, base_problems = engine.run(problem)
@@ -147,7 +146,7 @@ if __name__ == "__main__":
             egligable_bachelors.remove(choice1)  # Currently possible to do crossover with self, which does make some sense with subgraph extraction
             if choice2 in egligable_bachelors:
                 egligable_bachelors.remove(choice2)
-            new_genomes = choice1.crossover(choice2)
+            new_genomes = choice1.crossover(choice2)[:2] # remove [:2] to not only get crossover children
             genome_results = []
             engines = []
             for genome in new_genomes:
@@ -157,13 +156,12 @@ if __name__ == "__main__":
                     output_arity = problem.output_arity,
                     grid_count = 6,
                     grid_size = 10,
-                    actions_max = 250,
+                    actions_max = 70,
                     neuron_initialization_data = neuron_initialization_data,
                     axon_initialization_data = axon_initialization_data,
                     signal_arity = signal_dimensionality,
                     hox_variant_count = hox_variant_count,
-                    counter = counter,
-                    instances_per_iteration = 100,
+                    instances_per_iteration = 50,
                     logger = logger
                 )
                 engines.append(engine)
@@ -195,20 +193,27 @@ if __name__ == "__main__":
             parent1score = genomes[indexes[0]][1]
             parent2score = genomes[indexes[1]][1]
             for num2 in range(len(new_genomes)):
+                # SHOULDN'T HAPPEN
                 if new_genomes[num2] == genomes[indexes[0]][0]:
                     print("EQUALS")
                 elif new_genomes[num2] == genomes[indexes[1]][0]:
                     print("EQUALS2")
+                # SHOULDN'T HAPPEN (strictly speaking some chance tho)
 
-                if genome_results[num2] >= parent1score:
+                if genome_results[num2] <= parent1score:
                     #_draw_program_data(genomes[indexes[0]][0])
                     #_draw_program_data(new_genomes[num2])
                     genomes[indexes[0]] = (new_genomes[num2], genome_results[num2], base_problems[num2])
                     parent1score = genome_results[num2] 
-                elif genome_results[num2] >= parent2score:
+                if genome_results[num2] <= parent2score:
                     genomes[indexes[1]] = (new_genomes[num2], genome_results[num2], base_problems[num2])
                     parent2score = genome_results[num2]
-        print(num, [f"{x[1]}, {x[2]}" for x in genomes])
+        #print(num, [f"{x[1]}, {x[2]}" for x in genomes])
+        print(f"------------------- {num} ------------------")
+        for genome in genomes: 
+            print("\n\n")
+            print(genome[1])
+            print(genome[2])
         #_genomes = [x[0] for x in genomes]
         #for gen in _genomes:
         #  print(str(gen))

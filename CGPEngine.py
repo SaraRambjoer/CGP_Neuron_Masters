@@ -122,7 +122,7 @@ class CGPNode(NodeAbstract):
             elif self.type == "EQ":
                 self.output = 1 if x1 == x0 else 0.0
             elif self.type == "AND":
-                self.output = x0 if x0 == x1 else False
+                self.output = 1.0 if x0 == 1.0 and x1 == 1.0 else 0.0
             elif self.type == "NAND":
                 self.output = 1.0 if x0 != x1 else 0.0
             elif self.type == "XOR":
@@ -407,7 +407,11 @@ class CGPProgram:
                 node.validate()
             return None
         def _simple_mutate(nodes):
+            # TODO module_types is a good idea, but it should be an adaptive hyperparameter - at the start there is no reason to use 
+            # modules which have no proven "goodness"
+            # also need way to seperate modules
             effected_nodes = []
+            #module_types = [node.type for node in self.get_active_nodes() if type(node) != InputCGPNode and node.type not in CPGNodeTypes]
             for node in nodes:
                 if random.random() < node_link_mutate_chance:
                     # Normally there is a "maximal output connections" per node paramter too, in this version
@@ -419,8 +423,10 @@ class CGPProgram:
                         node.inputs.remove(to_remove)
                         to_remove.subscribers.remove(node)
                     node.add_connection(input_from)
+                    
                 if random.random() < node_type_mutate_chance:
                     effected_nodes.append(node.id)
+                    #node.change_type(randchoice(CPGNodeTypes + module_types))
                     node.change_type(randchoice(CPGNodeTypes))
                 node.validate()
             return effected_nodes

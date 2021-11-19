@@ -85,7 +85,7 @@ class CGPNode(NodeAbstract):
         if type(self.type) is not CGPModuleType:
             return_string_parts.append(self.type)
         else:
-            return_string_parts.append("CGPModuleType placeholder, input arity: " + str(self.type.arity))
+            return_string_parts.append(f"module_{self.type.gettype()}")
         return "   |   ".join(return_string_parts)
     
     def __str__(self) -> str:
@@ -285,6 +285,7 @@ class CGPProgram:
         self.output_arity = output_arity
         self.debugging = True
         self.max_size = 70
+        self.output_absolute_maxvalue = 10**9
         if init_nodes:
             for _ in range(self.output_arity):
                 new_node = genRandomNode(self.input_nodes + self.nodes, counter, None, self.debugging)
@@ -312,6 +313,13 @@ class CGPProgram:
         outputs = []
         for index in self.output_indexes:
             output = self.nodes[index].output
+            
+            # without clipping program may crash in some rare instances
+            if output > self.output_absolute_maxvalue:
+                output = self.output_absolute_maxvalue
+            elif output < -self.output_absolute_maxvalue:
+                output = -self.output_absolute_maxvalue
+
             outputs.append(output)
         if None in outputs:
             raise Exception("None in outputs detected")
@@ -639,7 +647,7 @@ class CGPProgram:
                         input_to.add_connection(input_from)
                     else:
                         subgraph_input_arity += 1
-            subgraphs.append(CGPModuleType(subgraph_input_arity, subgraph_partly_copied, 0, self.debugging))
+            subgraphs.append(CGPModuleType(subgraph_input_arity, subgraph_partly_copied, 0, self.counter, self.debugging))
         return subgraphs
     
     def eval(self, inputs, eval_func):
@@ -740,10 +748,10 @@ class EvolutionController():
 
 
 
-# Current issue: Sometimes CGP programs are cyclic.
 
-class CGPModuleType():
-    def __init__(self, arity, nodes, output_node_index, debugging=False) -> None:
+class CGPModuleType:
+    def __init__(self, arity, nodes, output_node_index, module_counter, debugging=False) -> None:
+        self.id = module_counter.counterval()
         self.arity = arity
         self.nodes = nodes
         self.program = CGPProgram(arity, 1, Counter(), False, max_size = arity+1, init_nodes=False)
@@ -764,3 +772,6 @@ class CGPModuleType():
     
     def run(self, input_vals):
         return self.program.run(input_vals)[0]
+
+    def gettype(self):
+        return self.id

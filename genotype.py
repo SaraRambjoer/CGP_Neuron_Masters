@@ -13,8 +13,11 @@ class Genome:
             internal_state_variables,
             names,
             logger,
+            genome_counter,
             init_genome = True) -> None:
         # Should hold a HexSelectorGenome, a set of FunctionGenomes, and a ParameterGenome
+        self.genome_counter = genome_counter
+        self.id = genome_counter.counterval()
         self.input_arities = input_arities
         self.counter = counter
         self.homeobox_variants = homeobox_variants
@@ -45,6 +48,44 @@ class Genome:
         self.parameter_genome.mutate()
         for func in self.function_chromosomes:
             func.mutate()
+    
+    def log(self, initial_data):
+        log_data = {"genome_id" : self.id, "modular_programs" : [], **initial_data}
+
+        def _log_program(program, program_name, log_data):
+            active_nodes = program.get_active_nodes()
+            output_nodes = [program.nodes[x].id for x in program.output_indexes]
+            input_nodes = [x.id for x in program.input_nodes if x in active_nodes]
+            connection_pairs = []
+            for node in active_nodes:
+                for subscriber in node.subscribers:
+                    if subscriber in active_nodes:
+                        connection_pairs.append((node.id, subscriber.id))
+                
+                if node.gettype()[0:6] == "modular":
+                    log_data["modular_programs"].append(_log_program(node.type.program, node.gettype(), {}))
+
+            node_types = [(x.id, x.gettype()) for x in active_nodes]
+            active_nodes = [x.id for x in active_nodes]
+            log_data[program_name] = {
+                "active_nodes" : active_nodes,
+                "output_nodes" : output_nodes,
+                "input_nodes" : input_nodes,
+                "connection_pairs" : connection_pairs,
+                "node_types" : node_types
+            }
+
+        _log_program(self.hex_selector_genome.program, "hex_selector", log_data)
+        for func_chrom in self.function_chromosomes:
+            func_name = func_chrom.func_name
+            for hexnum in range(len(func_chrom.hex_variants)):
+                program = func_chrom.hex_variants[hexnum].program
+                _log_program(program, func_name, log_data)
+
+        log_data["adaptive_parameters"] = self.parameter_genome.log()
+
+        self.logger.log_json("CGPProgram image", log_data)
+
 
     def crossover(self, target):
         hex_selector_children = self.hex_selector_genome.crossover(target.hex_selector_genome, 2)
@@ -53,17 +94,6 @@ class Genome:
         for num in range(len(self.function_chromosomes)):
             # BUG Something weird with creating too many hex variants?
             function_chromosome_children.append(self.function_chromosomes[num].crossover(target.function_chromosomes[num], 2))
-        for chrom in function_chromosome_children:
-            chro = chrom[0]
-            self.logger.log("CGPProgram image", chro.func_name + "\n")
-            for num in range(self.homeobox_variants):
-                self.logger.log("CGPProgram image", "Hox variant " + str(num) + "\n")
-                program = chro.hex_variants[num].program
-                output_nodes = [program.nodes[x] for x in program.output_indexes]
-                self.logger.log_cgp_program(
-                    program.get_active_nodes(),
-                    output_nodes
-                )
 
         returned_genomes = []
         for num in range(self.successor_count):
@@ -78,6 +108,7 @@ class Genome:
                 self.internal_state_variables,
                 self.names,
                 self.logger,
+                self.genome_counter,
                 False)
             new_genome.hex_selector_genome = hex_selector_child
             new_genome.parameter_genome = parameter_genome_child
@@ -212,3 +243,7 @@ class ParameterGenome:
     def crossover(self, other_parameter_genome, child_count):
         # Should implement some form of n-point crossover
         return [ParameterGenome(), ParameterGenome()]
+    
+    def log(self):
+        # should return log describing values as a dictionary
+        return "not implemented"

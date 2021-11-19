@@ -1,12 +1,23 @@
+def log_genome(genomes, runinfo):
+    for genome in genomes:
+        initial_data = {
+            "genome id" : genome[0].id,
+            "genome fitness" : genome[1],
+            "run" : runinfo
+        }
+        genome[0].log(initial_data)
+
 if __name__ == "__main__":
     # Setup problems
     from genotype import Genome
     import Logger
     import stupid_problem_test
     from pathos.multiprocessing import Pool
+    import random
     problem = stupid_problem_test.StupidProblem()
     # Setup logging
-    logger = Logger.Logger("log.txt", ["CGPProgram image", "cgp_function_exec_prio1", "cgp_function_exec_prio2"])
+    # ["CGPProgram image", "cgp_function_exec_prio1", "cgp_function_exec_prio2", "graphlog_instance", "graphlog_run", "setup_info"]
+    logger = Logger.Logger("C:/users/jonod/desktop/masters/logfiles/log", ["cgp_function_exec_prio1", "cgp_function_exec_prio2", "graphlog_instance"])
     # Setup CGP genome
     # - define a counter
     from HelperClasses import Counter, randchoice, drawProgram
@@ -14,8 +25,21 @@ if __name__ == "__main__":
     neuron_internal_states = 1
     dendrite_internal_states = 1
     signal_dimensionality = 1
-    dimensions = 3
+    dimensions = 3  # other dimensions not supported - code in engine.py specific to 3d grid
     hox_variant_count = 1
+    genome_counter = Counter()
+    genome_count = 40
+    seed = 200
+    random.seed(seed)
+    
+    logger.log_json("setup_info", {
+        "neuron internal state count" : neuron_internal_states,
+        "axon-dendrite internal state count" : dendrite_internal_states,
+        "signal dimensionality" : signal_dimensionality,
+        "hox_variant_count" : hox_variant_count,
+        "genome_count" : genome_count,
+        "random_seed" : seed
+    })
 
     # - define the function arities
     # also define canonical order of functions - arbitrary, for compatibilitiy with 
@@ -100,7 +124,6 @@ if __name__ == "__main__":
     import CGPEngine
     # initialize the genome(s)
     all_function_arities = neuron_function_arities + dendrite_function_arities
-    genome_count = 40
     genomes = []
     for num in range(genome_count):
         genomes.append(Genome(
@@ -110,12 +133,13 @@ if __name__ == "__main__":
             counter,
             neuron_internal_states,
             neuron_function_order[:-1] + dendrite_function_order,
-            logger)) # TODO RN assumes equal amount of axon and neuron internal state variables
+            logger,
+            genome_counter)) # TODO RN assumes equal amount of axon and neuron internal state variables
 
 
     from engine import NeuronEngine
     # learning loop
-    learning_iterations = 100000000000
+    learning_iterations = 1000
     genome_results = []
     neuron_init, axon_init = genome_to_init_data(genomes[0])
     for genome in genomes:
@@ -132,10 +156,10 @@ if __name__ == "__main__":
             instances_per_iteration = 50,
             logger = logger
         )
-        result, base_problems = engine.run(problem)
+        result, base_problems = engine.run(problem, "setup")
         genome_results.append((result, base_problems))
     genomes = list(zip(genomes, [x[0] for x in genome_results], [x[1] for x in genome_results]))
-    # TODO Crossover breaks function chromosome in genome
+    log_genome(genomes, 0)
     for num in range(learning_iterations):    
         new_genomes = []
         egligable_bachelors = [x[0] for x in genomes]
@@ -171,7 +195,7 @@ if __name__ == "__main__":
           #
             #with Pool() as p:
             #    results = p.map(multiprocess_code, list(zip(new_genomes, [stupid_problem_test.StupidProblem() for _ in range(len(new_genomes))])))
-            genome_results = [engine.run(problem) for engine in engines]
+            genome_results = [engine.run(problem, num) for engine in engines]
             base_problems = [x[1] for x in genome_results]
             genome_results = [x[0] for x in genome_results]
             # all children of a parent compete for the parents spots
@@ -214,6 +238,7 @@ if __name__ == "__main__":
             print("\n\n")
             print(genome[1])
             print(genome[2])
+        log_genome(genomes, num)
         #_genomes = [x[0] for x in genomes]
         #for gen in _genomes:
         #  print(str(gen))

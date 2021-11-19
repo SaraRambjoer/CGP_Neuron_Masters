@@ -1,0 +1,7 @@
+logfiles/*
+neuron_3d_graph_visualization/addons/
+neuron_3d_graph_visualization/empty_example
+neuron_3d_graph_visualization/p5.js
+neuron_3d_graph_visualization/p5.min.js
+neuron_3d_graph_visualization/p5.pre-min.js
+neuron_3d_graph_visualization/p5-test.js

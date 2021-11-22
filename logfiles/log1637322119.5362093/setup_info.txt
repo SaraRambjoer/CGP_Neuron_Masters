@@ -1,0 +1,1 @@
+{"neuron internal state count": 1, "axon-dendrite internal state count": 1, "signal dimensionality": 1, "hox_variant_count": 1, "genome_count": 40, "random_seed": 200}

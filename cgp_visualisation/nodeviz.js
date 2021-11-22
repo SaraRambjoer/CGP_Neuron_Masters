@@ -15,6 +15,43 @@ let selected_array = 0;
 let current_ancestor = "q"
 const position_scaling = 2;
 
+const neuron_function_order = [
+  'axon_birth_program',
+  'signal_axon_program',
+  'recieve_axon_signal_program',
+  'recieve_reward_program',
+  'move_program',
+  'die_program',
+  'neuron_birth_program',
+  'action_controller_program',
+  'hox_variant_selection_program'
+];
+
+const axon_dendrite_function_order = [
+  'recieve_signal_neuron_program',
+  'recieve_signal_dendrite_program',
+  'signal_dendrite_program',
+  'signal_neuron_program',
+  'accept_connection_program',
+  'break_connection_program',
+  'recieve_reward_program',
+  'die_program',
+  'action_controller_program'
+];
+
+let selected_neuron_func_bool = "Unselected any";
+let selected_func_index = "Unselected any";
+
+for (let i0 = 0; i0 < neuron_function_order.length; i0++) {
+  document.getElementById(i0).addEventListener("click", 
+  () => {
+    selected_neuron_func_bool = true;
+    selected_func_index = i0;
+  }
+  );
+}
+
+
 const inputElement = document.getElementById("neuronfile");
 inputElement.addEventListener("change", handleFiles, false);
 function handleFiles() {
@@ -33,6 +70,7 @@ function handleFiles() {
   }, false
   );
   reader.readAsText(fileList[0]);
+  selected_array = parsed_neuron_array.length-1;
 }
 
 
@@ -95,101 +133,10 @@ document.getElementById("prevdifferent").addEventListener("click", function() {
 function setup() {
   var cnv = createCanvas(1000, 1000, WEBGL);
   cnv.parent("canvasdiv");
-
-  // from https://github.com/freshfork/p5.RoverCam
-  rover = createRoverCam();
-  //rover.usePointerLock();    // optional; default is keyboard control only
-  rover.setState({           // optional
-    position: [-400,-200,-200],
-    rotation: [0.4,0.3,0],
-    sensitivity: 0.1,
-    speed: 0.5
-  });
-
-  //create sliders
-  //for (var i = 0; i < 6; i++) {
-  //  if (i === 2) {
-  //    sliderGroup[i] = createSlider(10, 400, 200);
-  //  } else {
-  //    sliderGroup[i] = createSlider(-400, 400, 0);
-  //  }
-  //  h = map(i, 0, 6, 5, 200);
-  //  sliderGroup[i].position(1100, h);
-  //  sliderGroup[i].style('width', '80px');
-  //}
 }
 
 function draw() {
   background(60);
-  // assigning sliders' value to each parameters
-  //X = sliderGroup[0].value();
-  //Y = sliderGroup[1].value();
-  //Z = sliderGroup[2].value();
-  //centerX = sliderGroup[3].value();
-  //centerY = sliderGroup[4].value();
-  //centerZ = sliderGroup[5].value();
-  //camera(X, Y, Z, centerX, centerY, centerZ, 0, 1, 0);
   noStroke();
-  fill(255, 102, 94);
-  let spheres = []
-  if (parsed_neuron_array.length > 0) {
-    const neudict = parsed_neuron_array[selected_array]; //#* fix selection of selected array
-    for (let i0 = 0; i0 < neudict.neurons.length; i0++) {
-      const neuron_id = neudict.neurons[i0];
-      if (neudict.inputs.includes(neuron_id)) {
-        fill(255, 0, 0);
-      }
-      else if (neudict.outputs.includes(neuron_id)) {
-        fill(0, 255, 0);
-      }
-      else {
-        fill(0, 0, 255)
-      }
-      let position = "nada"
-      for (let i1 = 0; i1 < neudict.neuron_id_to_pos.length; i1++) {
-        const current_tuple = neudict.neuron_id_to_pos[i1];
-        if (current_tuple[0] === neuron_id) {
-          position = current_tuple[1];
-        }
-      }
-      push();
-      translate(position[0]*position_scaling, position[1]*position_scaling, position[2]*position_scaling);
-      spheres.push(sphere(1));
-      pop();
-      //spheres[spheres.length-1].position = position;
-    }
-
-    document.getElementById("run").innerHTML = "Run number: " + neudict["run number"];
-    document.getElementById("iteration").innerHTML = "Iteration: " + neudict.iteration.toString()
-    document.getElementById("genome").innerHTML = "Genome id: " + neudict.genome_id.toString()
-
-    for (let i0 = 0; i0 < neudict.connections.length; i0++) {
-      from_id = neudict.connections[i0][0];
-      to_id = neudict.connections[i0][1];
-      let frompos = 0
-      let topos = 0
-      for (let i1 = 0; i1 < neudict.neuron_id_to_pos.length; i1++) {
-        const current_tuple = neudict.neuron_id_to_pos[i1];
-        if (current_tuple[0] === from_id) {
-          frompos = current_tuple[1];
-        }
-        if (current_tuple[0] == to_id) {
-          topos = current_tuple[1];
-        }
-      }
-      strokeWeight(2);
-      stroke(color(0, 0, 0));
-      spheres.push(line(frompos[0], frompos[1], frompos[2], topos[0], topos[1], topos[2]));
-      //midway = (frompos[0] + (topos[0] - frompos[0])*0.5, frompos[1] + (topos[1] - frompos[1]) * 0.5, frompos[2] + (topos[2] - frompos[2]) * 0.5);
-      //strokeWeight(5);
-      //stroke(color(0, 0, 0));
-      //line(frompos[0]*position_scaling, frompos[1]*position_scaling, frompos[2]*position_scaling, midway[0]*position_scaling, midway[1]*position_scaling, midway[2]*position_scaling);
-      //stroke(color(0, 255, 255));
-      //line(midway[0]*position_scaling, midway[1]*position_scaling, midway[2]*position_scaling, topos[0]*position_scaling, topos[1]*position_scaling, topos[2]*position_scaling);
-    }
-  }
-
-
-  //console.log(parsed_neuron_array);
 
 }

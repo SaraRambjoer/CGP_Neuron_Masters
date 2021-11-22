@@ -243,11 +243,12 @@ def run(config, print_output = False):
                 child_data[indexes[1]].append((new_genomes[x], genome_results[x], base_problems[x]))        
 
         for num3 in range(len(child_data)):
-            score_view = [x[1] for x in child_data[num3]]
-            score_min = min(score_view)
-            min_index = score_view.index(score_min)
-            if score_min <= genomes[num3][1]:
-                genomes[num3] = child_data[num3][min_index]
+            if not len(child_data[num3]) == 0:
+                score_view = [x[1] for x in child_data[num3]]
+                score_min = min(score_view)
+                min_index = score_view.index(score_min)
+                if score_min <= genomes[num3][1]:
+                    genomes[num3] = child_data[num3][min_index]
 
         #print(num, [f"{x[1]}, {x[2]}" for x in genomes])
         print(f"------------------- {num} ------------------")

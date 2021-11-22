@@ -18,9 +18,11 @@ class NeuronEngine():
                  hox_variant_count,
                  instances_per_iteration,
                  logger,
+                 genome_id,
                  debugging = False):
 
         self.counter = Counter()
+        self.genome_id = genome_id
 
         self.logger = logger
         self.instances_per_iteration = instances_per_iteration
@@ -246,19 +248,20 @@ class NeuronEngine():
                         "no connections" : 0}
 
         for num in range(self.instances_per_iteration):
-            self.graph_log("graphlog_instance", {"run number": runnum, "iteration": num})
+            graphlog_initial_data = {"run number": runnum, "iteration": num, "genome_id" : self.genome_id}
+            self.graph_log("graphlog_instance", graphlog_initial_data)
             exec_instances += 1
             self.changed = False
             instance = problem.get_problem_instance()
             result = self.run_sample(instance)
             error = problem.error(instance, result)
-            if error == 2.0:
+            if error == 1000000:
                 base_problems["no outputs"] += 1
             else: 
                 self.not_changed_count = 0  # No need to change if it is working
             if len(self.neurons) == 0:
                 base_problems["no neurons"] += 1
-                error += 1
+                error += 1000
             no_input_connections = True
             # Always bad
             for node in self.input_neurons:
@@ -267,7 +270,7 @@ class NeuronEngine():
                     break
             if no_input_connections:
                 base_problems["no input connections"] += 1
-                error += 1
+                error += 1000
             no_output_connections = True
             for node in self.output_neurons:
                 if len(node.subscribers) != 0:
@@ -275,16 +278,15 @@ class NeuronEngine():
                     break
             if no_output_connections:
                 base_problems["no output connections"] += 1
-                error += 1
-
-            
+                error += 1000
+        
             no_neuron_connections = True
             for node in self.neurons:
                 if len(node.axons) != 0 or len(node.dendrites) != 0:
                     no_neuron_connections = False
             if no_neuron_connections:
                 base_problems["no connections"] += 1
-                error += 1
+                error += 1000
             
             cumulative_error += error
             reward = problem.get_reward(error)
@@ -314,14 +316,15 @@ class NeuronEngine():
                 self.action_index += 1
             if not self.changed:
                 if self.not_changed_count > 10:
-                    cumulative_error += (self.instances_per_iteration - num - 1)*6.0
+                    base_problems = {"Samples tried": exec_instances, **base_problems}
+                    cumulative_error += (self.instances_per_iteration - num - 1)*(1000000+5000)
                     exec_instances = self.instances_per_iteration
                     break
                 else:
                     self.not_changed_count += 1
             else:
                 self.not_changed_count = 0
-        self.graph_log("graphlog_run", {"run number": runnum, "iteration": num})
+        self.graph_log("graphlog_run", graphlog_initial_data)
         return cumulative_error/exec_instances, base_problems
 
     def add_action_to_queue(self, action, timestep, id):
@@ -411,7 +414,20 @@ class NeuronEngine():
         for neuron in self.neurons: 
             from_id = neuron.id
             for dendrite in neuron.dendrites:
-                connections_dendritewise.append((from_id, dendrite.neuron.id))
+                if not dendrite.connected_dendrite is None:
+                    if type(dendrite.connected_dendrite) in [InputNeuron, OutputNeuron]:
+                        candidate = (from_id, dendrite.connected_dendrite.id)
+                    else:
+                        candidate = (from_id, dendrite.connected_dendrite.neuron.id)
+                    connections_dendritewise.append(candidate)
+            for axon in neuron.axons:
+                if not axon.connected_dendrite is None:
+                    if type(axon.connected_dendrite) in [InputNeuron, OutputNeuron]:
+                        candidate = (axon.connected_dendrite.id, from_id)
+                    else:
+                        candidate = (axon.connected_dendrite.neuron.id, from_id)
+                    if candidate not in connections_dendritewise:
+                        connections_dendritewise.append(candidate)
         log_json = {
             "neurons": neuron_id_list, 
             "inputs": input_id_list, 

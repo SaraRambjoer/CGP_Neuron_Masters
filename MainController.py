@@ -28,10 +28,10 @@ if __name__ == "__main__":
     dimensions = 3  # other dimensions not supported - code in engine.py specific to 3d grid
     hox_variant_count = 1
     genome_counter = Counter()
-    genome_count = 40
-    seed = 200
+    genome_count = 20
+    seed = 71298
     random.seed(seed)
-    
+
     logger.log_json("setup_info", {
         "neuron internal state count" : neuron_internal_states,
         "axon-dendrite internal state count" : dendrite_internal_states,
@@ -154,7 +154,8 @@ if __name__ == "__main__":
             signal_arity = signal_dimensionality,
             hox_variant_count = hox_variant_count,
             instances_per_iteration = 50,
-            logger = logger
+            logger = logger,
+            genome_id = genome.id
         )
         result, base_problems = engine.run(problem, "setup")
         genome_results.append((result, base_problems))
@@ -170,7 +171,7 @@ if __name__ == "__main__":
             egligable_bachelors.remove(choice1)  # Currently possible to do crossover with self, which does make some sense with subgraph extraction
             if choice2 in egligable_bachelors:
                 egligable_bachelors.remove(choice2)
-            new_genomes = choice1.crossover(choice2)[:2] # remove [:2] to not only get crossover children
+            new_genomes = choice1.crossover(choice2) # remove [:2] to not only get crossover children
             genome_results = []
             engines = []
             for genome in new_genomes:
@@ -186,7 +187,8 @@ if __name__ == "__main__":
                     signal_arity = signal_dimensionality,
                     hox_variant_count = hox_variant_count,
                     instances_per_iteration = 50,
-                    logger = logger
+                    logger = logger,
+                    genome_id = genome.id
                 )
                 engines.append(engine)
 
@@ -218,10 +220,10 @@ if __name__ == "__main__":
             parent2score = genomes[indexes[1]][1]
             for num2 in range(len(new_genomes)):
                 # SHOULDN'T HAPPEN
-                if new_genomes[num2] == genomes[indexes[0]][0]:
-                    print("EQUALS")
-                elif new_genomes[num2] == genomes[indexes[1]][0]:
-                    print("EQUALS2")
+                #if new_genomes[num2] == genomes[indexes[0]][0]:
+                #    print("EQUALS")
+                #elif new_genomes[num2] == genomes[indexes[1]][0]:
+                #    print("EQUALS2")
                 # SHOULDN'T HAPPEN (strictly speaking some chance tho)
 
                 if genome_results[num2] <= parent1score:
@@ -229,13 +231,14 @@ if __name__ == "__main__":
                     #_draw_program_data(new_genomes[num2])
                     genomes[indexes[0]] = (new_genomes[num2], genome_results[num2], base_problems[num2])
                     parent1score = genome_results[num2] 
-                if genome_results[num2] <= parent2score:
+                elif genome_results[num2] <= parent2score:
                     genomes[indexes[1]] = (new_genomes[num2], genome_results[num2], base_problems[num2])
                     parent2score = genome_results[num2]
         #print(num, [f"{x[1]}, {x[2]}" for x in genomes])
         print(f"------------------- {num} ------------------")
         for genome in genomes: 
-            print("\n\n")
+            print()
+            print(genome[0].id)
             print(genome[1])
             print(genome[2])
         log_genome(genomes, num)

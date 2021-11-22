@@ -42,3 +42,4 @@ class Logger:
             # Log json
             with open(os.path.join(self.output_dir, self.message_type_to_filepath[message_type]), 'a') as f:
                 json.dump(json_data, f)
+                f.write("|")

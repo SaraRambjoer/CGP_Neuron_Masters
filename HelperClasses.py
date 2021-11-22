@@ -66,4 +66,5 @@ def randcheck(val):
     return random.random() <= val
 
 def listmult(the_list, val):
+    val = min(val, 1.0)
     return [x*val for x in the_list]

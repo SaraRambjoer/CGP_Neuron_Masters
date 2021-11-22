@@ -113,10 +113,12 @@ class CGPNode(NodeAbstract):
                 self.output = x0 * x1
             elif self.type == "DIVI":
                 # To handle very low values to avoid infinity values
-                if x1 >= -0.0005 and x1 <= 0.0005:
-                    self.output = 0.0
-                else:
-                    self.output = x0 / x1
+                if x1 > -0.1 and x1 < 0.1:
+                    if x1 < 0:
+                        x1 = -0.1
+                    else:
+                        x1 = 0.1
+                self.output = x0 / x1
             elif self.type == "GTE":
                 self.output = 1 if x1 > x0 else 0.0
             elif self.type == "EQ":
@@ -145,7 +147,10 @@ class CGPNode(NodeAbstract):
             elif self.type == "ISZERO":
                 self.output = 1.0 if x0 == 0.0 else 0.0
             elif self.type == "NOT":
-                self.output = max(1.0 - x0, 0.0)
+                try:
+                    self.output = max(1.0 - x0, 0.0)
+                except:
+                    print(x0)
             self.alert_subscribers()
              
 
@@ -285,7 +290,7 @@ class CGPProgram:
         self.output_arity = output_arity
         self.debugging = True
         self.max_size = 70
-        self.output_absolute_maxvalue = 10**9
+        self.output_absolute_maxvalue = 10**4
         if init_nodes:
             for _ in range(self.output_arity):
                 new_node = genRandomNode(self.input_nodes + self.nodes, counter, None, self.debugging)
@@ -315,11 +320,14 @@ class CGPProgram:
             output = self.nodes[index].output
             
             # without clipping program may crash in some rare instances
-            if output > self.output_absolute_maxvalue:
-                output = self.output_absolute_maxvalue
-            elif output < -self.output_absolute_maxvalue:
-                output = -self.output_absolute_maxvalue
-
+            # but it should be like super rare so it shouldn't really ever occur...
+            #if output > self.output_absolute_maxvalue:
+            #    raise Exception()
+            #    output = self.output_absolute_maxvalue
+            #elif output < -self.output_absolute_maxvalue:
+            #    raise Exception()
+            #    output = -self.output_absolute_maxvalue
+#
             outputs.append(output)
         if None in outputs:
             raise Exception("None in outputs detected")
@@ -393,7 +401,7 @@ class CGPProgram:
         subgraph_size_max = 5
         node_swap_chance = 1.0
         node_link_mutate_chance = 0.1
-        node_type_mutate_chance = 0.1
+        node_type_mutate_chance = 0.01
         def _simple_mutate_randsubgraph(nodes):
             if random.random() < node_swap_chance:
                 node = randchoice(nodes)

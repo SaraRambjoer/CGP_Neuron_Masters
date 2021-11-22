@@ -14,10 +14,14 @@ class Genome:
             names,
             logger,
             genome_counter,
-            init_genome = True) -> None:
+            init_genome = True,
+            parent_id = "",
+            parent2_id = "") -> None:
         # Should hold a HexSelectorGenome, a set of FunctionGenomes, and a ParameterGenome
         self.genome_counter = genome_counter
-        self.id = genome_counter.counterval()
+        self.unique_id = str(genome_counter.counterval())
+        self.id = f"({parent_id}, {parent2_id}) -> {self.unique_id}"
+        parent_id + "-" + str(genome_counter.counterval())
         self.input_arities = input_arities
         self.counter = counter
         self.homeobox_variants = homeobox_variants
@@ -109,7 +113,9 @@ class Genome:
                 self.names,
                 self.logger,
                 self.genome_counter,
-                False)
+                False,
+                self.unique_id,
+                target.unique_id)
             new_genome.hex_selector_genome = hex_selector_child
             new_genome.parameter_genome = parameter_genome_child
             new_genome.function_chromosomes = function_chromosome_child

@@ -326,7 +326,10 @@ class NeuronEngine():
             if not self.changed:
                 if self.not_changed_count > 10:
                     base_problems = {"Samples tried": exec_instances, **base_problems}
-                    cumulative_error += (self.instances_per_iteration - num - 1)*(1000000+5000)
+                    if smooth_grad:
+                        cumulative_error += (self.instances_per_iteration - num - 1)*(1000000+5000)
+                    else:
+                        cumulative_error += (self.instances_per_iteration - num - 1)*(1000000)
                     exec_instances = self.instances_per_iteration
                     break
                 else:

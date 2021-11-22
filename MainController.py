@@ -25,15 +25,7 @@ def process_config(config):
     return config
 
 
-if __name__ == "__main__":
-    import configparser
-    config = configparser.ConfigParser()
-    config.read('config.ini')
-    config = config["Default"]
-    config = process_config(config)
-
-
-
+def run(config, print_output = False):
     # Setup problems
     from genotype import Genome
     import Logger
@@ -159,7 +151,10 @@ if __name__ == "__main__":
 
     from engine import NeuronEngine
     # learning loop
-    learning_iterations = 1000
+
+    to_return_fitness = []
+
+    learning_iterations = config['iterations']
     genome_results = []
     neuron_init, axon_init = genome_to_init_data(genomes[0])
     for genome in genomes:
@@ -181,6 +176,7 @@ if __name__ == "__main__":
         result, base_problems = engine.run(problem, "setup")
         genome_results.append((result, base_problems))
     genomes = list(zip(genomes, [x[0] for x in genome_results], [x[1] for x in genome_results]))
+    to_return_fitness.append(x[0] for x in genome_results)
     log_genome(genomes, 0)
     for num in range(learning_iterations):    
         new_genomes = []
@@ -257,7 +253,7 @@ if __name__ == "__main__":
                     #_draw_program_data(new_genomes[num2])
                     genomes[indexes[0]] = (new_genomes[num2], genome_results[num2], base_problems[num2])
                     parent1score = genome_results[num2] 
-                elif genome_results[num2] <= parent2score:
+                if genome_results[num2] <= parent2score: # use elif here to increase time for good solutions to take over population (experimentally seemed infinite)
                     genomes[indexes[1]] = (new_genomes[num2], genome_results[num2], base_problems[num2])
                     parent2score = genome_results[num2]
         #print(num, [f"{x[1]}, {x[2]}" for x in genomes])
@@ -267,8 +263,18 @@ if __name__ == "__main__":
             print(genome[0].id)
             print(genome[1])
             print(genome[2])
+        to_return_fitness.append([x[1] for x in genomes])
         log_genome(genomes, num)
         #_genomes = [x[0] for x in genomes]
         #for gen in _genomes:
         #  print(str(gen))
-      
+    return to_return_fitness
+
+if __name__ == "__main__":
+    import configparser
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    config = config["Default"]
+    config = process_config(config)
+
+    run(config, print_output=True)

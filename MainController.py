@@ -179,8 +179,8 @@ def run(config, print_output = False):
     to_return_fitness.append(x[0] for x in genome_results)
     log_genome(genomes, 0)
     for num in range(learning_iterations):    
-        new_genomes = []
         egligable_bachelors = [x[0] for x in genomes]
+        child_data = [[] for _ in range(len(genomes))]
         while len(egligable_bachelors) > 0:
             choice1 = randchoice(egligable_bachelors)
             choice2 = randchoice(egligable_bachelors)
@@ -238,24 +238,17 @@ def run(config, print_output = False):
                         program.input_nodes
                     )
 
-            parent1score = genomes[indexes[0]][1]
-            parent2score = genomes[indexes[1]][1]
-            for num2 in range(len(new_genomes)):
-                # SHOULDN'T HAPPEN
-                #if new_genomes[num2] == genomes[indexes[0]][0]:
-                #    print("EQUALS")
-                #elif new_genomes[num2] == genomes[indexes[1]][0]:
-                #    print("EQUALS2")
-                # SHOULDN'T HAPPEN (strictly speaking some chance tho)
+            for x in range(len(new_genomes)):
+                child_data[indexes[0]].append((new_genomes[x], genome_results[x], base_problems[x]))
+                child_data[indexes[1]].append((new_genomes[x], genome_results[x], base_problems[x]))        
 
-                if genome_results[num2] <= parent1score:
-                    #_draw_program_data(genomes[indexes[0]][0])
-                    #_draw_program_data(new_genomes[num2])
-                    genomes[indexes[0]] = (new_genomes[num2], genome_results[num2], base_problems[num2])
-                    parent1score = genome_results[num2] 
-                if genome_results[num2] <= parent2score: # use elif here to increase time for good solutions to take over population (experimentally seemed infinite)
-                    genomes[indexes[1]] = (new_genomes[num2], genome_results[num2], base_problems[num2])
-                    parent2score = genome_results[num2]
+        for num3 in range(len(child_data)):
+            score_view = [x[1] for x in child_data[num3]]
+            score_min = min(score_view)
+            min_index = score_view.index(score_min)
+            if score_min <= genomes[num3][1]:
+                genomes[num3] = child_data[num3][min_index]
+
         #print(num, [f"{x[1]}, {x[2]}" for x in genomes])
         print(f"------------------- {num} ------------------")
         for genome in genomes: 

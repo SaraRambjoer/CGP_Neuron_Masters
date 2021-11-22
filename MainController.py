@@ -7,7 +7,33 @@ def log_genome(genomes, runinfo):
         }
         genome[0].log(initial_data)
 
+def process_config(config):
+    config = dict(config)
+    for key, val in config.items():
+        if "." in val:
+            config[key] = float(val)
+        else:
+            nums = [str(x) for x in range(0, 10)]
+            for num in nums:
+                if num in val:
+                    config[key] = int(val)
+                    break
+        if config[key] == "False":
+            config[key] = False
+        if config[key] == "True":
+            config[key] = True
+    return config
+
+
 if __name__ == "__main__":
+    import configparser
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    config = config["Default"]
+    config = process_config(config)
+
+
+
     # Setup problems
     from genotype import Genome
     import Logger
@@ -22,24 +48,17 @@ if __name__ == "__main__":
     # - define a counter
     from HelperClasses import Counter, randchoice, drawProgram
     counter = Counter()
-    neuron_internal_states = 1
-    dendrite_internal_states = 1
-    signal_dimensionality = 1
+    neuron_internal_states = config['neuron_internal_state_count']
+    dendrite_internal_states = config['axon_dendrite_internal_state_count']
+    signal_dimensionality = config['signal_dimensionality']
     dimensions = 3  # other dimensions not supported - code in engine.py specific to 3d grid
-    hox_variant_count = 1
+    hox_variant_count = config['hox_variant_count']
     genome_counter = Counter()
-    genome_count = 20
-    seed = 71298
+    genome_count = config['genome_count']
+    seed = config['seed']
     random.seed(seed)
 
-    logger.log_json("setup_info", {
-        "neuron internal state count" : neuron_internal_states,
-        "axon-dendrite internal state count" : dendrite_internal_states,
-        "signal dimensionality" : signal_dimensionality,
-        "hox_variant_count" : hox_variant_count,
-        "genome_count" : genome_count,
-        "random_seed" : seed
-    })
+    logger.log_json("setup_info", dict(config))
 
     # - define the function arities
     # also define canonical order of functions - arbitrary, for compatibilitiy with 
@@ -127,14 +146,15 @@ if __name__ == "__main__":
     genomes = []
     for num in range(genome_count):
         genomes.append(Genome(
-            hox_variant_count,
-            2,
-            all_function_arities,
-            counter,
-            neuron_internal_states,
-            neuron_function_order[:-1] + dendrite_function_order,
-            logger,
-            genome_counter)) # TODO RN assumes equal amount of axon and neuron internal state variables
+            homeobox_variants = hox_variant_count,
+            successor_count = 2,
+            input_arities = all_function_arities,
+            counter = counter,
+            internal_state_variables = neuron_internal_states,
+            names = neuron_function_order[:-1] + dendrite_function_order,
+            logger = logger,
+            genome_counter = genome_counter,
+            config = config)) # TODO RN assumes equal amount of axon and neuron internal state variables
 
 
     from engine import NeuronEngine
@@ -155,7 +175,8 @@ if __name__ == "__main__":
             hox_variant_count = hox_variant_count,
             instances_per_iteration = 50,
             logger = logger,
-            genome_id = genome.id
+            genome_id = genome.id,
+            config_file = config
         )
         result, base_problems = engine.run(problem, "setup")
         genome_results.append((result, base_problems))
@@ -171,7 +192,11 @@ if __name__ == "__main__":
             egligable_bachelors.remove(choice1)  # Currently possible to do crossover with self, which does make some sense with subgraph extraction
             if choice2 in egligable_bachelors:
                 egligable_bachelors.remove(choice2)
-            new_genomes = choice1.crossover(choice2) # remove [:2] to not only get crossover children
+            new_genomes = choice1.crossover(choice2)
+            if not config['non_crossover_children']:
+                if len(new_genomes) != 4:
+                    raise Exception("Trying to remove non-crossover children with more than 4 children, genome code likely changed in a way incompatible with this code")
+                new_genomes = new_genomes[:2]
             genome_results = []
             engines = []
             for genome in new_genomes:
@@ -188,7 +213,8 @@ if __name__ == "__main__":
                     hox_variant_count = hox_variant_count,
                     instances_per_iteration = 50,
                     logger = logger,
-                    genome_id = genome.id
+                    genome_id = genome.id,
+                    config_file = config
                 )
                 engines.append(engine)
 

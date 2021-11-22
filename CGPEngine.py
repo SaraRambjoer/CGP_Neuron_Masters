@@ -282,7 +282,8 @@ def recursive_remove(nodes, remove_from):
         return None
 
 class CGPProgram:
-    def __init__(self, input_arity, output_arity, counter, debugging = True, max_size=1024, init_nodes = True) -> None:
+    def __init__(self, input_arity, output_arity, counter, config, debugging = True, max_size=1024, init_nodes = True) -> None:
+        self.config = config
         self.counter = counter
         self.input_arity = input_arity
         self.input_nodes = [InputCGPNode(self.counter, debugging) for _ in range(self.input_arity)]
@@ -400,8 +401,8 @@ class CGPProgram:
         output_change_chance = 0.1
         subgraph_size_max = 5
         node_swap_chance = 1.0
-        node_link_mutate_chance = 0.1
-        node_type_mutate_chance = 0.01
+        node_link_mutate_chance = self.config['mutation_chance_link']
+        node_type_mutate_chance = self.config['mutation_chance_node']
         def _simple_mutate_randsubgraph(nodes):
             if random.random() < node_swap_chance:
                 node = randchoice(nodes)
@@ -487,7 +488,7 @@ class CGPProgram:
     def deepcopy(self):
         # Returns deep copy of self
         self.validate_nodes()
-        new_copy = CGPProgram(self.input_arity, self.output_arity, self.counter)
+        new_copy = CGPProgram(self.input_arity, self.output_arity, self.counter, self.config, self.debugging, self.max_size, False)
         input_node_copy = []
         for input_node in self.input_nodes:
             new_node = InputCGPNode(self.counter, self.debugging)
@@ -655,7 +656,7 @@ class CGPProgram:
                         input_to.add_connection(input_from)
                     else:
                         subgraph_input_arity += 1
-            subgraphs.append(CGPModuleType(subgraph_input_arity, subgraph_partly_copied, 0, self.counter, self.debugging))
+            subgraphs.append(CGPModuleType(subgraph_input_arity, subgraph_partly_copied, 0, self.counter, self.config, self.debugging))
         return subgraphs
     
     def eval(self, inputs, eval_func):
@@ -703,7 +704,7 @@ class EvolutionController():
         if population_size % 2 == 1:
             raise Exception("Population size should be an even number for mating")
         # init population
-        self.population = [CGPProgram(input_arity, output_arity, Counter(), debugging, max_size) for x in range(population_size)]
+        self.population = [CGPProgram(input_arity, output_arity, Counter(), self.config, debugging, max_size) for x in range(population_size)]
         self.child_count = child_count
         self.population_size = population_size
         self.debugging = debugging
@@ -758,11 +759,12 @@ class EvolutionController():
 
 
 class CGPModuleType:
-    def __init__(self, arity, nodes, output_node_index, module_counter, debugging=False) -> None:
+    def __init__(self, arity, nodes, output_node_index, module_counter, config,debugging=False) -> None:
         self.id = module_counter.counterval()
+        self.config = config
         self.arity = arity
         self.nodes = nodes
-        self.program = CGPProgram(arity, 1, Counter(), False, max_size = arity+1, init_nodes=False)
+        self.program = CGPProgram(arity, 1, Counter(), self.config, False, max_size = arity+1, init_nodes=False)
         self.program.nodes = self.nodes
         self.output_indexes = [output_node_index]
         free_inputs = arity

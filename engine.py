@@ -19,7 +19,11 @@ class NeuronEngine():
                  instances_per_iteration,
                  logger,
                  genome_id,
+                 config_file,
                  debugging = False):
+
+
+        self.config = config_file
 
         self.counter = Counter()
         self.genome_id = genome_id
@@ -247,6 +251,7 @@ class NeuronEngine():
                         "no output connections" : 0,
                         "no connections" : 0}
 
+        smooth_grad = self.config['smooth_gradient']
         for num in range(self.instances_per_iteration):
             graphlog_initial_data = {"run number": runnum, "iteration": num, "genome_id" : self.genome_id}
             self.graph_log("graphlog_instance", graphlog_initial_data)
@@ -261,7 +266,8 @@ class NeuronEngine():
                 self.not_changed_count = 0  # No need to change if it is working
             if len(self.neurons) == 0:
                 base_problems["no neurons"] += 1
-                error += 1000
+                if smooth_grad:
+                    error += 1000
             no_input_connections = True
             # Always bad
             for node in self.input_neurons:
@@ -270,7 +276,8 @@ class NeuronEngine():
                     break
             if no_input_connections:
                 base_problems["no input connections"] += 1
-                error += 1000
+                if smooth_grad:
+                    error += 1000
             no_output_connections = True
             for node in self.output_neurons:
                 if len(node.subscribers) != 0:
@@ -278,7 +285,8 @@ class NeuronEngine():
                     break
             if no_output_connections:
                 base_problems["no output connections"] += 1
-                error += 1000
+                if smooth_grad:
+                    error += 1000
         
             no_neuron_connections = True
             for node in self.neurons:
@@ -286,7 +294,8 @@ class NeuronEngine():
                     no_neuron_connections = False
             if no_neuron_connections:
                 base_problems["no connections"] += 1
-                error += 1000
+                if smooth_grad:
+                    error += 1000
             
             cumulative_error += error
             reward = problem.get_reward(error)

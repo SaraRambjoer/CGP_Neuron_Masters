@@ -14,10 +14,12 @@ class Genome:
             names,
             logger,
             genome_counter,
+            config,
             init_genome = True,
             parent_id = "",
             parent2_id = "") -> None:
         # Should hold a HexSelectorGenome, a set of FunctionGenomes, and a ParameterGenome
+        self.config = config
         self.genome_counter = genome_counter
         self.unique_id = str(genome_counter.counterval())
         self.id = f"({parent_id}, {parent2_id}) -> {self.unique_id}"
@@ -34,11 +36,12 @@ class Genome:
             for num in range(len(input_arities)): 
                 name = names[num]
                 if name != 'hox_variant_selection_program':
-                    self.function_chromosomes.append(FunctionChromosome(homeobox_variants, name, input_arities[num], counter))
+                    self.function_chromosomes.append(FunctionChromosome(homeobox_variants, name, input_arities[num], counter, self.config))
             self.hex_selector_genome = HexSelectorGenome(
                 variant_count=homeobox_variants,
                 input_arity = input_arities[7][0],
-                program = CGPEngine.CGPProgram(input_arities[7][0], input_arities[7][1], counter)
+                program = CGPEngine.CGPProgram(input_arities[7][0], input_arities[7][1], counter, self.config),
+                config = config
             )
             self.parameter_genome = ParameterGenome()
         else:
@@ -105,17 +108,18 @@ class Genome:
             parameter_genome_child = parameter_genome_children[num]
             function_chromosome_child = [x[num] for x in function_chromosome_children]
             new_genome = Genome(
-                self.homeobox_variants, 
-                self.successor_count, 
-                self.input_arities,
-                self.counter,
-                self.internal_state_variables,
-                self.names,
-                self.logger,
-                self.genome_counter,
-                False,
-                self.unique_id,
-                target.unique_id)
+                homeobox_variants = self.homeobox_variants, 
+                successor_count = self.successor_count, 
+                input_arities = self.input_arities,
+                counter = self.counter,
+                internal_state_variables = self.internal_state_variables,
+                names = self.names,
+                logger = self.logger,
+                genome_counter = self.genome_counter,
+                config = self.config,
+                init_genome = False,
+                parent_id = self.unique_id,
+                parent2_id = target.unique_id)
             new_genome.hex_selector_genome = hex_selector_child
             new_genome.parameter_genome = parameter_genome_child
             new_genome.function_chromosomes = function_chromosome_child
@@ -143,11 +147,13 @@ class HexSelectorGenome:
     def __init__(self,
                  variant_count,
                  input_arity,
-                 program) -> None:
+                 program,
+                 config) -> None:
         self.variant_count = variant_count
         self.input_arity = input_arity
         self.output_arity = variant_count
         self.program = program
+        self.config = config
 
     def mutate(self) -> None: 
         # per current design do nothing
@@ -160,9 +166,10 @@ class HexSelectorGenome:
         for child in children:
             outputs.append(
                 HexSelectorGenome(
-                    self.variant_count,
-                    self.input_arity,
-                    child
+                    variant_count = self.variant_count,
+                    input_arity = self.input_arity,
+                    program = child,
+                    config = self.config
                 )
             )
         return outputs
@@ -175,15 +182,16 @@ class HexSelectorGenome:
 
 
 class FunctionChromosome:
-    def __init__(self, homeobox_variants, func_name, function_arities, counter) -> None:
+    def __init__(self, homeobox_variants, func_name, function_arities, counter, config) -> None:
         # Should hold a set of homeobox_variants HexFunction variants, should be divided into function types to determine input/output settings, ex. use an enum
         self.homeobox_variants = homeobox_variants
         self.func_name = func_name
         self.hex_variants = []
         self.function_arities = function_arities
         self.counter = counter
+        self.config = config
         for num in range(homeobox_variants):
-            self.hex_variants.append(HexFunction(function_arities[0], function_arities[1], counter))
+            self.hex_variants.append(HexFunction(function_arities[0], function_arities[1], counter, self.config))
     
     def mutate(self) -> None:
         for hex in self.hex_variants:
@@ -193,10 +201,10 @@ class FunctionChromosome:
         # Only supports 2 child crossover
         # Should call crossover operators for homeobox variants where relevant, as well as doing n-point crossover in homeobox-variant space. 
         crossover_point = randchoice(range(0, len(self.hex_variants)))
-        child1 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter)
-        child2 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter)
-        child3 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter)
-        child4 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter)
+        child1 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
+        child2 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
+        child3 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
+        child4 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
         child1.hex_variants = self.hex_variants[:crossover_point] + other_chromosome.hex_variants[crossover_point:]
         child2.hex_variants = other_chromosome.hex_variants[:crossover_point] + self.hex_variants[crossover_point:]
         child3.hex_variants = self.hex_variants
@@ -218,11 +226,12 @@ class FunctionChromosome:
         return self.func_name + "\n" + "\n".join([str(x) for x in self.hex_variants])
 
 class HexFunction:
-    def __init__(self, input_arity, output_arity, counter) -> None:
+    def __init__(self, input_arity, output_arity, counter, config) -> None:
         self.input_arity = input_arity
+        self.config = config
         self.output_arity = output_arity
         # Should define a CGP function, should be divided into function types to determine input/output settings
-        self.program = CGPEngine.CGPProgram(input_arity, output_arity, counter)
+        self.program = CGPEngine.CGPProgram(input_arity, output_arity, counter, self.config)
 
     def mutate(self) -> None:
         pass  # In current design should do nothing

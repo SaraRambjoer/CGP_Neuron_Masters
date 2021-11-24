@@ -337,11 +337,18 @@ function draw() {
       nodes.push(text(node, x+5, y+20));
       if (input_nodes.includes(node)) {
         const indx = genome['input_nodes'][input_nodes.indexOf(node)][1];
-        nodes.push(text(indx.toString(), x-10, y-5));
+        nodes.push(text(indx.toString(), x-5, y-20));
       }
-      else if (output_nodes.includes(node)) {
-        const indx = genome['output_nodes'][output_nodes.indexOf(node)][1];
-        nodes.push(text(indx.toString(), x-10, y-5));
+      let local_output_nodes = JSON.parse(JSON.stringify(output_nodes));
+      times = 0;
+      let last_indx = 0;
+      while (local_output_nodes.includes(node)) {
+        times += 1
+        const indx = genome['output_nodes'][last_indx + local_output_nodes.indexOf(node)][1];
+        nodes.push(text(indx.toString(), x-10*times, y-15));
+        local_indx = local_output_nodes.indexOf(node);
+        local_output_nodes = local_output_nodes.slice(local_indx+1, genome.length);
+        last_indx = last_indx+local_indx+1;
       }
     }
   }

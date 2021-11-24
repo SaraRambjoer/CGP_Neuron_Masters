@@ -109,6 +109,7 @@ class Genome:
 
 
     def crossover(self, target):
+        self.update_config()
         hex_selector_children = self.hex_selector_genome.crossover(target.hex_selector_genome, self.successor_count)
         parameter_genome_children = self.parameter_genome.crossover(target.parameter_genome, self.successor_count)
         function_chromosome_children = []
@@ -155,10 +156,19 @@ class Genome:
 
 # TODO use parameters in parameter genome for controlling this
 def generalized_cgp_crossover(parent1, parent2, child_count):
+    # TODO might be something weird here with adaptive mutation
     program_child_1 = parent1.program.deepcopy()
     program_child_2 = parent2.program.deepcopy()
+    program_child_3 = parent1.program.deepcopy()
+    program_child_4 = parent2.program.deepcopy()
+
+    program_child_1.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
+    program_child_2.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
+    program_child_3.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
+    program_child_4.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
+    
     CGPEngine.subgraph_crossover(program_child_1, program_child_2, 12, 12)
-    children = program_child_1.produce_children(1) + program_child_2.produce_children(1) + parent1.program.deepcopy().produce_children(1) + parent2.program.deepcopy().produce_children(1)
+    children = program_child_1.produce_children(1) + program_child_2.produce_children(1) + program_child_3.produce_children(1) + program_child_4.deepcopy().produce_children(1)
     return children
 
 class HexSelectorGenome:
@@ -182,7 +192,6 @@ class HexSelectorGenome:
         self.program.set_config(config)
 
     def crossover(self, other_hexselector, child_count) -> None: 
-        # Perform crossover using LEP
         children = generalized_cgp_crossover(self, other_hexselector, child_count)
         outputs = []
         for child in children:

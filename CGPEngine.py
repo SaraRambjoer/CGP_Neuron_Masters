@@ -458,7 +458,7 @@ class CGPProgram:
         output_node_alternatives = []
         while len(output_node_alternatives) == 0:
             self.reset()
-
+            _simple_mutate(self.nodes)
             # Keep mutating until genotype change
             #effected_nodes = _simple_mutate(self.nodes)
             #while len([x for x in effected_nodes if x in active_nodes]) == 0:
@@ -471,7 +471,7 @@ class CGPProgram:
             output_node_alternatives = [x for x in self.nodes if x.output is not None]
             self.reset()
         for num in range(0, len(self.output_indexes)):
-            if random.random() < output_change_chance or self.nodes[self.output_indexes[num]] not in output_node_alternatives:
+            if random.random() < node_type_mutate_chance or self.nodes[self.output_indexes[num]] not in output_node_alternatives:
                 self.output_indexes[num] = self.nodes.index(randchoice(output_node_alternatives))
         self.validate_input_node_array()
         # In practice not pruning is better as it allows for multi-step neutral drift 

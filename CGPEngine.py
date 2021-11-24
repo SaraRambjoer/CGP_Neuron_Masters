@@ -282,7 +282,7 @@ def recursive_remove(nodes, remove_from):
         return None
 
 class CGPProgram:
-    def __init__(self, input_arity, output_arity, counter, config, debugging = True, max_size=1024, init_nodes = True) -> None:
+    def __init__(self, input_arity, output_arity, counter, config, debugging = True, max_size=None, init_nodes = True) -> None:
         self.config = config
         self.counter = counter
         self.input_arity = input_arity
@@ -290,7 +290,10 @@ class CGPProgram:
         self.nodes = []
         self.output_arity = output_arity
         self.debugging = True
-        self.max_size = 70
+        if max_size is None:
+            self.max_size = self.config['cgp_program_size']
+        else:
+            self.max_size = max_size
         self.output_absolute_maxvalue = 10**4
         if init_nodes:
             for _ in range(self.output_arity):
@@ -302,6 +305,9 @@ class CGPProgram:
                 self.nodes.append(new_node)
         self.output_indexes = [x for x in range(0, output_arity)]  
         # Because first nodes are guaranteed to be connected at start
+
+    def set_config(self, config):
+        self.config = config
 
     def validate_input_node_array(self):
         if self.debugging and len(self.input_nodes) > self.input_arity:
@@ -424,11 +430,11 @@ class CGPProgram:
                 node.validate()
             return None
         def _simple_mutate(nodes):
-            # TODO module_types is a good idea, but it should be an adaptive hyperparameter - at the start there is no reason to use 
-            # modules which have no proven "goodness"
-            # also need way to seperate modules
             effected_nodes = []
-            #module_types = [node.type for node in self.get_active_nodes() if type(node) != InputCGPNode and node.type not in CPGNodeTypes]
+            module_types = []
+            for node in self.get_active_nodes():
+                if type(node) != InputCGPNode and node.type not in CPGNodeTypes and node.id not in [x.id for x in module_types]:
+                    module_types.append(node.type)
             for node in nodes:
                 if random.random() < node_link_mutate_chance:
                     # Normally there is a "maximal output connections" per node paramter too, in this version
@@ -444,7 +450,7 @@ class CGPProgram:
                 if random.random() < node_type_mutate_chance:
                     effected_nodes.append(node.id)
                     #node.change_type(randchoice(CPGNodeTypes + module_types))
-                    node.change_type(randchoice(CPGNodeTypes))
+                    node.change_type(randchoice(CPGNodeTypes + module_types))
                 node.validate()
             return effected_nodes
 
@@ -488,7 +494,7 @@ class CGPProgram:
     def deepcopy(self):
         # Returns deep copy of self
         self.validate_nodes()
-        new_copy = CGPProgram(self.input_arity, self.output_arity, self.counter, self.config, self.debugging, self.max_size, False)
+        new_copy = CGPProgram(self.input_arity, self.output_arity, self.counter, self.config, self.debugging, False)
         input_node_copy = []
         for input_node in self.input_nodes:
             new_node = InputCGPNode(self.counter, self.debugging)
@@ -700,15 +706,15 @@ def subgraph_crossover(mate1, mate2, subgraph_extract_count, subgraph_size):
 
 
 class EvolutionController():
-    def __init__(self, population_size, child_count, input_arity, output_arity, debugging, max_size, subgraph_extract_count, subgraph_max_size):
+    def __init__(self, population_size, child_count, input_arity, output_arity, debugging, subgraph_extract_count, subgraph_max_size):
         if population_size % 2 == 1:
             raise Exception("Population size should be an even number for mating")
         # init population
-        self.population = [CGPProgram(input_arity, output_arity, Counter(), self.config, debugging, max_size) for x in range(population_size)]
+        self.population = [CGPProgram(input_arity, output_arity, Counter(), self.config, debugging) for x in range(population_size)]
         self.child_count = child_count
         self.population_size = population_size
         self.debugging = debugging
-        self.max_size = max_size
+        self.max_size = self.config['cgp_program_size']
         self.population_fitness = [None for x in range(population_size)]
         self.subgraph_extract_count = subgraph_extract_count
         self.subgraph_max_size = subgraph_max_size

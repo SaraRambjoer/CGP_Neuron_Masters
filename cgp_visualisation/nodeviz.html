@@ -14,29 +14,32 @@
     <p id="genome"></p>
     <button id="nextdifferent" type="button">Next genome</button>
     <button id="prevdifferent" type="button">Previous genome</button>
-    <p>Ledger: Red - input, blue - evolved, green - output, black - dendrite, white - axon</p>
+    <p>Ledger: Red - input, blue - evolved, green - output, black - dendrite, white - axon. Move view with WASD.</p>
+    <p id="genomeid">ID: </p>
+    <p id="genomefitness">Fitness: </p>
+    <p id="selectedfunc">Selected function: </p>
   </div>
   <div>
     <p>Neuron functions</p>
-    <button id="axon_birth_program" type="button">axon_birth_program</button>
-    <button id="signal_axon_program" type="button">signal_axon_program</button>
-    <button id="recieve_axon_signal_program" type="button">recieve_axon_signal_program</button>
-    <button id="recieve_reward_program" type="button">recieve_reward_program</button>
-    <button id="move_program" type="button">move_program</button>
-    <button id="die_program" type="button">die_program</button>
-    <button id="neuron_birth_program" type="button">neuron_birth_program</button>
-    <button id="action_controller_program" type="button">action_controller_program</button>
-    <button id="hox_variant_selection_program" type="button">hox_variant_selection_program</button>
+    <button id="neuron_axon_birth_program" type="button">axon_birth_program</button>
+    <button id="neuron_signal_axon_program" type="button">signal_axon_program</button>
+    <button id="neuron_recieve_axon_signal_program" type="button">recieve_axon_signal_program</button>
+    <button id="neuron_recieve_reward_program" type="button">recieve_reward_program</button>
+    <button id="neuron_move_program" type="button">move_program</button>
+    <button id="neuron_die_program" type="button">die_program</button>
+    <button id="neuron_neuron_birth_program" type="button">neuron_birth_program</button>
+    <button id="neuron_action_controller_program" type="button">action_controller_program</button>
+    <button id="neuron_hox_variant_selection_program" type="button">hox_variant_selection_program</button>
     <p>Axon-dendrite functions</p>
-    <button id="recieve_signal_neuron_program" type="button">recieve_signal_neuron_program</button>
-    <button id="recieve_signal_dendrite_program" type="button">recieve_signal_dendrite_program</button>
-    <button id="signal_dendrite_program" type="button">signal_dendrite_program</button>
-    <button id="signal_neuron_program" type="button">signal_neuron_program</button>
-    <button id="accept_connection_program" type="button">accept_connection_program</button>
-    <button id="break_connection_program" type="button">break_connection_program</button>
-    <button id="recieve_reward_program" type="button">recieve_reward_program</button>
-    <button id="die_program" type="button">die_program</button>
-    <button id="action_controller_program" type="button">action_controller_program</button>  
+    <button id="axon_dendrite_recieve_signal_neuron_program" type="button">recieve_signal_neuron_program</button>
+    <button id="axon_dendrite_recieve_signal_dendrite_program" type="button">recieve_signal_dendrite_program</button>
+    <button id="axon_dendrite_signal_dendrite_program" type="button">signal_dendrite_program</button>
+    <button id="axon_dendrite_signal_neuron_program" type="button">signal_neuron_program</button>
+    <button id="axon_dendrite_accept_connection_program" type="button">accept_connection_program</button>
+    <button id="axon_dendrite_break_connection_program" type="button">break_connection_program</button>
+    <button id="axon_dendrite_recieve_reward_program" type="button">recieve_reward_program</button>
+    <button id="axon_dendrite_die_program" type="button">die_program</button>
+    <button id="axon_dendrite_action_controller_program" type="button">action_controller_program</button>  
   </div>
   <div id="canvasdiv"></div>
   <style>
@@ -45,7 +48,6 @@
       margin: 0;
     }
   </style>
-
   <script src="p5.js"></script>
   <script src="p5.rovercam.js"></script>
   <!-- <script src="../addons/p5.sound.js"></script> -->

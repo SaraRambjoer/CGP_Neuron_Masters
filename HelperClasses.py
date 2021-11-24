@@ -68,3 +68,14 @@ def randcheck(val):
 def listmult(the_list, val):
     val = min(val, 1.0)
     return [x*val for x in the_list]
+
+
+def copydict(input_dict):
+    newdict = {}
+    if type(input_dict) == dict:
+        for key, item in input_dict.items():
+            newdict[key] = copydict(item)
+        return newdict
+    else:
+        return input_dict
+

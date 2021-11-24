@@ -30,6 +30,7 @@ function handleFiles() {
       parsed_neuron_array.push(JSON.parse(text));
     }
     neuron_array.forEach(parse_text);  
+    selected_array = parsed_neuron_array.length - 1;
   }, false
   );
   reader.readAsText(fileList[0]);
@@ -166,8 +167,8 @@ function draw() {
     for (let i0 = 0; i0 < neudict.connections.length; i0++) {
       from_id = neudict.connections[i0][0];
       to_id = neudict.connections[i0][1];
-      let frompos = 0
-      let topos = 0
+      let frompos = 0;
+      let topos = 0;
       for (let i1 = 0; i1 < neudict.neuron_id_to_pos.length; i1++) {
         const current_tuple = neudict.neuron_id_to_pos[i1];
         if (current_tuple[0] === from_id) {
@@ -179,7 +180,8 @@ function draw() {
       }
       strokeWeight(2);
       stroke(color(0, 0, 0));
-      spheres.push(line(frompos[0], frompos[1], frompos[2], topos[0], topos[1], topos[2]));
+      const lie = line(frompos[0]*position_scaling, frompos[1]*position_scaling, frompos[2]*position_scaling, topos[0]*position_scaling, topos[1]*position_scaling, topos[2]*position_scaling);
+      spheres.push(lie);
       //midway = (frompos[0] + (topos[0] - frompos[0])*0.5, frompos[1] + (topos[1] - frompos[1]) * 0.5, frompos[2] + (topos[2] - frompos[2]) * 0.5);
       //strokeWeight(5);
       //stroke(color(0, 0, 0));

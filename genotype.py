@@ -1,6 +1,6 @@
 from typing import List
 import CGPEngine
-from HelperClasses import randchoice
+from HelperClasses import randchoice, randcheck, copydict
 # TODO child count is misleading
 
 class Genome:
@@ -19,7 +19,7 @@ class Genome:
             parent_id = "",
             parent2_id = "") -> None:
         # Should hold a HexSelectorGenome, a set of FunctionGenomes, and a ParameterGenome
-        self.config = config
+        self.config = copydict(config)
         self.genome_counter = genome_counter
         self.unique_id = str(genome_counter.counterval())
         self.id = f"({parent_id}, {parent2_id}) -> {self.unique_id}"
@@ -41,7 +41,7 @@ class Genome:
                 variant_count=homeobox_variants,
                 input_arity = input_arities[7][0],
                 program = CGPEngine.CGPProgram(input_arities[7][0], input_arities[7][1], counter, self.config),
-                config = config
+                config = self.config
             )
             self.parameter_genome = ParameterGenome()
         else:
@@ -49,6 +49,11 @@ class Genome:
             self.hex_selector_genome = None
             self.parameter_genome = None
     
+    def update_config(self):
+        self.hex_selector_genome.set_config(self.config)
+        for funcchrom in self.function_chromosomes:
+            funcchrom.set_config(self.config)
+
     def mutate(self) -> None: 
         # call crossover stuff in children
         self.hex_selector_genome.mutate()
@@ -56,18 +61,18 @@ class Genome:
         for func in self.function_chromosomes:
             func.mutate()
     
-    def log(self, initial_data):
+    def log(self, initial_data, log=True):
         log_data = {"genome_id" : self.id, "modular_programs" : [], **initial_data}
 
         def _log_program(program, program_name, log_data):
-            active_nodes = program.get_active_nodes()
-            output_nodes = [program.nodes[x].id for x in program.output_indexes]
-            input_nodes = [x.id for x in program.input_nodes if x in active_nodes]
+            active_nodes = program.get_active_nodes() + program.input_nodes
+            output_nodes = [(program.nodes[program.output_indexes[x]].id, x) for x in range(len(program.output_indexes))]
+            input_nodes = [(program.input_nodes[x].id, x) for x in range(len(program.input_nodes))]
             connection_pairs = []
             for node in active_nodes:
                 for subscriber in node.subscribers:
                     if subscriber in active_nodes:
-                        connection_pairs.append((node.id, subscriber.id))
+                        connection_pairs.append((node.id, subscriber.id, subscriber.inputs.index(node)))
                 
                 if node.gettype()[0:6] == "modular":
                     log_data["modular_programs"].append(_log_program(node.type.program, node.gettype(), {}))
@@ -90,13 +95,22 @@ class Genome:
                 _log_program(program, func_name, log_data)
 
         log_data["adaptive_parameters"] = self.parameter_genome.log()
+        if log:
+            self.logger.log_json("CGPProgram image", log_data)
+        return log_data
+    
+    def equals_no_id(self, other):
+        selflog = self.log({}, False)
+        olog = other.log({}, False)
+        del selflog['genome_id']
+        del olog['genome_id']
+        return selflog == olog
 
-        self.logger.log_json("CGPProgram image", log_data)
 
 
     def crossover(self, target):
-        hex_selector_children = self.hex_selector_genome.crossover(target.hex_selector_genome, 2)
-        parameter_genome_children = self.parameter_genome.crossover(target.parameter_genome, 2)
+        hex_selector_children = self.hex_selector_genome.crossover(target.hex_selector_genome, self.successor_count)
+        parameter_genome_children = self.parameter_genome.crossover(target.parameter_genome, self.successor_count)
         function_chromosome_children = []
         for num in range(len(self.function_chromosomes)):
             # BUG Something weird with creating too many hex variants?
@@ -123,13 +137,17 @@ class Genome:
             new_genome.hex_selector_genome = hex_selector_child
             new_genome.parameter_genome = parameter_genome_child
             new_genome.function_chromosomes = function_chromosome_child
+            new_genome.update_config()
             returned_genomes.append(new_genome)
 
         return returned_genomes
+
     def __eq__(self, o: object) -> bool:
-        equa = self.hex_selector_genome == o.hex_selector_genome
-        for num in range(len(self.function_chromosomes)):
-            equa = equa and self.function_chromosomes[num] == o.function_chromosomes[num]
+        if type(o) != Genome:
+            return False
+        selflog = self.log({}, False)
+        olog = o.log({}, False)
+        return selflog == olog
     
 
     def __str__(self) -> str:
@@ -158,6 +176,10 @@ class HexSelectorGenome:
     def mutate(self) -> None: 
         # per current design do nothing
         pass
+
+    def set_config(self, config):
+        self.config = config
+        self.program.set_config(config)
 
     def crossover(self, other_hexselector, child_count) -> None: 
         # Perform crossover using LEP
@@ -193,20 +215,34 @@ class FunctionChromosome:
         for num in range(homeobox_variants):
             self.hex_variants.append(HexFunction(function_arities[0], function_arities[1], counter, self.config))
     
+    def set_config(self, config):
+        self.config = config
+        for hexfunc in self.hex_variants:
+            hexfunc.set_config(config)
+
     def mutate(self) -> None:
         for hex in self.hex_variants:
             hex.mutate()
 
     def crossover(self, other_chromosome, child_count) -> None:
-        # Only supports 2 child crossover
         # Should call crossover operators for homeobox variants where relevant, as well as doing n-point crossover in homeobox-variant space. 
         crossover_point = randchoice(range(0, len(self.hex_variants)))
         child1 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
         child2 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
         child3 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
         child4 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
-        child1.hex_variants = self.hex_variants[:crossover_point] + other_chromosome.hex_variants[crossover_point:]
-        child2.hex_variants = other_chromosome.hex_variants[:crossover_point] + self.hex_variants[crossover_point:]
+        for num in range(len(self.hex_variants)):
+            if randcheck(self.config['hex_crossover_chance']):
+                child1.hex_variants[num] = other_chromosome.hex_variants[num]
+            else: 
+                child1.hex_variants[num] = self.hex_variants[num]
+
+        for num in range(len(self.hex_variants)):
+            if randcheck(self.config['hex_crossover_chance']):
+                child2.hex_variants[num] = other_chromosome.hex_variants[num]
+            else: 
+                child2.hex_variants[num] = self.hex_variants[num]
+
         child3.hex_variants = self.hex_variants
         child4.hex_variants = other_chromosome.hex_variants
         for x in range(0, len(self.hex_variants)):
@@ -233,6 +269,10 @@ class HexFunction:
         # Should define a CGP function, should be divided into function types to determine input/output settings
         self.program = CGPEngine.CGPProgram(input_arity, output_arity, counter, self.config)
 
+    def set_config(self, config):
+        self.config = config
+        self.program.set_config(config)
+
     def mutate(self) -> None:
         pass  # In current design should do nothing
 
@@ -257,7 +297,7 @@ class ParameterGenome:
 
     def crossover(self, other_parameter_genome, child_count):
         # Should implement some form of n-point crossover
-        return [ParameterGenome(), ParameterGenome()]
+        return [ParameterGenome() for _ in range(child_count)]
     
     def log(self):
         # should return log describing values as a dictionary

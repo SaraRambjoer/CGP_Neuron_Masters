@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neuron network visualization</title>
+  <div>
+    <input type="file" id = "neuronfile" name = "neuronfile"\>
+  </div>
+  <div id="canvasdiv"></div>
+  <div>
+    <p id="run"></p>
+    <p id="iteration"></p>
+    <p id="genome"></p>
+    <button id="nextdifferent" type="button">Next genome</button>
+    <button id="prevdifferent" type="button">Previous genome</button>
+    <button id="nextsame" type="button">Next descendant genome</button>
+    <button id="prevsame" type="button">Previous descendant genome</button>
+    <button id="lockid" type="button">Lock as ancestor</button>
+    <p>Ledger: Red - input, blue - evolved, green - output, black - dendrite, white - axon</p>
+    <p>Controls (from https://github.com/freshfork/p5.RoverCam): 
+      a/d : yaw
+      w/s : forward/backward
+      e/q : up/down
+      r/f : pitch
+      ←/→ : left/right
+      ↑/↓ : forward/backward
+      +/- : field of view</p>
+  </div>
+  <style>
+    body {
+      padding: 0;
+      margin: 0;
+    }
+  </style>
+
+  <script src="p5.js"></script>
+  <script src="p5.rovercam.js"></script>
+  <!-- <script src="../addons/p5.sound.js"></script> -->
+  <script src="nodeviz.js"></script>
+
+</head>
+
+<body>
+  <main>
+  </main>
+</body>
+
+</html>

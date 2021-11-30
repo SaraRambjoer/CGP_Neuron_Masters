@@ -48,15 +48,18 @@ class StupidProblem():
     def get_problem_instance(self):
         return randchoice(self.true_samples + self.false_samples)
 
-    # MSE 
-    def error(self, problem, solution):
+    # MSE, sort of
+    def error(self, problem, solution, logger):
         solution = solution[0]
         if solution is None:
-            return 1000000
+            logger.log("instance_solution", f"None, {problem}")
+            return 1, False
         if problem in self.true_samples:
-            return (1-solution)**2
+            logger.log("instance_solution", f"True sample, prediction {solution}, problem {problem}")
+            return min(1, (1-solution)**2), True
         else:
-            return (solution)**2
+            logger.log("instance_solution", f"True sample, prediction {solution}, problem {problem}")
+            return min(1, (solution)**2), True
 
     def get_reward(self, error):
         return 1/(1+abs(1-error))      

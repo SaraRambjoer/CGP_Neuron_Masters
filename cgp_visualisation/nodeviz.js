@@ -183,11 +183,20 @@ function getConnectionCoordinates(connection, node_positions) {
 function countArrayElementsEquals(the_array, the_element) {
   let count = 0;
   for (let i0 = 0; i0 < the_array.length; i0++) {
-    if (the_array[i0] == the_element) {
+    if (JSON.stringify(the_array[i0].slice(0, the_element.length)) == JSON.stringify(the_element)) {
       count += 1;
     }
   }
   return count;
+}
+
+function arrayIncludes(array1, array2) {
+  for (let i0 = 0; i0 < array1.length; i0++) {
+    if (JSON.stringify(array1[i0]) == JSON.stringify(array2)) {
+      return true
+    }
+  }
+  return false
 }
 
 function draw() {
@@ -197,6 +206,7 @@ function draw() {
   // Select right program in program
   if (parsed_neuron_array.length > 0) {
     let genome = parsed_neuron_array[selected_array];
+    document.getElementById("rawdata").innerHTML = JSON.stringify(genome, null, 20); 
     const fitness = genome['genome fitness']; // TODO display these
     const id = genome['genome id'];
     document.getElementById("genomeid").innerHTML = "ID: " + id.toString();
@@ -241,27 +251,28 @@ function draw() {
         new_frontier = [];
       }
       let node = frontier.pop();
-      if (!visited.includes(node)) {
-        visited.push(node);
-        node_depths.push(JSON.parse(JSON.stringify(depth)));
-        for (let i0 = 0; i0 < genome['connection_pairs'].length; i0++) {
-          const connection = JSON.parse(JSON.stringify(genome['connection_pairs'][i0]));
-          if (connection[0] == node) {
-            if (genome['active_nodes'].includes(connection[1])) {
-              new_frontier.push(connection[1]);
+      if (genome['active_nodes'].includes(node)) {
+        if (!visited.includes(node)) {
+          visited.push(node);
+          node_depths.push(JSON.parse(JSON.stringify(depth)));
+          for (let i0 = 0; i0 < genome['connection_pairs'].length; i0++) {
+            const connection = JSON.parse(JSON.stringify(genome['connection_pairs'][i0]));
+            if (connection[0] == node) {
+              if (genome['active_nodes'].includes(connection[1]) && !(new_frontier.includes(connection[1]))) {
+                new_frontier.push(connection[1]);
+              }
             }
           }
         }
-      }
-      else {
-        const indx = visited.indexOf(node);
-        node_depths[indx] = JSON.parse(JSON.stringify(depth));
-        node_depths.push(JSON.parse(JSON.stringify(depth)));
-        for (let i0 = 0; i0 < genome['connection_pairs'].length; i0++) {
-          const connection = JSON.parse(JSON.stringify(genome['connection_pairs'][i0]));
-          if (connection[0] == node) {
-            if (genome['active_nodes'].includes(connection[1])) {
-              new_frontier.push(connection[1]);
+        else {
+          const indx = visited.indexOf(node);
+          node_depths[indx] = JSON.parse(JSON.stringify(depth));
+          for (let i0 = 0; i0 < genome['connection_pairs'].length; i0++) {
+            const connection = JSON.parse(JSON.stringify(genome['connection_pairs'][i0]));
+            if (connection[0] == node) {
+              if (genome['active_nodes'].includes(connection[1]) && !(new_frontier.includes(connection[1]))) {
+                new_frontier.push(connection[1]);
+              }
             }
           }
         }
@@ -303,7 +314,7 @@ function draw() {
     let shortened_connection_pairs = [];
     for (let i0 = 0; i0 < genome['connection_pairs'].length; i0++) {
       const connection = JSON.parse(JSON.stringify(genome['connection_pairs'][i0]));
-      shortened_connection_pairs.push[[connection[0]], connection[1], connection[2]];
+      shortened_connection_pairs.push([connection[0], connection[1], connection[2]]);
     }
 
     for (let i0 = 0; i0 < genome['connection_pairs'].length; i0++) {
@@ -317,10 +328,11 @@ function draw() {
         short_local = [];
       }
       fill(255, 255, 255);
-      if (short_local.includes([connection2[0], connection2[1], connection2[2]])) {
-        const times = countArrayElementsEquals(short_local, [connection2[0], connection2[1], connection2[2]]);
-        nodes.push(line(xf+2*times, yf, xt+2*times, yt));
-        nodes.push(text(connection[2], xf + (xt-xf)*(9.0-times)/10.0, yf + (yt - yf)*(9.0-times)/10.0));
+      if (arrayIncludes(short_local, [connection2[0], connection2[1], connection2[2]])) {
+        const times = countArrayElementsEquals(short_local, [connection2[0], connection2[1]]);
+        const [xf, yf, xt, yt] = [parseInt(fromX), parseInt(fromY), parseInt(toX), parseInt(toY)];
+        nodes.push(line(xf+4*times, yf, xt+4*times, yt));
+        nodes.push(text(times, xf + (xt-xf)*(9.0-times)/10.0, yf + (yt - yf)*(9.0-times)/10.0));
       }
       else {
         const [xf, yf, xt, yt] = [parseInt(fromX), parseInt(fromY), parseInt(toX), parseInt(toY)];

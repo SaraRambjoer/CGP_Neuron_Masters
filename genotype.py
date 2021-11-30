@@ -17,13 +17,14 @@ class Genome:
             config,
             init_genome = True,
             parent_id = "",
-            parent2_id = "") -> None:
+            parent2_id = "",
+            hypermutation = False) -> None:
         # Should hold a HexSelectorGenome, a set of FunctionGenomes, and a ParameterGenome
+        self.hypermutation = hypermutation
         self.config = copydict(config)
         self.genome_counter = genome_counter
         self.unique_id = str(genome_counter.counterval())
         self.id = f"({parent_id}, {parent2_id}) -> {self.unique_id}"
-        parent_id + "-" + str(genome_counter.counterval())
         self.input_arities = input_arities
         self.counter = counter
         self.homeobox_variants = homeobox_variants
@@ -70,9 +71,9 @@ class Genome:
             input_nodes = [(program.input_nodes[x].id, x) for x in range(len(program.input_nodes))]
             connection_pairs = []
             for node in active_nodes:
-                for subscriber in node.subscribers:
-                    if subscriber in active_nodes:
-                        connection_pairs.append((node.id, subscriber.id, subscriber.inputs.index(node)))
+                for input_node in node.inputs:
+                    if input_node in active_nodes:
+                        connection_pairs.append((input_node.id, node.id, node.inputs.index(input_node)))
                 
                 if node.gettype()[0:6] == "modular":
                     log_data["modular_programs"].append(_log_program(node.type.program, node.gettype(), {}))
@@ -134,7 +135,8 @@ class Genome:
                 config = self.config,
                 init_genome = False,
                 parent_id = self.unique_id,
-                parent2_id = target.unique_id)
+                parent2_id = target.unique_id,
+                hypermutation=self.hypermutation)
             new_genome.hex_selector_genome = hex_selector_child
             new_genome.parameter_genome = parameter_genome_child
             new_genome.function_chromosomes = function_chromosome_child
@@ -166,7 +168,7 @@ def generalized_cgp_crossover(parent1, parent2, child_count):
     program_child_2.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
     program_child_3.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
     program_child_4.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
-    
+
     CGPEngine.subgraph_crossover(program_child_1, program_child_2, 12, 12)
     children = program_child_1.produce_children(1) + program_child_2.produce_children(1) + program_child_3.produce_children(1) + program_child_4.deepcopy().produce_children(1)
     return children

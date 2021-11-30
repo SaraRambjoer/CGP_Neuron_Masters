@@ -1,6 +1,6 @@
 import math
 import random
-from HelperClasses import Counter, randchoice
+from HelperClasses import Counter, randchoice, randcheck
 from numpy.core.fromnumeric import sort, var
 from numpy.lib.function_base import average
 from numpy.ma import count
@@ -358,8 +358,20 @@ class CGPProgram:
             node.set_output(1.0)
             node.alert_subscribers()
         active_nodes = [x for x in self.nodes if x.output is not None]
+
+        output_nodes = [self.nodes[x] for x in self.output_indexes]
+        frontier = [x for x in output_nodes]
+        active_nodes2 = [x for x in output_nodes]
+        while len(frontier) > 0:
+            new_frontier = []
+            for node in frontier:
+                for node2 in node.inputs:
+                    if node2 not in new_frontier and node2 in active_nodes:
+                        new_frontier.append(node2)
+                        active_nodes2.append(node2)
+            frontier = new_frontier
         self.reset()
-        return active_nodes
+        return active_nodes2
 
     def self_prune(self):
         # Removes every node not connected to an output node from self.
@@ -403,7 +415,6 @@ class CGPProgram:
     def simple_mutate(self):
         self.validate_nodes()
         #self.fix_row()
-        active_nodes = [x.id for x in self.get_active_nodes()]
         output_change_chance = 0.1
         subgraph_size_max = 5
         node_swap_chance = 1.0
@@ -436,18 +447,25 @@ class CGPProgram:
                 if type(node) != InputCGPNode and node.type not in CPGNodeTypes and node.id not in [x.id for x in module_types]:
                     module_types.append(node.type)
             for node in nodes:
-                if random.random() < node_link_mutate_chance:
+                if randcheck(node_link_mutate_chance):
                     # Normally there is a "maximal output connections" per node paramter too, in this version
                     # this is not implemented
                     effected_nodes.append(node.id)
                     input_from = randchoice([x for x in (self.nodes + self.input_nodes) if x.row_depth < node.row_depth])
-                    while len(node.inputs) >= node.arity:
-                        to_remove = node.inputs[randchoice(range(0, node.arity))]
+                    if len(node.inputs) >= node.arity: # neutral in connection count
+                        while len(node.inputs) >= node.arity:
+                            to_remove = node.inputs[randchoice(range(0, node.arity))]
+                            node.inputs.remove(to_remove)
+                            to_remove.subscribers.remove(node)
+                        node.add_connection(input_from)
+                    elif randcheck(0.5): # 0.5 chance to add connection
+                        node.add_connection(input_from)
+                    elif len(node.inputs) > 0: # 0.5 chance to remove
+                        to_remove = node.inputs[randchoice(range(0, len(node.inputs)))]
                         node.inputs.remove(to_remove)
                         to_remove.subscribers.remove(node)
-                    node.add_connection(input_from)
                     
-                if random.random() < node_type_mutate_chance:
+                if randcheck(node_type_mutate_chance):
                     effected_nodes.append(node.id)
                     #node.change_type(randchoice(CPGNodeTypes + module_types))
                     node.change_type(randchoice(CPGNodeTypes + module_types))
@@ -620,50 +638,51 @@ class CGPProgram:
         """
         node_pool = [x for x in self.get_active_nodes()]  # Bias towards things we know are working
         subgraphs = []
-        while len(subgraphs) < subgraph_count:
-            target_size = randchoice(range(max_size))
-            subgraph_nodes = []
-            origin_node = randchoice(node_pool)
-            subgraph_nodes += [origin_node]
-            frontier = []
-            for node in origin_node.inputs:
-                if node not in subgraph_nodes and node not in frontier and \
-                    type(node) != InputCGPNode:
-                    frontier.append(node)
-            while len(frontier) > 0 and len(subgraph_nodes) < target_size:
-                selected_node = randchoice(frontier)
-                for node in selected_node.inputs:
+        if not len(node_pool) == 0:
+            while len(subgraphs) < subgraph_count:
+                target_size = randchoice(range(max_size))
+                subgraph_nodes = []
+                origin_node = randchoice(node_pool)
+                subgraph_nodes += [origin_node]
+                frontier = []
+                for node in origin_node.inputs:
                     if node not in subgraph_nodes and node not in frontier and \
-                            type(node) != InputCGPNode:
+                        type(node) != InputCGPNode:
                         frontier.append(node)
-                subgraph_nodes += [selected_node]
-                frontier.remove(selected_node)
-            
-            subgraph_partly_copied = []
-            # Init copies
-            for node in subgraph_nodes:
-                copy_node = CGPNode(node.type, [], node.counter, node.row_depth, node.debugging)
-                copy_node.id = node.id
-                copy_node.arity = node.arity
-                subgraph_partly_copied += [copy_node]
-            # Connect copies
-            subgraph_input_arity = 0
-            subgraph_node_ids = [x.id for x in subgraph_partly_copied]
-            if self.debugging:
-                for id in subgraph_node_ids:
-                    c = count([x for x in subgraph_node_ids if x == id])
-                    if c > 1:
-                        raise Exception("Duplicate ID in subgraph node ids")
-            for node in subgraph_nodes:
-                for input_node in node.inputs:
-                    if input_node.id in subgraph_node_ids:
-                        input_from = subgraph_partly_copied[subgraph_node_ids.index(input_node.id)]
-                        input_to = subgraph_partly_copied[subgraph_node_ids.index(node.id)]
-                        input_to.add_connection(input_from)
-                    else:
-                        subgraph_input_arity += 1
-            subgraphs.append(CGPModuleType(subgraph_input_arity, subgraph_partly_copied, 0, self.counter, self.config, self.debugging))
-        return subgraphs
+                while len(frontier) > 0 and len(subgraph_nodes) < target_size:
+                    selected_node = randchoice(frontier)
+                    for node in selected_node.inputs:
+                        if node not in subgraph_nodes and node not in frontier and \
+                                type(node) != InputCGPNode:
+                            frontier.append(node)
+                    subgraph_nodes += [selected_node]
+                    frontier.remove(selected_node)
+                
+                subgraph_partly_copied = []
+                # Init copies
+                for node in subgraph_nodes:
+                    copy_node = CGPNode(node.type, [], node.counter, node.row_depth, node.debugging)
+                    copy_node.id = node.id
+                    copy_node.arity = node.arity
+                    subgraph_partly_copied += [copy_node]
+                # Connect copies
+                subgraph_input_arity = 0
+                subgraph_node_ids = [x.id for x in subgraph_partly_copied]
+                if self.debugging:
+                    for id in subgraph_node_ids:
+                        c = count([x for x in subgraph_node_ids if x == id])
+                        if c > 1:
+                            raise Exception("Duplicate ID in subgraph node ids")
+                for node in subgraph_nodes:
+                    for input_node in node.inputs:
+                        if input_node.id in subgraph_node_ids:
+                            input_from = subgraph_partly_copied[subgraph_node_ids.index(input_node.id)]
+                            input_to = subgraph_partly_copied[subgraph_node_ids.index(node.id)]
+                            input_to.add_connection(input_from)
+                        else:
+                            subgraph_input_arity += 1
+                subgraphs.append(CGPModuleType(subgraph_input_arity, subgraph_partly_copied, 0, self.counter, self.config, self.debugging))
+            return subgraphs
     
     def eval(self, inputs, eval_func):
         output = []
@@ -698,10 +717,16 @@ def subgraph_crossover(mate1, mate2, subgraph_extract_count, subgraph_size):
     mate2_subgraphs = mate1.extract_subgraphs(subgraph_size, min(subgraph_extract_count, len(mate1_active_nodes)))
 
     for subgraph in mate1_subgraphs:
-        target = randchoice(mate2_inactive_nodes)
+        if len(mate2_inactive_nodes) != 0:
+            target = randchoice(mate2_inactive_nodes)
+        else:
+            target = randchoice(mate2.nodes)
         target.change_type(subgraph)
     for subgraph in mate2_subgraphs:
-        target = randchoice(mate1_inactive_nodes)
+        if len(mate1_inactive_nodes) != 0:
+            target = randchoice(mate1_inactive_nodes)
+        else:
+            target = randchoice(mate1.nodes)
         target.change_type(subgraph)
 
 

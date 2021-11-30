@@ -46,24 +46,16 @@ function handleFiles() {
 
 document.getElementById("nextdifferent").addEventListener("click", function() {
   if (parsed_neuron_array.length > 0) {
-    current_genome_id = parsed_neuron_array[selected_array].genome_id
-    for (let i0 = selected_array; i0 < parsed_neuron_array.length; i0++) {
-      if (parsed_neuron_array[i0].genome_id != current_genome_id) {
-        selected_array = i0;
-        break;
-      }
+    if (selected_array < parsed_neuron_array.length) {
+      selected_array += 1;
     }
   }
 });
 
 document.getElementById("prevdifferent").addEventListener("click", function() {
   if (parsed_neuron_array.length > 0) {
-    current_genome_id = parsed_neuron_array[selected_array].genome_id
-    for (let i0 = selected_array; i0 >= 0; i0--) {
-      if (parsed_neuron_array[i0].genome_id != current_genome_id) {
-        selected_array = i0;
-        break;
-      }
+    if (selected_array > 0) {
+      selected_array -= 1;
     }
   }
 });

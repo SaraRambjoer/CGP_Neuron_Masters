@@ -1,4 +1,10 @@
 import time
+import json
+from genotype import Genome
+import Logger
+import stupid_problem_test
+import random
+
 def log_genome(genomes, runinfo):
     for genome in genomes:
         initial_data = {
@@ -13,30 +19,27 @@ def process_config(config):
     for key, val in config.items():
         if "." in val:
             config[key] = float(val)
-        else:
+        elif config[key] == "False":
+            config[key] = False
+        elif config[key] == "True":
+            config[key] = True
+        elif "," in val:
+            config[key] = val.split(',')
+        else: 
             nums = [str(x) for x in range(0, 10)]
             for num in nums:
                 if num in val:
                     config[key] = int(val)
                     break
-        if config[key] == "False":
-            config[key] = False
-        if config[key] == "True":
-            config[key] = True
     return config
 
 
 def run(config, print_output = False):
     # Setup problems
-    from genotype import Genome
-    import Logger
-    import stupid_problem_test
-    from pathos.multiprocessing import Pool
-    import random
     problem = stupid_problem_test.StupidProblem()
     # Setup logging
     # ["CGPProgram image", "cgp_function_exec_prio1", "cgp_function_exec_prio2", "graphlog_instance", "graphlog_run", "setup_info"]
-    logger = Logger.Logger("C:/users/jonod/desktop/masters/logfiles/log", ["cgp_function_exec_prio1", "cgp_function_exec_prio2", "graphlog_instance"])
+    logger = Logger.Logger("C:/users/jonod/desktop/masters/logfiles/log", config['logger_ignore_messages'])
     # Setup CGP genome
     # - define a counter
     from HelperClasses import Counter, randchoice, drawProgram, copydict
@@ -164,7 +167,7 @@ def run(config, print_output = False):
             output_arity = problem.output_arity,
             grid_count = 6,
             grid_size = 10,
-            actions_max = 70,
+            actions_max = 120,
             neuron_initialization_data = neuron_init,
             axon_initialization_data = axon_init,
             signal_arity = signal_dimensionality,
@@ -217,7 +220,7 @@ def run(config, print_output = False):
                         output_arity = problem.output_arity,
                         grid_count = 6,
                         grid_size = 10,
-                        actions_max = 70,
+                        actions_max = 120,
                         neuron_initialization_data = neuron_initialization_data,
                         axon_initialization_data = axon_initialization_data,
                         signal_arity = signal_dimensionality,
@@ -287,8 +290,15 @@ def run(config, print_output = False):
                 genome.config['mutation_chance_link'] = min(genome.config['max_mutation_chance_link'], genome.config['mutation_chance_link']*config['neutral_mutation_chance_link_multiplier'])
 
             else:
-                genome.config['mutation_chance_node'] *= config['fail_mutation_chance_node_multiplier']
-                genome.config['mutation_chance_link'] *= config['fail_mutation_chance_link_multiplier']
+                if not(genome.hypermutation):
+                    genome.config['mutation_chance_node'] *= config['fail_mutation_chance_node_multiplier']
+                    genome.config['mutation_chance_link'] *= config['fail_mutation_chance_link_multiplier']
+                    if genome.config['mutation_chance_node'] < 0.000001:
+                        genome.hypermutation = True
+                else:
+                    genome.config['mutation_chance_node'] = config['hypermutation_mutation_chance']
+                    genome.config['mutation_chance_link'] = config['hypermutation_mutation_chance']
+            genome.update_config()
 
         time_genes += time.time() - time_genes_stamp
         #print(num, [f"{x[1]}, {x[2]}" for x in genomes])
@@ -313,5 +323,41 @@ if __name__ == "__main__":
     config.read('config.ini')
     config = config["Default"]
     config = process_config(config)
+    if config['mode'] == 'run':
+        print("Running evolution")
+        run(config, print_output=True)
+    elif config['mode'].split(',')[0] == 'load':
+        print("Loading program")
+        loadfile = config['mode'].split(',')[1]
+        loadprogram = config['mode'].split(',')[2]
 
-    run(config, print_output=True)
+        # get specific cgp program
+
+        with open(loadfile, 'r') as f:
+            data = f.readlines()
+        
+        genomes = data.split('|')
+
+        correct_genome = None
+        for genome in genomes:
+            gene_dat = json.load(genome)
+            if gene_dat['genome_id'].split("->")[1][1:] == loadprogram:
+                correct_genome = gene_dat
+                break
+        
+        if correct_genome is None:
+            print(f"Genome {loadprogram} not found")
+        else:
+            print("Genome found")
+            pass
+            # WIP
+            genome = Genome(
+                homeobox_variants = hox_variant_count,
+                successor_count = 4,
+                input_arities = all_function_arities,
+                counter = counter,
+                internal_state_variables = neuron_internal_states,
+                names = neuron_function_order[:-1] + dendrite_function_order,
+                logger = logger,
+                genome_counter = genome_counter,
+            config = config)

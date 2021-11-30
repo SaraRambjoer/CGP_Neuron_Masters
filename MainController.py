@@ -137,13 +137,16 @@ def run(config, print_output = False):
         return neuron_init_data, axon_init_data
 
     import CGPEngine
+    genome_successor_count = 4
+    if not config['non_crossover_children']:
+        genome_successor_count = 2
     # initialize the genome(s)
     all_function_arities = neuron_function_arities + dendrite_function_arities
     genomes = []
     for num in range(genome_count):
         genomes.append(Genome(
             homeobox_variants = hox_variant_count,
-            successor_count = 4,
+            successor_count = genome_successor_count,
             input_arities = all_function_arities,
             counter = counter,
             internal_state_variables = neuron_internal_states,
@@ -196,10 +199,6 @@ def run(config, print_output = False):
             if choice2 in egligable_bachelors and choice2 != choice1:
                 egligable_bachelors[egligable_bachelors.index(choice2)] = None
             new_genomes = choice1.crossover(choice2)
-            if not config['non_crossover_children']:
-                if len(new_genomes) != 4:
-                    raise Exception(f"Trying to remove non-crossover children with more than 4 children, genome code likely changed in a way incompatible with this code, child count: {len(new_genomes)}")
-                new_genomes = new_genomes[:2]
             skip_eval = [False for num in range(len(new_genomes))]
             for numero in range(len(new_genomes)):
                 genome = new_genomes[numero]
@@ -353,7 +352,7 @@ if __name__ == "__main__":
             # WIP
             genome = Genome(
                 homeobox_variants = hox_variant_count,
-                successor_count = 4,
+                successor_count = genome_successor_count,
                 input_arities = all_function_arities,
                 counter = counter,
                 internal_state_variables = neuron_internal_states,

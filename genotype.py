@@ -157,21 +157,32 @@ class Genome:
         return str(self.hex_selector_genome) + "\n----\n" + "\n-----\n".join([str(x) for x in self.function_chromosomes])
 
 # TODO use parameters in parameter genome for controlling this
-def generalized_cgp_crossover(parent1, parent2, child_count):
-    # TODO might be something weird here with adaptive mutation
-    program_child_1 = parent1.program.deepcopy()
-    program_child_2 = parent2.program.deepcopy()
-    program_child_3 = parent1.program.deepcopy()
-    program_child_4 = parent2.program.deepcopy()
+def generalized_cgp_crossover(parent1, parent2, child_count, samemut):
+    if samemut:
+        program_child_1 = parent1.program.deepcopy()
+        program_child_2 = parent2.program.deepcopy()
+        program_child_3 = parent1.program.deepcopy()
+        program_child_4 = parent2.program.deepcopy()
 
-    program_child_1.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
-    program_child_2.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
-    program_child_3.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
-    program_child_4.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
+        program_child_1.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
+        program_child_2.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
+        program_child_3.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
+        program_child_4.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
 
-    CGPEngine.subgraph_crossover(program_child_1, program_child_2, 12, 12)
-    children = program_child_1.produce_children(1) + program_child_2.produce_children(1) + program_child_3.produce_children(1) + program_child_4.deepcopy().produce_children(1)
-    return children
+        CGPEngine.subgraph_crossover(program_child_1, program_child_2, 12, 12)
+        children = program_child_1.produce_children(1) + program_child_2.produce_children(1) + program_child_3.produce_children(1) + program_child_4.produce_children(1)
+        return children
+    else:
+        program_child_1 = parent1.program.deepcopy()
+        program_child_2 = parent2.program.deepcopy()
+
+        program_child_1.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
+        program_child_2.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
+
+        CGPEngine.subgraph_crossover(program_child_1, program_child_2, 12, 12)
+        children = program_child_1.produce_children(1) + program_child_2.produce_children(1)
+        return children
+
 
 class HexSelectorGenome:
     def __init__(self,
@@ -194,7 +205,7 @@ class HexSelectorGenome:
         self.program.set_config(config)
 
     def crossover(self, other_hexselector, child_count) -> None: 
-        children = generalized_cgp_crossover(self, other_hexselector, child_count)
+        children = generalized_cgp_crossover(self, other_hexselector, child_count, self.config['non_crossover_children'])
         outputs = []
         for child in children:
             outputs.append(
@@ -240,8 +251,12 @@ class FunctionChromosome:
         crossover_point = randchoice(range(0, len(self.hex_variants)))
         child1 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
         child2 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
-        child3 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
-        child4 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
+        if self.config['non_crossover_children']:
+            child3 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
+            child4 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
+            child3.hex_variants = self.hex_variants
+            child4.hex_variants = other_chromosome.hex_variants
+
         for num in range(len(self.hex_variants)):
             if randcheck(self.config['hex_crossover_chance']):
                 child1.hex_variants[num] = other_chromosome.hex_variants[num]
@@ -254,15 +269,21 @@ class FunctionChromosome:
             else: 
                 child2.hex_variants[num] = self.hex_variants[num]
 
-        child3.hex_variants = self.hex_variants
-        child4.hex_variants = other_chromosome.hex_variants
         for x in range(0, len(self.hex_variants)):
-            [n1, n2, n3, n4] = child1.hex_variants[x].crossover(child2.hex_variants[x], 2)
-            child1.hex_variants[x].program = n1
-            child2.hex_variants[x].program = n2
-            child3.hex_variants[x].program = n3
-            child3.hex_variants[x].program = n4
-        return child1, child2, child3, child4
+            if self.config['non_crossover_children']:
+                [n1, n2, n3, n4] = child1.hex_variants[x].crossover(child2.hex_variants[x], 2)
+                child1.hex_variants[x].program = n1
+                child2.hex_variants[x].program = n2
+                child3.hex_variants[x].program = n3
+                child4.hex_variants[x].program = n4
+            else:
+                [n1, n2] = child1.hex_variants[x].crossover(child2.hex_variants[x], 2)
+                child1.hex_variants[x].program = n1
+                child2.hex_variants[x].program = n2
+        if self.config['non_crossover_children']:
+            return child1, child2, child3, child4
+        else:
+            return child1, child2
     
     def __eq__(self, o: object) -> bool:
         equa = True
@@ -288,7 +309,7 @@ class HexFunction:
         pass  # In current design should do nothing
 
     def crossover(self, other_func, child_count) -> None: 
-        return generalized_cgp_crossover(self, other_func, child_count)
+        return generalized_cgp_crossover(self, other_func, child_count, self.config['non_crossover_children'])
     
     def __eq__(self, o: object) -> bool:
         return self.program == o.program

@@ -209,8 +209,11 @@ class NeuronEngine():
             self.input_neurons[num].value = input_sample[num]
         self.action_queue = []
         self.timestep_indexes = []
+        axon_ids = []
         for input_neuron in self.input_neurons:
             for axon in input_neuron.subscribers:
+                if axon.id in axon_ids:
+                    raise Exception(f"Axon id {axon.id} connectred to several input neurons")
                 self.add_action_to_queue(
                     lambda: axon.run_recieve_signal_axon(
                         [input_neuron.value for _ in range(self.signal_arity)],
@@ -219,15 +222,20 @@ class NeuronEngine():
                     0,
                     axon.id
                 )
+                axon_ids.append(axon.id)
         self.timestep = 0
         self.actions_count = 0
         self.action_index = 0
+        neuron_ids = []
         for neuron in self.neurons:
+            if neuron.id in neuron_ids:
+                raise Exception(f"Neuron id {neuron.id} in neurons list several times")
             self.add_action_to_queue(
                 lambda: neuron.run_action_controller(0),
                 0,
                 neuron.id
             )
+            neuron_ids.append(neuron)
         while len(self.action_queue) > self.action_index and self.actions_count < self.actions_max:
             timestep, action, _ = self.action_queue[self.action_index]
             if not action == "skip":
@@ -367,6 +375,7 @@ class NeuronEngine():
         return cumulative_error/exec_instances, base_problems
 
     def add_action_to_queue(self, action, timestep, id):
+        firstlength = len(self.action_queue)
         if action is None:
             raise Exception("None action added")
         elif type(action) is tuple:
@@ -385,6 +394,8 @@ class NeuronEngine():
             self.timestep_indexes.insert(timestep_relative_order, [timestep, pos, id])
             for x in self.timestep_indexes[timestep_relative_order+1:]:
                 x[1] = x[1]+1
+        if len(self.action_queue)-firstlength != 1:
+            print('Action error', len(self.action_queue), firstlength)
 
     def remove_actions_id(self, id):
         to_remove_indexes = []
@@ -598,13 +609,11 @@ def addqueue(neuron_engine, lambdafunc, timestep, id):
 
 
 class CellObjectSuper:
-    def __init__(self, logger, counter):
+    def __init__(self, logger):
         self.x_glob = None
         self.y_glob = None
         self.z_glob = None
         self.logger = logger
-        self.id = counter.counterval()
-        self.counter = counter
 
     def set_global_pos(self, program, indexes):
         if type(self) is Neuron:
@@ -654,10 +663,12 @@ class Neuron(CellObjectSuper):
                 grid,
                 logger,
                 config) -> None:
-        super(Neuron, self).__init__(logger, counter)
+        super(Neuron, self).__init__(logger)
         self.neuron_initialization_data = neuron_initialization_data
         self.axon_initialization_data = axon_initialization_data
         self.config = config
+        self.id = counter.counterval()
+
 
         self.axon_birth_program = self.neuron_initialization_data['axon_birth_program']
         self.signal_axon_program = self.neuron_initialization_data['signal_axon_program']
@@ -671,6 +682,8 @@ class Neuron(CellObjectSuper):
         self.internal_state_variable_count = self.neuron_initialization_data['internal_state_variable_count']
         self.axons = []
         self.dendrites = []
+
+        self.counter = counter
 
         self.internal_states = []
         for _ in range(self.internal_state_variable_count):
@@ -858,8 +871,8 @@ class Neuron(CellObjectSuper):
         
         self.update_internal_state(listmult(outputs[2+self.signal_arity:2+self.signal_arity+self.internal_state_variable_count], outputs[1+self.signal_arity]))
         
-        if randcheck(outputs[-1]):
-            self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran singal dendrites. Adding own action controller to queue.")
+        if randcheck(outputs[-1]): # TODO this one has too few outputs, this output also has another function, check all functions after juleferie
+            self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran signal dendrites. Adding own action controller to queue.")
             self.addqueue(
                 lambda: self.run_action_controller(timestep + 1),
                 timestep + 1
@@ -1152,9 +1165,13 @@ class Axon(CellObjectSuper):
                  neuron,
                  logger,
                  config) -> None:
-        super(Axon, self).__init__(logger, counter)
+        super(Axon, self).__init__(logger)
         self.signal_arity = signal_arity
         self.config = config
+        
+        self.id = counter.counterval()
+
+        self.counter = counter
 
         self.recieve_signal_neuron_program = axon_initialization_data['recieve_signal_neuron_program']
         self.recieve_signal_axon_program = axon_initialization_data['recieve_signal_dendrite_program']
@@ -1225,7 +1242,7 @@ class Axon(CellObjectSuper):
         return outputs, [x.output for x in program.input_nodes]
 
     def run_recieve_signal_neuron(self, signals, timestep):
-        if not self.dying and self.connected_dendrite is not None:
+        if (not self.dying) and self.connected_dendrite is not None:
             outputs, log_inputs = self.recieve_signal_setup(self.recieve_signal_neuron_program, signals)
             self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran recieve signal neuron. Adding run signals to queue. Inputs: {log_inputs}. Outputs: {outputs}.")
             self.addqueue(
@@ -1254,7 +1271,7 @@ class Axon(CellObjectSuper):
             self.logger.log("engine_action", f"{self.id}, {timestep}: Dendrite ran recieve signal from neuron, but cancelled due to dendrite dying.")
     
     def run_recieve_signal_dendrite(self, signals, timestep):
-        if not self.dying and self.connected_dendrite is not None:
+        if (not self.dying) and self.connected_dendrite is not None:
             outputs, log_inputs = self.recieve_signal_setup(self.recieve_signal_axon_program, signals)
 
             self.logger.log("engine_action", f"{self.id}, {timestep}: Axon ran recieve signal from dendrite. Adding run signals to queue. Inputs: {log_inputs}. Outputs: {outputs}")
@@ -1285,7 +1302,7 @@ class Axon(CellObjectSuper):
 
     
     def run_recieve_signal_axon(self, signals, timestep):
-        if not self.dying and self.connected_dendrite is not None:
+        if (not self.dying) and self.connected_dendrite is not None:
             outputs, log_inputs = self.recieve_signal_setup(self.recieve_signal_axon_program, signals)
 
             self.logger.log("engine_action", f"{self.id}, {timestep}: Dendrite ran recieve signal from axon. Adding run signals to queue. Inputs: {log_inputs}. Outputs: {outputs}.")
@@ -1351,7 +1368,7 @@ class Axon(CellObjectSuper):
 
 
     def run_signal_dendrite(self, signals, timestep):
-        if not self.dying and self.connected_dendrite is not None: 
+        if (not self.dying) and self.connected_dendrite is not None: 
             outputs, log_inputs = self.send_signal_setup(self.signal_dendrite_program, signals)
 
             self.logger.log("engine_action", f"{self.id}, {timestep}: Axon ran signal dendrite. Inputs: {log_inputs}. Outputs: {outputs}.")
@@ -1390,7 +1407,7 @@ class Axon(CellObjectSuper):
     
         
     def run_accept_connection(self, dendrite, timestep = None):
-        if not self.dying and self.connected_dendrite is None:
+        if (not self.dying) and self.connected_dendrite is None:
             self.accept_connection_program.reset()
             if type(dendrite) == Axon:
                 connection_target_type = "Axon"
@@ -1424,7 +1441,7 @@ class Axon(CellObjectSuper):
         return False # shouldn't happen maybe check for this TODO indicates fault in seek_dendrite_connection code
     
     def run_break_connection(self, timestep = None): 
-        if not self.dying and self.connected_dendrite is not None: 
+        if (not self.dying) and self.connected_dendrite is not None: 
             self.break_connection_program.reset()
             if type(self.connected_dendrite) == Axon:
                 connection_target_type = "Axon"

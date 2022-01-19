@@ -1,9 +1,11 @@
 import time
 import json
+from engine import NeuronEngine
 from genotype import Genome
 import Logger
 import stupid_problem_test
 import random
+from HelperClasses import Counter, randchoice, drawProgram, copydict
 
 def log_genome(genomes, runinfo):
     for genome in genomes:
@@ -17,14 +19,14 @@ def log_genome(genomes, runinfo):
 def process_config(config):
     config = dict(config)
     for key, val in config.items():
-        if "." in val:
+        if "," in val:
+            config[key] = val.split(',')
+        elif "." in val:
             config[key] = float(val)
         elif config[key] == "False":
             config[key] = False
         elif config[key] == "True":
             config[key] = True
-        elif "," in val:
-            config[key] = val.split(',')
         else: 
             nums = [str(x) for x in range(0, 10)]
             for num in nums:
@@ -39,10 +41,9 @@ def run(config, print_output = False):
     problem = stupid_problem_test.StupidProblem()
     # Setup logging
     # ["CGPProgram image", "cgp_function_exec_prio1", "cgp_function_exec_prio2", "graphlog_instance", "graphlog_run", "setup_info"]
-    logger = Logger.Logger("C:/users/jonod/desktop/masters/logfiles/log", config['logger_ignore_messages'])
+    logger = Logger.Logger("D:\jonod\masters\CGP_Neuron_Masters\logfiles\log", config['logger_ignore_messages'])
     # Setup CGP genome
     # - define a counter
-    from HelperClasses import Counter, randchoice, drawProgram, copydict
     counter = Counter()
     neuron_internal_states = config['neuron_internal_state_count']
     dendrite_internal_states = config['axon_dendrite_internal_state_count']
@@ -282,6 +283,9 @@ def run(config, print_output = False):
         
         for num3 in range(len(genomes)):
             genome = genomes[num3][0]
+            x = (genome.config['mutation_chance_node']+genome.config['mutation_chance_link'])/2
+            genome.config['mutation_chance_link'] = x
+            genome.config['mutation_chance_node'] = x
             if change_better[num3]:
                 pass
             elif change_neutral[num3]:
@@ -325,21 +329,23 @@ if __name__ == "__main__":
     if config['mode'] == 'run':
         print("Running evolution")
         run(config, print_output=True)
-    elif config['mode'].split(',')[0] == 'load':
+    elif config['mode'][0] == 'load':
         print("Loading program")
-        loadfile = config['mode'].split(',')[1]
-        loadprogram = config['mode'].split(',')[2]
+        loadfile = config['mode'][1]
+        loadprogram = config['mode'][2]
 
         # get specific cgp program
 
         with open(loadfile, 'r') as f:
             data = f.readlines()
+
+        data = data[0]
         
         genomes = data.split('|')
 
         correct_genome = None
         for genome in genomes:
-            gene_dat = json.load(genome)
+            gene_dat = json.loads(genome)
             if gene_dat['genome_id'].split("->")[1][1:] == loadprogram:
                 correct_genome = gene_dat
                 break
@@ -348,15 +354,125 @@ if __name__ == "__main__":
             print(f"Genome {loadprogram} not found")
         else:
             print("Genome found")
-            pass
-            # WIP
+            neuron_internal_states = config['neuron_internal_state_count']
+            dendrite_internal_states = config['axon_dendrite_internal_state_count']
+            signal_dimensionality = config['signal_dimensionality']
+            dimensions = 3  # other dimensions not supported - code in engine.py specific to 3d grid
+            hox_variant_count = config['hox_variant_count']
+            genome_counter = Counter()
+            genome_count = config['genome_count']
+            seed = config['seed']
+            random.seed(seed)
+            neuron_function_order = [
+                'axon_birth_program',
+                'signal_axon_program',
+                'recieve_axon_signal_program',
+                'recieve_reward_program',
+                'move_program',
+                'die_program',
+                'neuron_birth_program',
+                'action_controller_program',
+                'hox_variant_selection_program',
+                'internal_state_variable_count' # not function but parameter comes here in the order
+            ]
+            neuron_function_arities = [  # by order above
+                [dimensions+neuron_internal_states+1, 4+signal_dimensionality+neuron_internal_states],  # axon birth
+                [signal_dimensionality+dimensions+neuron_internal_states, 2 + signal_dimensionality + neuron_internal_states],  # signal axon
+                [signal_dimensionality + dimensions + neuron_internal_states, 2 + neuron_internal_states+signal_dimensionality],  # recieve signal axon
+                [1 + dimensions + neuron_internal_states, 2 + neuron_internal_states],  # reciee reward
+                [neuron_internal_states + dimensions, 7+neuron_internal_states],  # move
+                [dimensions + neuron_internal_states, 2+neuron_internal_states],  # die
+                [dimensions + neuron_internal_states, 2+neuron_internal_states*2],  # neuron birth
+                [neuron_internal_states+dimensions, 9],  # action controller
+                [neuron_internal_states + dimensions, hox_variant_count]  # hox selection
+            ]
+
+            dendrite_function_order = [
+                'recieve_signal_neuron_program',
+                'recieve_signal_dendrite_program',
+                'signal_dendrite_program',
+                'signal_neuron_program',
+                'accept_connection_program',
+                'break_connection_program',
+                'recieve_reward_program',
+                'die_program',
+                'action_controller_program'
+            ]
+            dendrite_function_arities = [
+                [dendrite_internal_states + signal_dimensionality + dimensions, 2+signal_dimensionality+dendrite_internal_states],
+                [dendrite_internal_states + signal_dimensionality + dimensions, 2+signal_dimensionality+dendrite_internal_states],
+                [dimensions + dendrite_internal_states + signal_dimensionality, 4+signal_dimensionality+dendrite_internal_states],
+                [dimensions + dendrite_internal_states + signal_dimensionality, 4+signal_dimensionality+dendrite_internal_states],
+                [dimensions + dendrite_internal_states + dimensions + dendrite_internal_states, 2+dendrite_internal_states], # Accept connection
+                [dimensions + dendrite_internal_states + dimensions + dendrite_internal_states, 1], # Break connection
+                [dimensions + dendrite_internal_states + 1, 2 + dendrite_internal_states], # recieve reward
+                [dimensions + dendrite_internal_states, 1+signal_dimensionality], # die
+                [dendrite_internal_states + dimensions, 3]
+            ]
+            logger = Logger.Logger("D:\jonod\masters\CGP_Neuron_Masters\logfiles\log", config['logger_ignore_messages'])
+            genome_successor_count = 4
+            if not config['non_crossover_children']:
+                genome_successor_count = 2
+            all_function_arities = neuron_function_arities + dendrite_function_arities
+
             genome = Genome(
                 homeobox_variants = hox_variant_count,
                 successor_count = genome_successor_count,
                 input_arities = all_function_arities,
-                counter = counter,
+                counter = genome_counter,
                 internal_state_variables = neuron_internal_states,
                 names = neuron_function_order[:-1] + dendrite_function_order,
                 logger = logger,
                 genome_counter = genome_counter,
-            config = config)
+                config = config)
+
+            genome.load(correct_genome)
+
+            problem = stupid_problem_test.StupidProblem()
+
+            def genome_to_init_data(genome):
+                neuron_init_data = {
+                    'axon_birth_program' : genome.function_chromosomes[0].hex_variants[0].program,
+                    'signal_axon_program' : genome.function_chromosomes[1].hex_variants[0].program,
+                    'recieve_axon_signal_program': genome.function_chromosomes[2].hex_variants[0].program,
+                    'recieve_reward_program': genome.function_chromosomes[3].hex_variants[0].program,
+                    'move_program': genome.function_chromosomes[4].hex_variants[0].program,
+                    'die_program': genome.function_chromosomes[5].hex_variants[0].program,
+                    'neuron_birth_program': genome.function_chromosomes[6].hex_variants[0].program,
+                    'action_controller_program': genome.function_chromosomes[7].hex_variants[0].program,
+                    'hox_variant_selection_program': genome.hex_selector_genome.program,
+                    'internal_state_variable_count': neuron_internal_states
+                }
+                axon_init_data = {
+                    'recieve_signal_neuron_program' : genome.function_chromosomes[8].hex_variants[0].program,
+                    'recieve_signal_dendrite_program' : genome.function_chromosomes[9].hex_variants[0].program,
+                    'signal_dendrite_program' : genome.function_chromosomes[10].hex_variants[0].program,
+                    'signal_neuron_program' : genome.function_chromosomes[11].hex_variants[0].program,
+                    'accept_connection_program' : genome.function_chromosomes[12].hex_variants[0].program,
+                    'break_connection_program' : genome.function_chromosomes[13].hex_variants[0].program,
+                    'recieve_reward_program' : genome.function_chromosomes[14].hex_variants[0].program,
+                    'die_program' : genome.function_chromosomes[15].hex_variants[0].program,
+                    'action_controller_program' : genome.function_chromosomes[16].hex_variants[0].program,
+                    'internal_state_variable_count': dendrite_internal_states
+                }
+
+                return neuron_init_data, axon_init_data
+
+            neuron_init, axon_init = genome_to_init_data(genome)
+            engine = NeuronEngine(
+                input_arity = problem.input_arity,
+                output_arity = problem.output_arity,
+                grid_count = 6,
+                grid_size = 10,
+                actions_max = 120,
+                neuron_initialization_data = neuron_init,
+                axon_initialization_data = axon_init,
+                signal_arity = signal_dimensionality,
+                hox_variant_count = hox_variant_count,
+                instances_per_iteration = 50,
+                logger = logger,
+                genome_id = genome.id,
+                config_file = copydict(config)
+            )
+
+            engine.run(problem, 0)

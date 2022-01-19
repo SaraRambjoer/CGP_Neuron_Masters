@@ -58,7 +58,7 @@ class StupidProblem():
             logger.log("instance_solution", f"True sample, prediction {solution}, problem {problem}")
             return min(1, (1-solution)**2), True
         else:
-            logger.log("instance_solution", f"True sample, prediction {solution}, problem {problem}")
+            logger.log("instance_solution", f"False sample, prediction {solution}, problem {problem}")
             return min(1, (solution)**2), True
 
     def get_reward(self, error):

@@ -55,6 +55,14 @@ class Genome:
         for funcchrom in self.function_chromosomes:
             funcchrom.set_config(self.config)
 
+    def load(self, sf):
+      self.id = sf['genome_id']
+      self.unique_id = sf['genome_id'].split("->")[1][1:]
+      self.hex_selector_genome.load(sf['hex_selector'])
+      for num in range(len(self.function_chromosomes)):
+        self.function_chromosomes.load(sf[num+6])
+
+
     def mutate(self) -> None: 
         # call crossover stuff in children
         self.hex_selector_genome.mutate()

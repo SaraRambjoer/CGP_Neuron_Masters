@@ -371,7 +371,7 @@ class CGPProgram:
                         active_nodes2.append(node2)
             frontier = new_frontier
         self.reset()
-        return active_nodes2
+        return list(dict.fromkeys(active_nodes2))
 
     def self_prune(self):
         # Removes every node not connected to an output node from self.

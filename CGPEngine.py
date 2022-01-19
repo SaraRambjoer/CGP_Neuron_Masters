@@ -1,6 +1,6 @@
 import math
 import random
-from HelperClasses import Counter, randchoice, randcheck
+from HelperClasses import Counter, randchoice, randcheck, randchoice_scaled
 from numpy.core.fromnumeric import sort, var
 from numpy.lib.function_base import average
 from numpy.ma import count
@@ -157,6 +157,7 @@ class CGPNode(NodeAbstract):
              
 
     def change_type(self, newtype):
+        self.age = 0
         self.type = newtype
         if type(newtype) is CGPModuleType:
             self.arity = newtype.arity
@@ -222,6 +223,7 @@ class InputCGPNode(NodeAbstract):
         self.output = None
         self.type = "InputNode"
         self.arity = 0
+        self.age = 0
         self.inputs = []
     
     def set_output(self, float_val):
@@ -416,6 +418,8 @@ class CGPProgram:
 
     def simple_mutate(self):
         self.validate_nodes()
+        for node in self.nodes:
+            node.age += 1
         #self.fix_row()
         output_change_chance = 0.1
         subgraph_size_max = 5
@@ -640,27 +644,38 @@ class CGPProgram:
         Extracts count subgraphs from program in size range [1, max_size]. May be overlapping. Returns
         CGPModuleTypes.
         """
-        node_pool = [x for x in self.get_active_nodes()]  # Bias towards things we know are working
+        node_pool = [x for x in self.get_active_nodes() if type(x) is not InputCGPNode]  # Bias towards things we know are working
         subgraphs = []
         if not len(node_pool) == 0:
             while len(subgraphs) < subgraph_count:
                 target_size = randchoice(range(max_size))
                 subgraph_nodes = []
-                origin_node = randchoice(node_pool)
+                origin_node = randchoice_scaled(node_pool, [x.age for x in node_pool])
                 subgraph_nodes += [origin_node]
-                frontier = []
-                for node in origin_node.inputs:
-                    if node not in subgraph_nodes and node not in frontier and \
-                        type(node) != InputCGPNode:
-                        frontier.append(node)
+                frontier = [origin_node.inputs]
+
                 while len(frontier) > 0 and len(subgraph_nodes) < target_size:
-                    selected_node = randchoice(frontier)
-                    for node in selected_node.inputs:
-                        if node not in subgraph_nodes and node not in frontier and \
-                                type(node) != InputCGPNode:
-                            frontier.append(node)
-                    subgraph_nodes += [selected_node]
-                    frontier.remove(selected_node)
+                    selected_node = randchoice_scaled(frontier, [x.age for x in node_pool])
+                    old_frontier = [x for x in frontier]
+                    frontier = frontier.remove(selected_node)
+                    
+                    # As pointed out in "Advanced techniques for the creation and propagation of modules in cartesian genetic programming"
+                    # by Kaufmann & Platzner a reconvergent connection with a cone module is when a node in the cone gives an input to 
+                    # a node outside of the cone which gives an input to the cone again, causing a in principle endless recurrence.
+                    reconvergent_path_check = False
+                    for node in frontier:
+                        if selected_node in node.inputs:
+                            reconvergent_path_check = True
+                            break
+                    if not reconvergent_path_check:
+                        for node in selected_node.inputs:
+                            if node not in subgraph_nodes and node not in frontier and \
+                                    type(node) != InputCGPNode:
+                                frontier.append(node)
+                        subgraph_nodes += [selected_node]
+                        frontier.remove(selected_node)
+                    else: 
+                        frontier = old_frontier
                 
                 subgraph_partly_copied = []
                 # Init copies

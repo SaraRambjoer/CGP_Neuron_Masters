@@ -26,6 +26,23 @@ def randchoice(alternative_list):
     index = int(math.ceil(randval*max))
     return alternative_list[index]
 
+def randchoice_scaled(alternative_list, value_scaling):
+    # Normalize value_scaling values to sum to 1, then calculate valule intervals and pick random
+    # value
+    value_scaling_sum = sum(value_scaling)
+    values_scaled = [x/value_scaling_sum for x in value_scaling]
+    randval = random.random()
+    value_interval = []
+    value_interval += values_scaled[0]
+    for num in range(1, len(values_scaled)):
+        value_interval += values_scaled[num] + value_interval[num-1]
+    index = 0
+    for value in value_interval:
+        if randval <= value:
+            return alternative_list[index]
+        index += 1
+    raise Exception("randchoice_scaled function is broken - no value found in scaled interval")
+
 def drawProgram(active_nodes, output_nodes, input_nodes):
     input_node_types =  [f"{node.type}-{node.id}-{node.arity}" for node in input_nodes]
     output_node_types =  [f"{node.type}-{node.id}-{node.arity}" for node in output_nodes]

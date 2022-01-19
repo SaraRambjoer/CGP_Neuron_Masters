@@ -75,6 +75,8 @@ class CGPNode(NodeAbstract):
         self.id = self.counter.counterval()
         self.row_depth = self.id  # Just to get an initial ordering
         self.debugging = debugging
+
+        self.age = 0  # Used for extracting cones
         if type(self.type) is not CGPModuleType:
             self.arity = NodeTypeArity[self.type]
         else:
@@ -464,8 +466,10 @@ class CGPProgram:
                         to_remove = node.inputs[randchoice(range(0, len(node.inputs)))]
                         node.inputs.remove(to_remove)
                         to_remove.subscribers.remove(node)
-                    
-                if randcheck(node_type_mutate_chance):
+                
+                # Scale probability of type change with node arity s.t. type drift does not favour
+                # low arity functions
+                if randcheck(node_type_mutate_chance/node.arity):
                     effected_nodes.append(node.id)
                     #node.change_type(randchoice(CPGNodeTypes + module_types))
                     node.change_type(randchoice(CPGNodeTypes + module_types))

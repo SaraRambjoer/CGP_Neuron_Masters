@@ -29,13 +29,15 @@ def randchoice(alternative_list):
 def randchoice_scaled(alternative_list, value_scaling):
     # Normalize value_scaling values to sum to 1, then calculate valule intervals and pick random
     # value
+    if len(alternative_list) != len(value_scaling):
+        raise Exception(f"Alternative length and value scaling lengths are not equal, respectively {len(alternative_list)} and {len(value_scaling)}")
     value_scaling_sum = sum(value_scaling)
     values_scaled = [x/value_scaling_sum for x in value_scaling]
     randval = random.random()
     value_interval = []
-    value_interval += values_scaled[0]
+    value_interval.append(values_scaled[0])
     for num in range(1, len(values_scaled)):
-        value_interval += values_scaled[num] + value_interval[num-1]
+        value_interval.append(values_scaled[num] + value_interval[num-1])
     index = 0
     for value in value_interval:
         if randval <= value:

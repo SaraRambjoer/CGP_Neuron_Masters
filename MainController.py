@@ -330,6 +330,7 @@ if __name__ == "__main__":
         print("Running evolution")
         run(config, print_output=True)
     elif config['mode'][0] == 'load':
+        # TODO not fully implemented
         print("Loading program")
         loadfile = config['mode'][1]
         loadprogram = config['mode'][2]

@@ -1378,7 +1378,7 @@ class Axon(CellObjectSuper):
                     self.logger.log("engine_action", f"{self.id}, {timestep}: Axon ran signal dendrite. Adding recieve signal in connected axon to queue.")
                     # TODO adding sending signals on dying does not work at all
                     def _internal_handler(self, outputs, timestep):
-                        if self.connected_dendrite is not None:
+                        if self.connected_dendrite is not None and self.connected_dendrite != InputNeuron:
                             self.connected_dendrite.run_recieve_signal_axon(
                                 outputs[1:1+self.signal_arity],
                                 timestep + 1

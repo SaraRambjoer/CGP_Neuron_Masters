@@ -112,27 +112,27 @@ def run(config, print_output = False):
     # Knowledge duplication thooo
     def genome_to_init_data(genome):
         neuron_init_data = {
-            'axon_birth_program' : genome.function_chromosomes[0].hex_variants[0].program,
-            'signal_axon_program' : genome.function_chromosomes[1].hex_variants[0].program,
-            'recieve_axon_signal_program': genome.function_chromosomes[2].hex_variants[0].program,
-            'recieve_reward_program': genome.function_chromosomes[3].hex_variants[0].program,
-            'move_program': genome.function_chromosomes[4].hex_variants[0].program,
-            'die_program': genome.function_chromosomes[5].hex_variants[0].program,
-            'neuron_birth_program': genome.function_chromosomes[6].hex_variants[0].program,
-            'action_controller_program': genome.function_chromosomes[7].hex_variants[0].program,
+            'axon_birth_programs' : genome.function_chromosomes[0],
+            'signal_axon_programs' : genome.function_chromosomes[1],
+            'recieve_axon_signal_programs': genome.function_chromosomes[2],
+            'recieve_reward_programs': genome.function_chromosomes[3],
+            'move_programs': genome.function_chromosomes[4],
+            'die_programs': genome.function_chromosomes[5],
+            'neuron_birth_programs': genome.function_chromosomes[6],
+            'action_controller_programs': genome.function_chromosomes[7],
             'hox_variant_selection_program': genome.hex_selector_genome.program,
             'internal_state_variable_count': neuron_internal_states
         }
         axon_init_data = {
-            'recieve_signal_neuron_program' : genome.function_chromosomes[8].hex_variants[0].program,
-            'recieve_signal_dendrite_program' : genome.function_chromosomes[9].hex_variants[0].program,
-            'signal_dendrite_program' : genome.function_chromosomes[10].hex_variants[0].program,
-            'signal_neuron_program' : genome.function_chromosomes[11].hex_variants[0].program,
-            'accept_connection_program' : genome.function_chromosomes[12].hex_variants[0].program,
-            'break_connection_program' : genome.function_chromosomes[13].hex_variants[0].program,
-            'recieve_reward_program' : genome.function_chromosomes[14].hex_variants[0].program,
-            'die_program' : genome.function_chromosomes[15].hex_variants[0].program,
-            'action_controller_program' : genome.function_chromosomes[16].hex_variants[0].program,
+            'recieve_signal_neuron_programs' : genome.function_chromosomes[8],
+            'recieve_signal_dendrite_programs' : genome.function_chromosomes[9],
+            'signal_dendrite_programs' : genome.function_chromosomes[10],
+            'signal_neuron_programs' : genome.function_chromosomes[11],
+            'accept_connection_programs' : genome.function_chromosomes[12],
+            'break_connection_programs' : genome.function_chromosomes[13],
+            'recieve_reward_programs' : genome.function_chromosomes[14],
+            'die_programs' : genome.function_chromosomes[15],
+            'action_controller_programs' : genome.function_chromosomes[16],
             'internal_state_variable_count': dendrite_internal_states
         }
         return neuron_init_data, axon_init_data
@@ -433,27 +433,27 @@ if __name__ == "__main__":
 
             def genome_to_init_data(genome):
                 neuron_init_data = {
-                    'axon_birth_program' : genome.function_chromosomes[0].hex_variants[0].program,
-                    'signal_axon_program' : genome.function_chromosomes[1].hex_variants[0].program,
-                    'recieve_axon_signal_program': genome.function_chromosomes[2].hex_variants[0].program,
-                    'recieve_reward_program': genome.function_chromosomes[3].hex_variants[0].program,
-                    'move_program': genome.function_chromosomes[4].hex_variants[0].program,
-                    'die_program': genome.function_chromosomes[5].hex_variants[0].program,
-                    'neuron_birth_program': genome.function_chromosomes[6].hex_variants[0].program,
-                    'action_controller_program': genome.function_chromosomes[7].hex_variants[0].program,
+                    'axon_birth_programs' : genome.function_chromosomes[0],
+                    'signal_axon_programs' : genome.function_chromosomes[1],
+                    'recieve_axon_signal_programs': genome.function_chromosomes[2],
+                    'recieve_reward_programs': genome.function_chromosomes[3],
+                    'move_programs': genome.function_chromosomes[4],
+                    'die_programs': genome.function_chromosomes[5],
+                    'neuron_birth_programs': genome.function_chromosomes[6],
+                    'action_controller_programs': genome.function_chromosomes[7],
                     'hox_variant_selection_program': genome.hex_selector_genome.program,
                     'internal_state_variable_count': neuron_internal_states
                 }
                 axon_init_data = {
-                    'recieve_signal_neuron_program' : genome.function_chromosomes[8].hex_variants[0].program,
-                    'recieve_signal_dendrite_program' : genome.function_chromosomes[9].hex_variants[0].program,
-                    'signal_dendrite_program' : genome.function_chromosomes[10].hex_variants[0].program,
-                    'signal_neuron_program' : genome.function_chromosomes[11].hex_variants[0].program,
-                    'accept_connection_program' : genome.function_chromosomes[12].hex_variants[0].program,
-                    'break_connection_program' : genome.function_chromosomes[13].hex_variants[0].program,
-                    'recieve_reward_program' : genome.function_chromosomes[14].hex_variants[0].program,
-                    'die_program' : genome.function_chromosomes[15].hex_variants[0].program,
-                    'action_controller_program' : genome.function_chromosomes[16].hex_variants[0].program,
+                    'recieve_signal_neuron_programs' : genome.function_chromosomes[8],
+                    'recieve_signal_dendrite_programs' : genome.function_chromosomes[9],
+                    'signal_dendrite_programs' : genome.function_chromosomes[10],
+                    'signal_neuron_programs' : genome.function_chromosomes[11],
+                    'accept_connection_programs' : genome.function_chromosomes[12],
+                    'break_connection_programs' : genome.function_chromosomes[13],
+                    'recieve_reward_programs' : genome.function_chromosomes[14],
+                    'die_programs' : genome.function_chromosomes[15],
+                    'action_controller_programs' : genome.function_chromosomes[16],
                     'internal_state_variable_count': dendrite_internal_states
                 }
 

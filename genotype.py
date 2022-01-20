@@ -40,8 +40,8 @@ class Genome:
                     self.function_chromosomes.append(FunctionChromosome(homeobox_variants, name, input_arities[num], counter, self.config))
             self.hex_selector_genome = HexSelectorGenome(
                 variant_count=homeobox_variants,
-                input_arity = input_arities[7][0],
-                program = CGPEngine.CGPProgram(input_arities[7][0], input_arities[7][1], counter, self.config),
+                input_arity = input_arities[8][0],
+                program = CGPEngine.CGPProgram(input_arities[8][0], input_arities[8][1], counter, self.config),
                 config = self.config
             )
             self.parameter_genome = ParameterGenome()

@@ -5,7 +5,7 @@ from genotype import Genome
 import Logger
 import stupid_problem_test
 import random
-from HelperClasses import Counter, randchoice, drawProgram, copydict
+from HelperClasses import Counter, randchoice, drawProgram, copydict, randcheck
 import os
 
 def log_genome(genomes, runinfo):
@@ -22,6 +22,10 @@ def process_config(config):
     for key, val in config.items():
         if "," in val:
             config[key] = val.split(',')
+            if config[key][0].isnumeric():
+                for num2 in range(len(config[key])):
+                    config[key][num2] = int(config[key][num2])
+
         elif "." in val:
             config[key] = float(val)
         elif config[key] == "False":
@@ -75,15 +79,15 @@ def run(config, print_output = False):
         'internal_state_variable_count' # not function but parameter comes here in the order
     ]
     neuron_function_arities = [  # by order above
-        [dimensions+neuron_internal_states+1, 4+signal_dimensionality+neuron_internal_states],  # axon birth
-        [signal_dimensionality+dimensions+neuron_internal_states, 2 + signal_dimensionality + neuron_internal_states],  # signal axon
-        [signal_dimensionality + dimensions + neuron_internal_states, 2 + neuron_internal_states+signal_dimensionality],  # recieve signal axon
-        [1 + dimensions + neuron_internal_states, 2 + neuron_internal_states],  # reciee reward
-        [neuron_internal_states + dimensions, 7+neuron_internal_states],  # move
-        [dimensions + neuron_internal_states, 2+neuron_internal_states],  # die
-        [dimensions + neuron_internal_states, 2+neuron_internal_states*2],  # neuron birth
-        [neuron_internal_states+dimensions, 9],  # action controller
-        [neuron_internal_states + dimensions, hox_variant_count]  # hox selection
+        [dimensions+neuron_internal_states+1 + len(config['cgp_function_constant_numbers']), 4+signal_dimensionality+neuron_internal_states],  # axon birth
+        [signal_dimensionality+dimensions+neuron_internal_states + len(config['cgp_function_constant_numbers']), 2 + signal_dimensionality + neuron_internal_states],  # signal axon
+        [signal_dimensionality + dimensions + neuron_internal_states + len(config['cgp_function_constant_numbers']), 2 + neuron_internal_states+signal_dimensionality],  # recieve signal axon
+        [1 + dimensions + neuron_internal_states + len(config['cgp_function_constant_numbers']), 2 + neuron_internal_states],  # reciee reward
+        [neuron_internal_states + dimensions + len(config['cgp_function_constant_numbers']), 7+neuron_internal_states],  # move
+        [dimensions + neuron_internal_states + len(config['cgp_function_constant_numbers']), 2+neuron_internal_states],  # die
+        [dimensions + neuron_internal_states + len(config['cgp_function_constant_numbers']), 2+neuron_internal_states*2],  # neuron birth
+        [neuron_internal_states+dimensions + len(config['cgp_function_constant_numbers']), 9],  # action controller
+        [neuron_internal_states + dimensions + len(config['cgp_function_constant_numbers']), hox_variant_count]  # hox selection
     ]
 
     dendrite_function_order = [
@@ -98,15 +102,15 @@ def run(config, print_output = False):
         'action_controller_program'
     ]
     dendrite_function_arities = [
-        [dendrite_internal_states + signal_dimensionality + dimensions, 2+signal_dimensionality+dendrite_internal_states],
-        [dendrite_internal_states + signal_dimensionality + dimensions, 2+signal_dimensionality+dendrite_internal_states],
-        [dimensions + dendrite_internal_states + signal_dimensionality, 4+signal_dimensionality+dendrite_internal_states],
-        [dimensions + dendrite_internal_states + signal_dimensionality, 4+signal_dimensionality+dendrite_internal_states],
-        [dimensions + dendrite_internal_states + dimensions + dendrite_internal_states, 2+dendrite_internal_states], # Accept connection
-        [dimensions + dendrite_internal_states + dimensions + dendrite_internal_states, 1], # Break connection
-        [dimensions + dendrite_internal_states + 1, 2 + dendrite_internal_states], # recieve reward
-        [dimensions + dendrite_internal_states, 1+signal_dimensionality], # die
-        [dendrite_internal_states + dimensions, 3]
+        [dendrite_internal_states + signal_dimensionality + dimensions + len(config['cgp_function_constant_numbers']), 2+signal_dimensionality+dendrite_internal_states],
+        [dendrite_internal_states + signal_dimensionality + dimensions + len(config['cgp_function_constant_numbers']), 2+signal_dimensionality+dendrite_internal_states],
+        [dimensions + dendrite_internal_states + signal_dimensionality + len(config['cgp_function_constant_numbers']), 4+signal_dimensionality+dendrite_internal_states],
+        [dimensions + dendrite_internal_states + signal_dimensionality + len(config['cgp_function_constant_numbers']), 4+signal_dimensionality+dendrite_internal_states],
+        [dimensions + dendrite_internal_states + dimensions + dendrite_internal_states + len(config['cgp_function_constant_numbers']), 2+dendrite_internal_states], # Accept connection
+        [dimensions + dendrite_internal_states + dimensions + dendrite_internal_states + len(config['cgp_function_constant_numbers']), 1], # Break connection
+        [dimensions + dendrite_internal_states + 1 + len(config['cgp_function_constant_numbers']), 2 + dendrite_internal_states], # recieve reward
+        [dimensions + dendrite_internal_states + len(config['cgp_function_constant_numbers']), 1+signal_dimensionality], # die
+        [dendrite_internal_states + dimensions + len(config['cgp_function_constant_numbers']), 3]
     ]
 
     # TODO add support for homeobox variant selection, currently just uses one
@@ -190,17 +194,26 @@ def run(config, print_output = False):
     for num in range(learning_iterations):   
         time_genes = 0
         time_eval = 0
+        time_genes_post = 0
+        time_genes_selection = 0
+        time_genes_crossover = 0
+        time_genes_skip_check = 0
         egligable_bachelors = [x[0] for x in genomes]
         child_data = [[] for _ in range(len(genomes))]
         while len([x for x in egligable_bachelors if x is not None]) > 0:
             time_genes_stamp = time.time()
+            time_genes_selection_stamp = time.time()
             choice1 = randchoice([x for x in egligable_bachelors if x is not None])
             choice2 = randchoice([x for x in egligable_bachelors if x is not None])
             indexes = [egligable_bachelors.index(choice1), egligable_bachelors.index(choice2)]
             egligable_bachelors[egligable_bachelors.index(choice1)] = None  # Currently possible to do crossover with self, which does make some sense with subgraph extraction
             if choice2 in egligable_bachelors and choice2 != choice1:
                 egligable_bachelors[egligable_bachelors.index(choice2)] = None
+            time_genes_selection += time.time() - time_genes_selection_stamp
+            time_genes_crossover_stamp = time.time()
             new_genomes = choice1.crossover(choice2)
+            time_genes_crossover += time.time() - time_genes_crossover_stamp
+            time_genes_skip_check_stamp = time.time()
             skip_eval = [False for num in range(len(new_genomes))]
             for numero in range(len(new_genomes)):
                 genome = new_genomes[numero]
@@ -208,12 +221,12 @@ def run(config, print_output = False):
                     skip_eval[numero] = 1
                 if genome.equals_no_id(choice2):
                     skip_eval[numero] = 2
+            time_genes_skip_check += time.time() - time_genes_skip_check_stamp
             genome_results = []
-            genome_results = []
+            time_genes += time.time() - time_genes_stamp
+            time_eval_stamp = time.time()
             for numero in range(len(new_genomes)):
                 genome = new_genomes[numero]
-                time_genes += time.time() - time_genes_stamp
-                time_eval_stamp = time.time()
                 if not skip_eval[numero]:
                     neuron_initialization_data, axon_initialization_data = genome_to_init_data(genome)
                     engine = NeuronEngine(
@@ -236,7 +249,8 @@ def run(config, print_output = False):
                     genome_results.append((genomes[indexes[0]][1], genomes[indexes[0]][2]))
                 else:
                     genome_results.append((genomes[indexes[1]][1], genomes[indexes[1]][2]))
-                time_eval += time.time() - time_eval_stamp
+
+            time_eval += time.time() - time_eval_stamp
 
             #def multiprocess_code(engine_problem):
             #    return engine_problem[0].run(engine_problem[1])
@@ -248,26 +262,26 @@ def run(config, print_output = False):
             genome_results = [x[0] for x in genome_results]
             # all children of a parent compete for the parents spots
 
-            def _draw_program_data(genome):
-                # RFE only one hex variant shown
-                genome = genome
-                functions = genome.function_chromosomes
-                for func in functions:
-                    chro = func
-                    program = chro.hex_variants[0].program
-                    output_nodes = [program.nodes[x] for x in program.output_indexes]
-                    drawProgram(
-                        program.get_active_nodes(),
-                        output_nodes,
-                        program.input_nodes
-                    )
+            #def _draw_program_data(genome):
+            #    # RFE only one hex variant shown
+            #    genome = genome
+            #    functions = genome.function_chromosomes
+            #    for func in functions:
+            #        chro = func
+            #        program = chro.hex_variants[0].program
+            #        output_nodes = [program.nodes[x] for x in program.output_indexes]
+            #        drawProgram(
+            #            program.get_active_nodes(),
+            #            output_nodes,
+            #            program.input_nodes
+            #        )
 
             for x in range(len(new_genomes)):
                 child_data[indexes[0]].append((new_genomes[x], genome_results[x], base_problems[x]))
                 child_data[indexes[1]].append((new_genomes[x], genome_results[x], base_problems[x]))        
             time_genes += time.time() - time_genes_stamp
 
-        time_genes_stamp = time.time()
+        time_genes_post_stamp = time.time()
         change_better = [False for x in range(len(genomes))]
         change_neutral = [False for x in range(len(genomes))]
         for num3 in range(len(child_data)):
@@ -303,11 +317,26 @@ def run(config, print_output = False):
                     genome.config['mutation_chance_node'] = config['hypermutation_mutation_chance']
                     genome.config['mutation_chance_link'] = config['hypermutation_mutation_chance']
             genome.update_config()
+        
+        for num4 in range(config['genome_replacement_tries']):
+            genome_one = randchoice(genomes)
+            genome_two = randchoice([x for x in genomes if x is not genome_one])
+            diff = abs(genome_one[1] - genome_two[1])
+            maxi = max(genome_one[1], genome_two[1])
+            if diff > config['replacement_fitness_difference_threshold']:
+                if randcheck(diff*config['replacement_fitness_difference_scaling']/maxi):
+                    if genome_one[1] > genome_two[1]:
+                        genomes[genomes.index(genome_two)] = genome_one
+                    else:
+                        genomes[genomes.index(genome_one)] = genome_two
 
-        time_genes += time.time() - time_genes_stamp
+
+
+        time_genes_post += time.time() - time_genes_post_stamp
         #print(num, [f"{x[1]}, {x[2]}" for x in genomes])
         print(f"------------------- {num} ------------------")
-        print(time_genes, time_eval)
+        print(f"genes:{time_genes}, genes_selection:{time_genes_selection}, genes_crossover:{time_genes_crossover}, " +\
+            f"genes_skip_check:{time_genes_skip_check}, eval:{time_eval}, genes_post:{time_genes_post}")
         for genome in genomes: 
             print()
             print(genome[0].id)
@@ -332,6 +361,7 @@ if __name__ == "__main__":
         run(config, print_output=True)
     elif config['mode'][0] == 'load':
         # TODO not fully implemented
+        # TODO if fully implementing unify code with run function better, outdated due to code duplications
         print("Loading program")
         loadfile = config['mode'][1]
         loadprogram = config['mode'][2]

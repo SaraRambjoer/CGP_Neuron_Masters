@@ -428,7 +428,6 @@ class CGPProgram:
         for node in self.nodes:
             node.age += 1
         #self.fix_row()
-        output_change_chance = 0.1
         subgraph_size_max = 5
         node_swap_chance = 1.0
         node_link_mutate_chance = self.config['mutation_chance_link']
@@ -461,27 +460,30 @@ class CGPProgram:
             else:
                 module_types = self.get_active_modules()
             for node in nodes:
-                if randcheck(node_link_mutate_chance):
-                    # Normally there is a "maximal output connections" per node paramter too, in this version
-                    # this is not implemented
-                    effected_nodes.append(node.id)
-                    input_from = randchoice([x for x in (self.nodes + self.input_nodes) if x.row_depth < node.row_depth])
-                    if len(node.inputs) >= node.arity: # neutral in connection count
-                        while len(node.inputs) >= node.arity:
-                            to_remove = node.inputs[randchoice(range(0, node.arity))]
-                            node.inputs.remove(to_remove)
-                            to_remove.subscribers.remove(node)
-                        node.add_connection(input_from)
-                    elif randcheck(0.5): # 0.5 chance to add connection
-                        node.add_connection(input_from)
-                    elif len(node.inputs) > 0: # 0.5 chance to remove
-                        to_remove = node.inputs[randchoice(range(0, len(node.inputs)))]
-                        node.inputs.remove(to_remove)
-                        to_remove.subscribers.remove(node)
+                for num in range(0, node.arity):
+                    if randcheck(node_link_mutate_chance):
+                        # Normally there is a "maximal output connections" per node paramter too, in this version
+                        # this is not implemented
+                        effected_nodes.append(node.id)
+                        input_from = randchoice([x for x in (self.nodes + self.input_nodes) if x.row_depth < node.row_depth])
+                        if len(node.inputs) >= node.arity: # neutral in connection count
+                            while len(node.inputs) >= node.arity:
+                                to_remove = node.inputs[num]
+                                node.inputs.remove(to_remove)
+                                to_remove.subscribers.remove(node)
+                            node.add_connection(input_from)
+                        elif randcheck(0.5): # 0.5 chance to add connection
+                            node.add_connection(input_from)
+                        elif len(node.inputs) > 0: # 0.5 chance to remove
+                            if num < len(node.inputs):
+                                to_remove = node.inputs[num]
+                                node.inputs.remove(to_remove)
+                                to_remove.subscribers.remove(node)
                 
                 # Scale probability of type change with node arity s.t. type drift does not favour
-                # low arity functions
-                if randcheck(node_type_mutate_chance/node.arity):
+                # low arity functions - with the exception of when node type mutate change is 1.0,
+                # i.e. hypermutation or complete randomness
+                if randcheck(node_type_mutate_chance/node.arity) or node_type_mutate_chance == 1.0:
                     effected_nodes.append(node.id)
                     #node.change_type(randchoice(CPGNodeTypes + module_types))
                     node.change_type(randchoice(CPGNodeTypes + module_types))

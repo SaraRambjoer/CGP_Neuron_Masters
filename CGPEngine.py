@@ -1,6 +1,6 @@
 import math
 import random
-from HelperClasses import Counter, randchoice, randcheck
+from HelperClasses import Counter, randchoice, randcheck, randchoice_scaled
 from numpy.core.fromnumeric import sort, var
 from numpy.lib.function_base import average
 from numpy.ma import count
@@ -75,6 +75,8 @@ class CGPNode(NodeAbstract):
         self.id = self.counter.counterval()
         self.row_depth = self.id  # Just to get an initial ordering
         self.debugging = debugging
+
+        self.age = 1  # Used for extracting cones
         if type(self.type) is not CGPModuleType:
             self.arity = NodeTypeArity[self.type]
         else:
@@ -155,6 +157,7 @@ class CGPNode(NodeAbstract):
              
 
     def change_type(self, newtype):
+        self.age = 1
         self.type = newtype
         if type(newtype) is CGPModuleType:
             self.arity = newtype.arity
@@ -220,6 +223,7 @@ class InputCGPNode(NodeAbstract):
         self.output = None
         self.type = "InputNode"
         self.arity = 0
+        self.age = 1
         self.inputs = []
     
     def set_output(self, float_val):
@@ -412,8 +416,17 @@ class CGPProgram:
             new_output_indexes.append(node_ids.index(id))
         self.output_indexes = new_output_indexes
 
-    def simple_mutate(self):
+    def get_active_modules(self):
+        module_types = []
+        for node in self.get_active_nodes():
+            if type(node) != InputCGPNode and node.type not in CPGNodeTypes and node.id not in [x.id for x in module_types]:
+                module_types.append(node.type)
+        return module_types
+
+    def simple_mutate(self, cgp_modules = None):
         self.validate_nodes()
+        for node in self.nodes:
+            node.age += 1
         #self.fix_row()
         output_change_chance = 0.1
         subgraph_size_max = 5
@@ -443,9 +456,10 @@ class CGPProgram:
         def _simple_mutate(nodes):
             effected_nodes = []
             module_types = []
-            for node in self.get_active_nodes():
-                if type(node) != InputCGPNode and node.type not in CPGNodeTypes and node.id not in [x.id for x in module_types]:
-                    module_types.append(node.type)
+            if cgp_modules is not None:
+                module_types = cgp_modules
+            else:
+                module_types = self.get_active_modules()
             for node in nodes:
                 if randcheck(node_link_mutate_chance):
                     # Normally there is a "maximal output connections" per node paramter too, in this version
@@ -464,8 +478,10 @@ class CGPProgram:
                         to_remove = node.inputs[randchoice(range(0, len(node.inputs)))]
                         node.inputs.remove(to_remove)
                         to_remove.subscribers.remove(node)
-                    
-                if randcheck(node_type_mutate_chance):
+                
+                # Scale probability of type change with node arity s.t. type drift does not favour
+                # low arity functions
+                if randcheck(node_type_mutate_chance/node.arity):
                     effected_nodes.append(node.id)
                     #node.change_type(randchoice(CPGNodeTypes + module_types))
                     node.change_type(randchoice(CPGNodeTypes + module_types))
@@ -556,9 +572,9 @@ class CGPProgram:
         return new_copy
         
 
-    def produce_children(self, child_count):
+    def produce_children(self, child_count, cgp_modules = None):
         alternatives = [self.deepcopy() for num in range(0, child_count)]
-        alternatives = [x.simple_mutate() for x in alternatives]
+        alternatives = [x.simple_mutate(cgp_modules) for x in alternatives]
         return alternatives
 
     def four_plus_one_evolution(self, eval_routine, inputs):
@@ -636,28 +652,46 @@ class CGPProgram:
         Extracts count subgraphs from program in size range [1, max_size]. May be overlapping. Returns
         CGPModuleTypes.
         """
-        node_pool = [x for x in self.get_active_nodes()]  # Bias towards things we know are working
+        node_pool = [x for x in self.get_active_nodes() if type(x) is not InputCGPNode]  # Bias towards things we know are working
         subgraphs = []
         if not len(node_pool) == 0:
             while len(subgraphs) < subgraph_count:
                 target_size = randchoice(range(max_size))
                 subgraph_nodes = []
-                origin_node = randchoice(node_pool)
+                origin_node = randchoice_scaled(node_pool, [x.age for x in node_pool])
                 subgraph_nodes += [origin_node]
-                frontier = []
-                for node in origin_node.inputs:
-                    if node not in subgraph_nodes and node not in frontier and \
-                        type(node) != InputCGPNode:
-                        frontier.append(node)
-                while len(frontier) > 0 and len(subgraph_nodes) < target_size:
-                    selected_node = randchoice(frontier)
-                    for node in selected_node.inputs:
-                        if node not in subgraph_nodes and node not in frontier and \
-                                type(node) != InputCGPNode:
-                            frontier.append(node)
-                    subgraph_nodes += [selected_node]
+                frontier = [x for x in origin_node.inputs if type(x) is not InputCGPNode]
+                if origin_node in frontier:
+                    raise Exception("Critical error auto-recursive loop in CGP graph")
+
+                # to avoid infinite loops
+                max_tries = 100
+                current_try = 0
+                while len(frontier) > 0 and len(subgraph_nodes) < target_size and current_try < max_tries:
+                    selected_node = randchoice_scaled(frontier, [x.age for x in frontier])
+                    old_frontier = [x for x in frontier]
                     frontier.remove(selected_node)
-                
+                    
+                    # As pointed out in "Advanced techniques for the creation and propagation of modules in cartesian genetic programming"
+                    # by Kaufmann & Platzner a reconvergent connection with a cone module is when a node in the cone gives an input to 
+                    # a node outside of the cone which gives an input to the cone again, causing a in principle endless recurrence.
+                    reconvergent_path_check = False
+                    if len(frontier) > 0:
+                        for node in frontier:
+                            if selected_node in node.inputs:
+                                reconvergent_path_check = True
+                                break
+                    if not reconvergent_path_check:
+                        for node in selected_node.inputs:
+                            if node not in subgraph_nodes and node not in frontier and \
+                                    type(node) != InputCGPNode:
+                                frontier.append(node)
+                        if selected_node not in subgraph_nodes:
+                            subgraph_nodes += [selected_node]
+                    else: 
+                        frontier = old_frontier
+                    current_try += 1
+
                 subgraph_partly_copied = []
                 # Init copies
                 for node in subgraph_nodes:

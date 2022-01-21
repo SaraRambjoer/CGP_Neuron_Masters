@@ -669,17 +669,17 @@ class Neuron(CellObjectSuper):
         self.config = config
         self.id = counter.counterval()
 
-
-        self.axon_birth_program = self.neuron_initialization_data['axon_birth_program']
-        self.signal_axon_program = self.neuron_initialization_data['signal_axon_program']
-        self.recieve_axon_signal_program = self.neuron_initialization_data['recieve_axon_signal_program']
-        self.recieve_reward_program = self.neuron_initialization_data['recieve_reward_program']
-        self.move_program = self.neuron_initialization_data['move_program']
-        self.die_program = self.neuron_initialization_data['die_program']
-        self.neuron_birth_program = self.neuron_initialization_data['neuron_birth_program']
-        self.action_controller_program = self.neuron_initialization_data['action_controller_program']
         self.hox_variant_selection_program = self.neuron_initialization_data['hox_variant_selection_program']
         self.internal_state_variable_count = self.neuron_initialization_data['internal_state_variable_count']
+
+        self.axon_birth_program = None
+        self.signal_axon_program = None
+        self.recieve_axon_signal_program = None
+        self.recieve_reward_program = None
+        self.move_program = None
+        self.die_program = None
+        self.neuron_birth_program = None
+        self.action_controller_program = None
         self.axons = []
         self.dendrites = []
 
@@ -703,15 +703,37 @@ class Neuron(CellObjectSuper):
         self.signal_arity = signal_arity
 
         self.hox_variants = hox_variants
-        self.selected_hox_variant = None
+        self.selected_hox_variant = 0
         self.run_hox_selection()
         self.grid = grid
         self.program_order_length = 7
+    
+
+    def load_hox_programs(self):
+        self.axon_birth_program = self.neuron_initialization_data['axon_birth_programs']\
+            .hex_variants[self.selected_hox_variant].program
+        self.signal_axon_program = self.neuron_initialization_data['signal_axon_programs']\
+            .hex_variants[self.selected_hox_variant].program
+        self.recieve_axon_signal_program = self.neuron_initialization_data['recieve_axon_signal_programs']\
+            .hex_variants[self.selected_hox_variant].program
+        self.recieve_reward_program = self.neuron_initialization_data['recieve_reward_programs']\
+            .hex_variants[self.selected_hox_variant].program
+        self.move_program = self.neuron_initialization_data['move_programs']\
+            .hex_variants[self.selected_hox_variant].program
+        self.die_program = self.neuron_initialization_data['die_programs']\
+            .hex_variants[self.selected_hox_variant].program
+        self.neuron_birth_program = self.neuron_initialization_data['neuron_birth_programs']\
+            .hex_variants[self.selected_hox_variant].program
+        self.action_controller_program = self.neuron_initialization_data['action_controller_programs']\
+            .hex_variants[self.selected_hox_variant].program
+
+        for axon_dendrite in self.axons + self.dendrites:
+            axon_dendrite.load_hox_programs()
 
     def addqueue(self, lambdafunc, timestep):
         addqueue(self.neuron_engine, lambdafunc, timestep, self.id)
 
-    # TODO: Axon missing hox selection
+    # TODO: Axon missing hox selection - just use parent hox for simplicity for now
     def run_hox_selection(self):
         if not self.dying:
             self.hox_variant_selection_program.reset()
@@ -721,6 +743,7 @@ class Neuron(CellObjectSuper):
             outputs = self.hox_variant_selection_program.run_presetinputs()
             chosen_variant = outputs.index(max(outputs))
             self.selected_hox_variant = chosen_variant
+            self.load_hox_programs()
             self.logger.log("engine_action", f"{self.id}: Neuron hox selection, selected {self.selected_hox_variant}. Inputs: {log_inputs}. Outputs: {outputs}")
         else: 
             self.logger.log("engine_action", f"{self.id}: Neuron hox selection aborted, neuron dying")
@@ -1173,15 +1196,6 @@ class Axon(CellObjectSuper):
 
         self.counter = counter
 
-        self.recieve_signal_neuron_program = axon_initialization_data['recieve_signal_neuron_program']
-        self.recieve_signal_axon_program = axon_initialization_data['recieve_signal_dendrite_program']
-        self.signal_dendrite_program =  axon_initialization_data['signal_dendrite_program']
-        self.signal_neuron_program =  axon_initialization_data['signal_neuron_program']
-        self.accept_connection_program = axon_initialization_data['accept_connection_program']
-        self.break_connection_program = axon_initialization_data['break_connection_program']
-        self.recieve_reward_program = axon_initialization_data['recieve_reward_program']
-        self.die_program = axon_initialization_data['die_program']
-        self.action_controller_program = axon_initialization_data['action_controller_program']
 
         self.program_order = [
             lambda t: self.run_break_connection(t),
@@ -1204,10 +1218,42 @@ class Axon(CellObjectSuper):
         self.connected_dendrite = None
         self.neuron = neuron
         self.seek_dendrite_tries = self.config['seek_dendrite_tries']
+        self.axon_initialization_data = axon_initialization_data
 
+        self.recieve_signal_neuron_program = None
+        self.recieve_signal_axon_program = None
+        self.signal_dendrite_program =  None
+        self.signal_neuron_program =  None
+        self.accept_connection_program = None
+        self.break_connection_program = None
+        self.recieve_reward_program = None
+        self.die_program = None
+        self.action_controller_program = None
+
+        self.load_hox_programs()
 
         self.neuron.grid.add_free_dendrite(self)
         self.seek_dendrite_connection()
+
+    def load_hox_programs(self):
+        self.recieve_signal_neuron_program = self.axon_initialization_data['recieve_signal_neuron_programs']\
+            .hex_variants[self.neuron.selected_hox_variant].program
+        self.recieve_signal_axon_program = self.axon_initialization_data['recieve_signal_dendrite_programs']\
+            .hex_variants[self.neuron.selected_hox_variant].program
+        self.signal_dendrite_program =  self.axon_initialization_data['signal_dendrite_programs']\
+            .hex_variants[self.neuron.selected_hox_variant].program
+        self.signal_neuron_program =  self.axon_initialization_data['signal_neuron_programs']\
+            .hex_variants[self.neuron.selected_hox_variant].program
+        self.accept_connection_program = self.axon_initialization_data['accept_connection_programs']\
+            .hex_variants[self.neuron.selected_hox_variant].program
+        self.break_connection_program = self.axon_initialization_data['break_connection_programs']\
+            .hex_variants[self.neuron.selected_hox_variant].program
+        self.recieve_reward_program = self.axon_initialization_data['recieve_reward_programs']\
+            .hex_variants[self.neuron.selected_hox_variant].program
+        self.die_program = self.axon_initialization_data['die_programs']\
+            .hex_variants[self.neuron.selected_hox_variant].program
+        self.action_controller_program = self.axon_initialization_data['action_controller_programs']\
+            .hex_variants[self.neuron.selected_hox_variant].program
 
 
     
@@ -1378,7 +1424,7 @@ class Axon(CellObjectSuper):
                     self.logger.log("engine_action", f"{self.id}, {timestep}: Axon ran signal dendrite. Adding recieve signal in connected axon to queue.")
                     # TODO adding sending signals on dying does not work at all
                     def _internal_handler(self, outputs, timestep):
-                        if self.connected_dendrite is not None:
+                        if self.connected_dendrite is not None and self.connected_dendrite != InputNeuron:
                             self.connected_dendrite.run_recieve_signal_axon(
                                 outputs[1:1+self.signal_arity],
                                 timestep + 1

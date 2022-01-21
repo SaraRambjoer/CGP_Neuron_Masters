@@ -40,8 +40,8 @@ class Genome:
                     self.function_chromosomes.append(FunctionChromosome(homeobox_variants, name, input_arities[num], counter, self.config))
             self.hex_selector_genome = HexSelectorGenome(
                 variant_count=homeobox_variants,
-                input_arity = input_arities[7][0],
-                program = CGPEngine.CGPProgram(input_arities[7][0], input_arities[7][1], counter, self.config),
+                input_arity = input_arities[8][0],
+                program = CGPEngine.CGPProgram(input_arities[8][0], input_arities[8][1], counter, self.config),
                 config = self.config
             )
             self.parameter_genome = ParameterGenome()
@@ -119,12 +119,19 @@ class Genome:
 
     def crossover(self, target):
         self.update_config()
-        hex_selector_children = self.hex_selector_genome.crossover(target.hex_selector_genome, self.successor_count)
+        
+        cgp_modules = []
+        for cgp_module in self.hex_selector_genome.program.get_active_modules():
+            cgp_modules.append(cgp_module)
+        for cgp_function_chromosome in self.function_chromosomes:
+            for hex_variant in cgp_function_chromosome.hex_variants:
+                for cgp_module in hex_variant.program.get_active_modules():
+                    cgp_modules.append(cgp_module)
+        hex_selector_children = self.hex_selector_genome.crossover(target.hex_selector_genome, self.successor_count, cgp_modules)
         parameter_genome_children = self.parameter_genome.crossover(target.parameter_genome, self.successor_count)
         function_chromosome_children = []
         for num in range(len(self.function_chromosomes)):
-            # BUG Something weird with creating too many hex variants?
-            function_chromosome_children.append(self.function_chromosomes[num].crossover(target.function_chromosomes[num], 2))
+            function_chromosome_children.append(self.function_chromosomes[num].crossover(target.function_chromosomes[num], 2, cgp_modules))
 
         returned_genomes = []
         for num in range(self.successor_count):
@@ -165,7 +172,7 @@ class Genome:
         return str(self.hex_selector_genome) + "\n----\n" + "\n-----\n".join([str(x) for x in self.function_chromosomes])
 
 # TODO use parameters in parameter genome for controlling this
-def generalized_cgp_crossover(parent1, parent2, child_count, samemut):
+def generalized_cgp_crossover(parent1, parent2, child_count, samemut, cgp_modules = None):
     if samemut:
         program_child_1 = parent1.program.deepcopy()
         program_child_2 = parent2.program.deepcopy()
@@ -178,7 +185,8 @@ def generalized_cgp_crossover(parent1, parent2, child_count, samemut):
         program_child_4.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
 
         CGPEngine.subgraph_crossover(program_child_1, program_child_2, 12, 12)
-        children = program_child_1.produce_children(1) + program_child_2.produce_children(1) + program_child_3.produce_children(1) + program_child_4.produce_children(1)
+        children = program_child_1.produce_children(1, cgp_modules) + program_child_2.produce_children(1, cgp_modules) + \
+          program_child_3.produce_children(1, cgp_modules) + program_child_4.produce_children(1, cgp_modules)
         return children
     else:
         program_child_1 = parent1.program.deepcopy()
@@ -188,7 +196,7 @@ def generalized_cgp_crossover(parent1, parent2, child_count, samemut):
         program_child_2.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
 
         CGPEngine.subgraph_crossover(program_child_1, program_child_2, 12, 12)
-        children = program_child_1.produce_children(1) + program_child_2.produce_children(1)
+        children = program_child_1.produce_children(1, cgp_modules) + program_child_2.produce_children(1, cgp_modules)
         return children
 
 
@@ -212,8 +220,8 @@ class HexSelectorGenome:
         self.config = config
         self.program.set_config(config)
 
-    def crossover(self, other_hexselector, child_count) -> None: 
-        children = generalized_cgp_crossover(self, other_hexselector, child_count, self.config['non_crossover_children'])
+    def crossover(self, other_hexselector, child_count, cgp_modules= None): 
+        children = generalized_cgp_crossover(self, other_hexselector, child_count, self.config['non_crossover_children'], cgp_modules)
         outputs = []
         for child in children:
             outputs.append(
@@ -254,9 +262,8 @@ class FunctionChromosome:
         for hex in self.hex_variants:
             hex.mutate()
 
-    def crossover(self, other_chromosome, child_count) -> None:
+    def crossover(self, other_chromosome, child_count, cgp_modules = None) -> None:
         # Should call crossover operators for homeobox variants where relevant, as well as doing n-point crossover in homeobox-variant space. 
-        crossover_point = randchoice(range(0, len(self.hex_variants)))
         child1 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
         child2 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
         if self.config['non_crossover_children']:
@@ -279,13 +286,13 @@ class FunctionChromosome:
 
         for x in range(0, len(self.hex_variants)):
             if self.config['non_crossover_children']:
-                [n1, n2, n3, n4] = child1.hex_variants[x].crossover(child2.hex_variants[x], 2)
+                [n1, n2, n3, n4] = child1.hex_variants[x].crossover(child2.hex_variants[x], 2, cgp_modules)
                 child1.hex_variants[x].program = n1
                 child2.hex_variants[x].program = n2
                 child3.hex_variants[x].program = n3
                 child4.hex_variants[x].program = n4
             else:
-                [n1, n2] = child1.hex_variants[x].crossover(child2.hex_variants[x], 2)
+                [n1, n2] = child1.hex_variants[x].crossover(child2.hex_variants[x], 2, cgp_modules)
                 child1.hex_variants[x].program = n1
                 child2.hex_variants[x].program = n2
         if self.config['non_crossover_children']:
@@ -316,8 +323,8 @@ class HexFunction:
     def mutate(self) -> None:
         pass  # In current design should do nothing
 
-    def crossover(self, other_func, child_count) -> None: 
-        return generalized_cgp_crossover(self, other_func, child_count, self.config['non_crossover_children'])
+    def crossover(self, other_func, child_count, cgp_modules = None) -> None: 
+        return generalized_cgp_crossover(self, other_func, child_count, self.config['non_crossover_children'], cgp_modules)
     
     def __eq__(self, o: object) -> bool:
         return self.program == o.program

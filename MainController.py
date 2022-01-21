@@ -6,6 +6,7 @@ import Logger
 import stupid_problem_test
 import random
 from HelperClasses import Counter, randchoice, drawProgram, copydict
+import os
 
 def log_genome(genomes, runinfo):
     for genome in genomes:
@@ -41,7 +42,7 @@ def run(config, print_output = False):
     problem = stupid_problem_test.StupidProblem()
     # Setup logging
     # ["CGPProgram image", "cgp_function_exec_prio1", "cgp_function_exec_prio2", "graphlog_instance", "graphlog_run", "setup_info"]
-    logger = Logger.Logger("D:\jonod\masters\CGP_Neuron_Masters\logfiles\log", config['logger_ignore_messages'])
+    logger = Logger.Logger(os.path.join(os.path.dirname(__file__), "logfiles") + "\\log", config['logger_ignore_messages'])
     # Setup CGP genome
     # - define a counter
     counter = Counter()
@@ -410,7 +411,7 @@ if __name__ == "__main__":
                 [dimensions + dendrite_internal_states, 1+signal_dimensionality], # die
                 [dendrite_internal_states + dimensions, 3]
             ]
-            logger = Logger.Logger("D:\jonod\masters\CGP_Neuron_Masters\logfiles\log", config['logger_ignore_messages'])
+            logger = Logger.Logger(os.path.join(os.path.dirname(__file__), "logfiles") + "\\log", config['logger_ignore_messages'])
             genome_successor_count = 4
             if not config['non_crossover_children']:
                 genome_successor_count = 2

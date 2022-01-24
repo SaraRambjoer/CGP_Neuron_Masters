@@ -121,12 +121,18 @@ class Genome:
         self.update_config()
         
         cgp_modules = []
-        for cgp_module in self.hex_selector_genome.program.get_active_modules():
-            cgp_modules.append(cgp_module)
-        for cgp_function_chromosome in self.function_chromosomes:
-            for hex_variant in cgp_function_chromosome.hex_variants:
-                for cgp_module in hex_variant.program.get_active_modules():
-                    cgp_modules.append(cgp_module)
+        def _add_cgp_modules_to_list(input_list, genome):
+            for cgp_module in genome.hex_selector_genome.program.get_active_modules():
+                input_list.append(cgp_module)
+            for cgp_function_chromosome in genome.function_chromosomes:
+                for hex_variant in cgp_function_chromosome.hex_variants:
+                    for cgp_module in hex_variant.program.get_active_modules():
+                        input_list.append(cgp_module)
+            return input_list
+        # Has the side effect of favouring commonly used modules more heavily as they should appear more often in the list
+        # Which seems like reasonable behaviour
+        _add_cgp_modules_to_list(cgp_modules, self)
+        _add_cgp_modules_to_list(cgp_modules, target)
         hex_selector_children = self.hex_selector_genome.crossover(target.hex_selector_genome, self.successor_count, cgp_modules)
         parameter_genome_children = self.parameter_genome.crossover(target.parameter_genome, self.successor_count)
         function_chromosome_children = []

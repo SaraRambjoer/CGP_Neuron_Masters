@@ -80,15 +80,15 @@ class NeuronEngine():
             neurons += [x.neuron for x in neuron.subscribers]
         if unique: 
             return len(set(neurons))
-        return len(neurons)
+        return len(neurons)/len(self.output_neurons)
     
-    def get_input_connecitivty(self, unique=False):
+    def get_input_connectivity(self, unique=False):
         neurons = []
         for neuron in self.input_neurons:
             neurons += [x.neuron for x in neuron.subscribers]
         if unique: 
             return len(set(neurons))
-        return len(neurons)
+        return len(neurons)/len(self.input_neurons)
 
 
             
@@ -380,39 +380,25 @@ class NeuronEngine():
                 self.not_changed_count = 0
             self.logger.log("instance_end", "no_message")
         
-        if smooth_grad:
-            if not valid_output and len(self.neurons) == 0:
-                cumulative_error += 1
-
-            no_input_connections = True
-            for node in self.input_neurons:
-                if len(node.subscribers) != 0:
-                    no_input_connections = False
-                    break
-            if no_input_connections:
-                cumulative_error += 1
-            no_output_connections = True
-            for node in self.output_neurons:
-                if len(node.subscribers) != 0:
-                    no_output_connections = False
-                    break
-            if no_output_connections:
-                cumulative_error += 1
-        
-            no_neuron_connections = True
-            for node in self.neurons:
-                if len(node.axons) != 0 or len(node.dendrites) != 0:
-                    no_neuron_connections = False
-            if no_neuron_connections:
-                cumulative_error += 1
         
         base_problems["node_count"] = self.get_node_count()
         base_problems["node_connectivity"] = self.get_average_hidden_connectivity()
-        base_problems["input_connecitivty"] = self.get_input_connecitivty()
-        base_problems["nodes_connected_to_input_nodes"] = self.get_input_connecitivty(True)
-        base_problems["output_connnectivity"] = self.get_output_connectivity()
+        base_problems["input_connectivity"] = self.get_input_connectivity()
+        base_problems["nodes_connected_to_input_nodes"] = self.get_input_connectivity(True)
+        base_problems["output_connectivity"] = self.get_output_connectivity()
         base_problems["nodes_connected_to_output_nodes"] = self.get_output_connectivity(True)
         base_problems["hox_switch_count"] = int(str(self.hox_switches_diagnostic))
+
+        if smooth_grad:
+            # node count penalty: 
+            cumulative_error += max((3-base_problems['node_count'])/3, 0)
+            # node connectivity penalty
+            cumulative_error += max((3-base_problems['node_connectivity'])/3, 0)
+            # input connectivity penalty:
+            cumulative_error += max(1-base_problems['input_connectivity'], 0)
+            # output connectivity penalty
+            cumulative_error += max(1-base_problems['output_connectivity'], 0)
+
         self.graph_log("graphlog_run", graphlog_initial_data)
         self.logger.log("run_end", f"{cumulative_error}, {base_problems}")
         return cumulative_error/exec_instances, base_problems

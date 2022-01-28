@@ -71,7 +71,7 @@ class NeuronEngine():
     def get_average_hidden_connectivity(self):
         connection_count = 0
         for neuron in self.neurons:
-            connection_count += len(neuron.axons) + len(neuron.dendrites)
+            connection_count += len([x for x in neuron.axons + neuron.dendrites if x.connected_dendrite is not None])
         return connection_count/len(self.neurons)
     
     def get_output_connectivity(self, unique=False):
@@ -115,6 +115,10 @@ class NeuronEngine():
                 best_match_grid = min(dists, key=lambda x: x[1])[0]
                 free_dendrites = best_match_grid.free_dendrites
                 if not len(free_dendrites) == 0:
+                    dendrite_options = [x for x in best_match_grid.free_dendrites]
+                    for connection in neuron.axons + neuron.dendrites:
+                        if connection in dendrite_options:
+                            dendrite_options.remove(connection)
                     return randchoice(best_match_grid.free_dendrites)
                 else:
                     input_and_output_neurons = [x for x in best_match_grid.neurons if type(x) == InputNeuron or type(x) == OutputNeuron]
@@ -174,7 +178,18 @@ class NeuronEngine():
             self.grids[self.middle_grid_output][self.middle_grid_output][self.middle_grid_output]
         ]
 
-    
+    def get_neuron_auto_connections(self):
+        neuron_auto_connections = 0
+        for neuron in self.neurons:
+            for connection in neuron.axons + neuron.dendrites:
+                if type(connection) is not InputNeuron and type(connection) is not OutputNeuron:
+                    if connection.connected_dendrite is not None:
+                        if connection.neuron == connection.connected_dendrite.neuron:
+                            neuron_auto_connections += 1
+        return neuron_auto_connections
+
+
+
     def init_neurons(self):
         self.add_neuron((self.middle_grid_input, self.middle_grid_input, self.middle_grid_input), 
                          [0 for _ in range(self.neuron_initialization_data['internal_state_variable_count'])])
@@ -388,6 +403,7 @@ class NeuronEngine():
         base_problems["output_connectivity"] = self.get_output_connectivity()
         base_problems["nodes_connected_to_output_nodes"] = self.get_output_connectivity(True)
         base_problems["hox_switch_count"] = int(str(self.hox_switches_diagnostic))
+        base_problems["neuron_auto_connectivity"] = self.get_neuron_auto_connections()
 
         if smooth_grad:
             # node count penalty: 
@@ -592,7 +608,8 @@ class InputNeuron():
             self.subscribers.append(target)
     
     def remove_subscriber(self, target):
-        self.subscribers.remove(target)
+        if target in self.subscribers:
+            self.subscribers.remove(target)
 
 class OutputNeuron():
     def __init__(self, grid, x, y, z, logger, counter) -> None:
@@ -622,7 +639,8 @@ class OutputNeuron():
             self.subscribers.append(target)
     
     def remove_subscriber(self, target):
-        self.subscribers.remove(target)
+        if target in self.subscribers:
+            self.subscribers.remove(target)
 
     def run_recieve_signal_axon(self, signals, timestep):
         self.value = signals[0] 
@@ -1575,7 +1593,6 @@ class Axon(CellObjectSuper):
             if randcheck(outputs[0]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Axon-dendrite ran break connection. Seeking new connection.")
                 if type(self.connected_dendrite) == Axon:
-                    self.connected_dendrite.connected_dendrite = None
                     if not self.connected_dendrite.dying: 
                         self.connected_dendrite.neuron.grid.add_free_dendrite(self.connected_dendrite)
                         if timestep is not None:
@@ -1587,7 +1604,6 @@ class Axon(CellObjectSuper):
                         else:
                             self.connected_dendrite.seek_dendrite_connection()
                 self.connected_dendrite.remove_subscriber(self)
-                self.connected_dendrite = None
                 if not self.dying: # this can never happen though?
                     self.neuron.grid.add_free_dendrite(self)
                     if timestep is not None: 
@@ -1664,7 +1680,7 @@ class Axon(CellObjectSuper):
                 target_dendrite = self.neuron_engine.get_free_dendrite(self.neuron, dist_target)
                 if target_dendrite is None: 
                     break
-                elif target_dendrite.neuron != self:
+                elif type(target_dendrite) is InputNeuron or type(target_dendrite) is OutputNeuron or target_dendrite.neuron != self:
                     if target_dendrite.run_accept_connection(self, timestep) and \
                         self.run_accept_connection(target_dendrite, timestep):
                             return self.connect(target_dendrite, timestep)
@@ -1674,6 +1690,8 @@ class Axon(CellObjectSuper):
     
     def connect(self, target_dendrite, timestep = None):
         if not type(target_dendrite) == OutputNeuron and not type(target_dendrite) == InputNeuron:
+            if target_dendrite.neuron == self.neuron:
+                raise Exception("Tried to form auto-connection.")
             target_dendrite.connected_dendrite = self
             self.connected_dendrite = target_dendrite
             target_dendrite.neuron.grid.remove_free_dendrite(target_dendrite)
@@ -1717,8 +1735,8 @@ class Axon(CellObjectSuper):
         self.dying = True
         self.neuron.grid.remove_free_dendrite(self)
         if self.connected_dendrite is not None:
-            self.connected_dendrite.connected_dendrite = None
             if type(self.connected_dendrite) != OutputNeuron and type(self.connected_dendrite) != InputNeuron:
                 self.connected_dendrite.neuron.grid.add_free_dendrite(self.connected_dendrite)
+            self.connected_dendrite.remove_subscriber(self)
             self.connected_dendrite = None
         self.neuron.remove_dendrite(self)

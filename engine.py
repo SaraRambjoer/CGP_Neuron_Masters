@@ -1649,7 +1649,7 @@ class Axon(CellObjectSuper):
             self.logger.log("engine_action", f"{self.id}, {timestep}: Axon-dendrite ran die, but already dying.")
 
     def seek_dendrite_connection(self, timestep = None):
-        if self.connected_dendrite is not None:
+        if self.connected_dendrite is None:
             # Because seek_dendrite_connection can be added to the queue for the same axon-dendrite because a queued
             # action does not necessarily entile a future connection it is possible that this function is called when
             # an axon-dendrite already has a connection.
@@ -1664,9 +1664,10 @@ class Axon(CellObjectSuper):
                 target_dendrite = self.neuron_engine.get_free_dendrite(self.neuron, dist_target)
                 if target_dendrite is None: 
                     break
-                elif target_dendrite.run_accept_connection(self, timestep):
-                    if self.run_accept_connection(target_dendrite, timestep):
-                        return self.connect(target_dendrite, timestep)
+                elif target_dendrite.neuron != self:
+                    if target_dendrite.run_accept_connection(self, timestep) and \
+                        self.run_accept_connection(target_dendrite, timestep):
+                            return self.connect(target_dendrite, timestep)
                 attempt += 1
             self.logger.log("engine_action", f"{self.id}, {timestep}: Failed to find connection.")
             self.neuron.grid.add_free_dendrite(self)

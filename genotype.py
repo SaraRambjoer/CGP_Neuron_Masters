@@ -115,24 +115,39 @@ class Genome:
         del olog['genome_id']
         return selflog == olog
 
-
+    def get_node_type_counts(self):
+        node_type_counts = {}
+        for key, val in self.hex_selector_genome.program.get_node_type_counts().items():
+            if key not in node_type_counts.keys():
+                node_type_counts[key] = val
+            else:
+                node_type_counts[key] += val
+        for cgp_function_chromsome in self.function_chromosomes:
+            for hex_variant in cgp_function_chromsome.hex_variants:
+                for key, val in hex_variant.program.get_node_type_counts().items():
+                    if key not in node_type_counts.keys():
+                        node_type_counts[key] = val
+                    else:
+                        node_type_counts[key] += val
+        return node_type_counts
+        
+    def add_cgp_modules_to_list(self, input_list, genome, recursive=False):
+        for cgp_module in genome.hex_selector_genome.program.get_active_modules(recursive):
+            input_list.append(cgp_module)
+        for cgp_function_chromosome in genome.function_chromosomes:
+            for hex_variant in cgp_function_chromosome.hex_variants:
+                for cgp_module in hex_variant.program.get_active_modules(recursive):
+                    input_list.append(cgp_module)
+        return input_list
 
     def crossover(self, target):
         self.update_config()
         
         cgp_modules = []
-        def _add_cgp_modules_to_list(input_list, genome):
-            for cgp_module in genome.hex_selector_genome.program.get_active_modules():
-                input_list.append(cgp_module)
-            for cgp_function_chromosome in genome.function_chromosomes:
-                for hex_variant in cgp_function_chromosome.hex_variants:
-                    for cgp_module in hex_variant.program.get_active_modules():
-                        input_list.append(cgp_module)
-            return input_list
         # Has the side effect of favouring commonly used modules more heavily as they should appear more often in the list
         # Which seems like reasonable behaviour
-        _add_cgp_modules_to_list(cgp_modules, self)
-        _add_cgp_modules_to_list(cgp_modules, target)
+        self.add_cgp_modules_to_list(cgp_modules, self)
+        self.add_cgp_modules_to_list(cgp_modules, target)
         hex_selector_children = self.hex_selector_genome.crossover(target.hex_selector_genome, self.successor_count, cgp_modules)
         parameter_genome_children = self.parameter_genome.crossover(target.parameter_genome, self.successor_count)
         function_chromosome_children = []

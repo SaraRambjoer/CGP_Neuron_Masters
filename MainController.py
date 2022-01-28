@@ -1,11 +1,13 @@
 import time
 import json
+
+from numpy import diag
 from engine import NeuronEngine
 from genotype import Genome
 import Logger
 import stupid_problem_test
 import random
-from HelperClasses import Counter, randchoice, drawProgram, copydict, randcheck
+from HelperClasses import Counter, randchoice, drawProgram, copydict, randcheck, copydict
 import os
 
 def log_genome(genomes, runinfo):
@@ -191,7 +193,14 @@ def run(config, print_output = False):
     genomes = list(zip(genomes, [x[0] for x in genome_results], [x[1] for x in genome_results]))
     to_return_fitness.append(x[0] for x in genome_results)
     log_genome(genomes, 0)
+
+    diagnostic_data = {}
+    diagnostic_data['config'] = copydict(config)
+    diagnostic_data['iterations'] = []
+
     for num in range(learning_iterations):   
+        statistic_entry = {}
+
         time_genes = 0
         time_eval = 0
         time_genes_post = 0
@@ -284,6 +293,7 @@ def run(config, print_output = False):
         time_genes_post_stamp = time.time()
         change_better = [False for x in range(len(genomes))]
         change_neutral = [False for x in range(len(genomes))]
+
         for num3 in range(len(child_data)):
             score_view = [x[1] for x in child_data[num3]]
             score_min = min(score_view)
@@ -318,6 +328,8 @@ def run(config, print_output = False):
                     genome.config['mutation_chance_link'] = config['hypermutation_mutation_chance']
             genome.update_config()
         
+        times_a_genome_took_population_slot_from_other_genome = 0
+        average_takeover_probability = 0
         for num4 in range(config['genome_replacement_tries']):
             genome_one = randchoice(genomes)
             genome_two = randchoice([x for x in genomes if x is not genome_one])
@@ -325,10 +337,19 @@ def run(config, print_output = False):
             maxi = max(genome_one[1], genome_two[1])
             if diff > config['replacement_fitness_difference_threshold']:
                 if randcheck(diff*config['replacement_fitness_difference_scaling']/maxi):
+                    average_takeover_probability += diff*config['replacement_fitness_difference_scaling']/maxi
                     if genome_one[1] > genome_two[1]:
                         genomes[genomes.index(genome_two)] = genome_one
                     else:
                         genomes[genomes.index(genome_one)] = genome_two
+                    times_a_genome_took_population_slot_from_other_genome += 1
+        
+        if times_a_genome_took_population_slot_from_other_genome != 0:
+            average_takeover_probability = average_takeover_probability/times_a_genome_took_population_slot_from_other_genome
+        statistic_entry["genome_replacement_stats"] = {
+            "times_a_genome_took_population_slot_from_other_genome" : times_a_genome_took_population_slot_from_other_genome,
+            "average_takover_probability" : average_takeover_probability
+        }
 
 
 
@@ -337,18 +358,55 @@ def run(config, print_output = False):
         print(f"------------------- {num} ------------------")
         print(f"genes:{time_genes}, genes_selection:{time_genes_selection}, genes_crossover:{time_genes_crossover}, " +\
             f"genes_skip_check:{time_genes_skip_check}, eval:{time_eval}, genes_post:{time_genes_post}")
+        
+        statistic_entry['iteration'] = num
+
+        time_statistic_entry = {
+            "genes":time_genes,
+            "genes_selection":time_genes_selection,
+            "genes_crossover":time_genes_crossover,
+            "genes_skip_check":time_genes_skip_check,
+            "eval":time_eval,
+            "genes_post":time_genes_post
+        }
+        statistic_entry['time'] = time_statistic_entry
+        
+        
+        genomes_data = {
+            "genome_list":[]
+        }
         for genome in genomes: 
+
+            module_list = genome[0].add_cgp_modules_to_list([], genome[0])
+            module_list_recursive = genome[0].add_cgp_modules_to_list([], genome[0], True)
+
+            genome_entry = {
+                "id":genome[0].id,
+                "fitness":genome[1],
+                "performance_stats":genome[2],
+                "node_mutation_chance":genome[0].config['mutation_chance_node'],
+                "link_mutation_chance":genome[0].config['mutation_chance_link'],
+                "module_count_non_recursive":len(module_list),
+                "module_count_recursive":len(module_list_recursive),
+                "cgp_node_types": genome[0].get_node_type_counts()
+            }
+            genomes_data["genome_list"] += [genome_entry]
             print()
             print(genome[0].id)
             print(genome[1])
             print(genome[2])
             print(genome[0].config['mutation_chance_node'], genome[0].config['mutation_chance_link'])
+        
+        statistic_entry['genomes_data'] = genomes_data
+        diagnostic_data['iterations'] += [statistic_entry]
+
         to_return_fitness.append([x[1] for x in genomes])
         log_genome(genomes, num)
         #_genomes = [x[0] for x in genomes]
         #for gen in _genomes:
         #  print(str(gen))
-    return to_return_fitness
+    logger.log_statistic_data(diagnostic_data)
+    return to_return_fitness, diagnostic_data
 
 if __name__ == "__main__":
     import configparser

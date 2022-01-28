@@ -37,6 +37,9 @@ class NeuronEngine():
         self.changed = False
         self.not_changed_count = 0
 
+        self.hox_switches_diagnostic = 0
+
+        
         self.input_arity = input_arity
         self.output_arity = output_arity
         self.grid_count = grid_count  # Grids in grid grid per dimension
@@ -56,10 +59,40 @@ class NeuronEngine():
         self.logger.log("run_start", (f"{self.genome_id.split('->')[1][1:]}-setup", "setup"))
         self.logger.log("instance_start", "setup")
         self.init_neurons()
+        self.reset()
         self.action_queue = []
         self.timestep_indexes = []
         self.debugging = debugging
         self.timestep = 0 
+    
+    def get_node_count(self):
+        return len(self.neurons)
+    
+    def get_average_hidden_connectivity(self):
+        connection_count = 0
+        for neuron in self.neurons:
+            connection_count += len(neuron.axons) + len(neuron.dendrites)
+        return connection_count/len(self.neurons)
+    
+    def get_output_connectivity(self, unique=False):
+        neurons = []
+        for neuron in self.output_neurons:
+            neurons += [x.neuron for x in neuron.subscribers]
+        if unique: 
+            return len(set(neurons))
+        return len(neurons)
+    
+    def get_input_connecitivty(self, unique=False):
+        neurons = []
+        for neuron in self.input_neurons:
+            neurons += [x.neuron for x in neuron.subscribers]
+        if unique: 
+            return len(set(neurons))
+        return len(neurons)
+
+
+            
+
     
     def get_size_in_neuron_positions_one_dim(self):
         return self.grid_count * self.grid_size
@@ -177,6 +210,7 @@ class NeuronEngine():
         self.init_grids()
         self.init_neurons()
         self.timestep = 0
+        self.hox_switches_diagnostic = 0
 
     def approximate_distance_neuron(self, neuron1, neuron2):
         return self.approximate_distance_grid(neuron1.grid, neuron2.grid)
@@ -259,8 +293,8 @@ class NeuronEngine():
         exec_instances = 0
         
         base_problems = {"no outputs" : 0,
-                        "no neurons" : 0, 
-                        "no input connections" : 0, 
+                        "no neurons" : 0,
+                        "no input connections" : 0,
                         "no output connections" : 0,
                         "no connections" : 0}
 
@@ -371,7 +405,14 @@ class NeuronEngine():
                     no_neuron_connections = False
             if no_neuron_connections:
                 cumulative_error += 1
-
+        
+        base_problems["node_count"] = self.get_node_count()
+        base_problems["node_connectivity"] = self.get_average_hidden_connectivity()
+        base_problems["input_connecitivty"] = self.get_input_connecitivty()
+        base_problems["nodes_connected_to_input_nodes"] = self.get_input_connecitivty(True)
+        base_problems["output_connnectivity"] = self.get_output_connectivity()
+        base_problems["nodes_connected_to_output_nodes"] = self.get_output_connectivity(True)
+        base_problems["hox_switch_count"] = int(str(self.hox_switches_diagnostic))
         self.graph_log("graphlog_run", graphlog_initial_data)
         self.logger.log("run_end", f"{cumulative_error}, {base_problems}")
         return cumulative_error/exec_instances, base_problems
@@ -751,6 +792,8 @@ class Neuron(CellObjectSuper):
             log_inputs = [x.output for x in self.hox_variant_selection_program.input_nodes]
             outputs = self.hox_variant_selection_program.run_presetinputs()
             chosen_variant = outputs.index(max(outputs))
+            if self.selected_hox_variant != chosen_variant:
+                self.neuron_engine.hox_switches_diagnostic += 1
             self.selected_hox_variant = chosen_variant
             self.load_hox_programs()
             self.logger.log("engine_action", f"{self.id}: Neuron hox selection, selected {self.selected_hox_variant}. Inputs: {log_inputs}. Outputs: {outputs}")

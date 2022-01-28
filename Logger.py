@@ -1,6 +1,7 @@
 import os.path
 import json
 import time
+import yaml
 from os import mkdir
 
 class Logger:
@@ -20,6 +21,10 @@ class Logger:
             "setup_info" : "setup_info.txt"
         }
         self.buffer = []
+
+    def log_statistic_data(self, statistic_data):
+        with open(os.path.join(self.output_dir, "statistics.yml"), 'w') as f:
+            yaml.dump(statistic_data, f)
 
     def log(self, message_type, message):
         if message_type not in self.ignored_messages_list:

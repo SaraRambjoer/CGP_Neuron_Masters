@@ -345,6 +345,26 @@ class CGPProgram:
         self.reset()
         return outputs
 
+
+    def get_node_type_counts(self):
+        node_type_counts = {}
+        for node in self.get_active_nodes():
+            if type(node) != InputCGPNode:
+                if type(node) != CGPModuleType:
+                    if node.type not in node_type_counts.keys():
+                        node_type_counts[node.type] = 1
+                    else:
+                        node_type_counts[node.type] += 1
+                else:
+                    for key, val in node.program.get_node_type_counts().items():
+                        if key not in node_type_counts.keys():
+                            node_type_counts[node.type] = val
+                        else:
+                            node_type_counts[node.type] += val
+        return node_type_counts
+
+    
+
     def run_presetinputs(self):
         if None in [x.output for x in self.input_nodes]:
             raise Exception("All outputs not set")
@@ -416,11 +436,13 @@ class CGPProgram:
             new_output_indexes.append(node_ids.index(id))
         self.output_indexes = new_output_indexes
 
-    def get_active_modules(self):
+    def get_active_modules(self, recursive=False):
         module_types = []
         for node in self.get_active_nodes():
             if type(node) != InputCGPNode and node.type not in CPGNodeTypes and node.id not in [x.id for x in module_types]:
                 module_types.append(node.type)
+                if recursive:
+                    module_types += node.program.get_active_modules(recursive)
         return module_types
 
     def simple_mutate(self, cgp_modules = None):

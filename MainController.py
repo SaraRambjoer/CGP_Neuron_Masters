@@ -341,9 +341,9 @@ def run(config, print_output = False):
             genome_two = randchoice([x for x in genomes if x is not genome_one])
             diff = abs(genome_one[1] - genome_two[1])
             maxi = max(genome_one[1], genome_two[1])
+            average_takeover_probability += diff*config['replacement_fitness_difference_scaling']/maxi
             if diff > config['replacement_fitness_difference_threshold']:
                 if randcheck(diff*config['replacement_fitness_difference_scaling']/maxi):
-                    average_takeover_probability += diff*config['replacement_fitness_difference_scaling']/maxi
                     if genome_one[1] > genome_two[1]:
                         genomes[genomes.index(genome_two)] = genome_one
                     else:
@@ -351,7 +351,7 @@ def run(config, print_output = False):
                     times_a_genome_took_population_slot_from_other_genome += 1
         
         if times_a_genome_took_population_slot_from_other_genome != 0:
-            average_takeover_probability = average_takeover_probability/times_a_genome_took_population_slot_from_other_genome
+            average_takeover_probability = average_takeover_probability/config['genome_replacement_tries']
         statistic_entry["genome_replacement_stats"] = {
             "times_a_genome_took_population_slot_from_other_genome" : times_a_genome_took_population_slot_from_other_genome,
             "average_takover_probability" : average_takeover_probability

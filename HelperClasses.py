@@ -17,6 +17,10 @@ class Counter:
 
 # TODO I think the reason that randomness is not correctly seeded is that the correct seed is never set in these helper functions. 
 # Solution would be to put these in a class object, such that they can be seeded, and passing around the class object. 
+# But to be honest, I think it is a better idea to just forego the idea of proper seeding, and rather focus on multicore parallell
+# evaluation of genomes - which would introduce a resource conflict on seeding anyway, unless one want's to reseed the randomness
+# for each time a genome is evaluated. Reseeding seems dumb, as the program may evolve to take advantage of the deterministic
+# random outcomes in that case. s
 def randchoice(alternative_list):
     randval = random.random()
     max = len(alternative_list)-1

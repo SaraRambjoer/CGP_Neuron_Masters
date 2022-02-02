@@ -125,10 +125,11 @@ class CGPNode(NodeAbstract):
     def input_ready(self):
         """Increments count of node inputs, if node has enough inputs to execture exectues. 
         """
-        if len(self.inputs) > self.arity:
-            raise Exception("Inputs greater than node type arity on input_ready")
-        if self.ready_inputs > self.arity:
-            raise Exception("More ready inputs than maximum inputs. Likely forgetting to reset node.")
+        if self.debugging:
+            if len(self.inputs) > self.arity:
+                raise Exception("Inputs greater than node type arity on input_ready")
+            if self.ready_inputs > self.arity:
+                raise Exception("More ready inputs than maximum inputs. Likely forgetting to reset node.")
         self.ready_inputs += 1
         if type(self.type) is CGPModuleType and self.ready_inputs == self.arity:
             self.output = self.type.run([x.output for x in self.inputs])
@@ -318,7 +319,7 @@ def recursive_remove(nodes, remove_from):
         return None
 
 class CGPProgram:
-    def __init__(self, input_arity, output_arity, counter, config, debugging = True, max_size=None, init_nodes = True) -> None:
+    def __init__(self, input_arity, output_arity, counter, config, debugging = False, max_size=None, init_nodes = True) -> None:
         self.config = config
         self.counter = counter
         self.input_arity = input_arity

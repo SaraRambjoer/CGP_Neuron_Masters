@@ -7,7 +7,7 @@ from genotype import Genome
 import Logger
 import stupid_problem_test
 import random
-from HelperClasses import Counter, randchoice, drawProgram, copydict, randcheck, copydict
+from HelperClasses import Counter, randchoice, copydict, randcheck, copydict
 import os
 
 def log_genome(genomes, runinfo):
@@ -115,7 +115,6 @@ def run(config, print_output = False):
         [dendrite_internal_states + dimensions + len(config['cgp_function_constant_numbers']), 3]
     ]
 
-    # TODO add support for homeobox variant selection, currently just uses one
     # Knowledge duplication thooo
     def genome_to_init_data(genome):
         neuron_init_data = {
@@ -269,27 +268,13 @@ def run(config, print_output = False):
 
             #def multiprocess_code(engine_problem):
             #    return engine_problem[0].run(engine_problem[1])
-          #
+
             #with Pool() as p:
             #    results = p.map(multiprocess_code, list(zip(new_genomes, [stupid_problem_test.StupidProblem() for _ in range(len(new_genomes))])))
             time_genes_stamp = time.time()
             base_problems = [x[1] for x in genome_results]
             genome_results = [x[0] for x in genome_results]
             # all children of a parent compete for the parents spots
-
-            #def _draw_program_data(genome):
-            #    # RFE only one hex variant shown
-            #    genome = genome
-            #    functions = genome.function_chromosomes
-            #    for func in functions:
-            #        chro = func
-            #        program = chro.hex_variants[0].program
-            #        output_nodes = [program.nodes[x] for x in program.output_indexes]
-            #        drawProgram(
-            #            program.get_active_nodes(),
-            #            output_nodes,
-            #            program.input_nodes
-            #        )
 
             for x in range(len(new_genomes)):
                 child_data[indexes[0]].append((new_genomes[x], genome_results[x], base_problems[x]))

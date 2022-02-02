@@ -422,7 +422,9 @@ if __name__ == "__main__":
     config = process_config(config)
     if config['mode'] == 'run':
         print("Running evolution")
-        run(config, print_output=True)
+        import cProfile
+        cProfile.run("run(config, print_output=True)")
+        #run(config, print_output=True)
     elif config['mode'][0] == 'load':
         # TODO not fully implemented
         # TODO if fully implementing unify code with run function better, outdated due to code duplications

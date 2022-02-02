@@ -6,10 +6,10 @@ from numpy.lib.function_base import average
 from numpy.ma import count
 
 # IDEA for functions: 
-# common math operations, then threshold units giving binary output, then logic gate stuff
-# possible actions are 1's and 0's, maybe except changing internal state variables
-# inputs should also be common numbers, i.e. 1, 2, 10
+# Something probabilistic? Like a gaussian sampling with input mean and std?
 
+
+# Define node type constants
 CPGNodeTypes = [
     "ADDI",
     "SUBI",
@@ -46,12 +46,19 @@ NodeTypeArity = {
 oneary = [x[0] for x in NodeTypeArity.items() if x[1] == 1]
 twoary = [x[0] for x in NodeTypeArity.items() if x[1] == 2]
 
+
 class NodeAbstract():
+    """Abstract superclass for nodes"""
     def __init__(self) -> None:
         self.subscribers = []
         self.output = None
 
     def subscribe(self, node):
+        """Register a listener
+
+        Args:
+            node (CGPNode): The node which will from now on listen to this node
+        """
         # Why can a node have several instances of the same subscriber?
         # Because a node can give it's output to several of another nodes inputs. 
         self.subscribers.append(node)
@@ -63,6 +70,15 @@ class NodeAbstract():
 
 class CGPNode(NodeAbstract):
     def __init__(self, node_function_type, inputs, counter, row_depth, debugging=False) -> None:
+        """Node for CGP, non-recursive
+
+        Args:
+            node_function_type (str or CGPModuleType): One of the defined functions in the global variable CGPNodeTypes
+            inputs (List<CGPNode>): List of nodes which are given as the input nodes to this node on creation
+            counter (Counter): Counter object to give each node unique ID.
+            row_depth (): [description]
+            debugging (bool, optional): [description]. Defaults to False.
+        """
         # Written to be slightly tolerant of incorrect input arity, but not really
         # Written for non-recursive CGP
         super().__init__()
@@ -83,6 +99,11 @@ class CGPNode(NodeAbstract):
             self.arity = self.type.arity
 
     def gettype(self):
+        """Returns string representation of node type
+
+        Returns:
+            str: String grepresentatino of node type
+        """
         return_string_parts = []
         if type(self.type) is not CGPModuleType:
             return_string_parts.append(self.type)
@@ -91,12 +112,19 @@ class CGPNode(NodeAbstract):
         return "   |   ".join(return_string_parts)
     
     def __str__(self) -> str:
+        """Returns string grepresentation of node (shorter than gettype)
+
+        Returns:
+            str: string representation of node
+        """
         if type(self.type) is not CGPModuleType:
             return self.type
         else:
             return f"CGPModule({str(self.type.arity)})"
 
     def input_ready(self):
+        """Increments count of node inputs, if node has enough inputs to execture exectues. 
+        """
         if len(self.inputs) > self.arity:
             raise Exception("Inputs greater than node type arity on input_ready")
         if self.ready_inputs > self.arity:
@@ -157,6 +185,11 @@ class CGPNode(NodeAbstract):
              
 
     def change_type(self, newtype):
+        """Change the type/node function of the node
+
+        Args:
+            newtype (str or CGPModuleType): New node function/type
+        """
         self.age = 1
         self.type = newtype
         if type(newtype) is CGPModuleType:
@@ -172,12 +205,14 @@ class CGPNode(NodeAbstract):
     def reset(self):
         self.ready_inputs = 0
         self.output = None
+
     
     def add_connection(self, node):
         if len(self.inputs) + 1 > self.arity:
             raise Exception("Trying to add input node when function arity is already met")
         self.inputs.append(node)
         node.subscribe(self)
+
 
     def disconnect(self):
         if not self.inputs is None:
@@ -188,6 +223,7 @@ class CGPNode(NodeAbstract):
                 ele.break_connection(self)
         self.inputs = None
         self.subscribers = None
+
     
     def break_connection(self, node):
         if not self.inputs is None:
@@ -249,10 +285,6 @@ class InputCGPNode(NodeAbstract):
         return self.type
     
 def genRandomNode(existing_nodes, counter, priority_nodes=None, debug=False):
-    # TODO This approach to row depth won't work, because several nodes may have same depth...
-    # Issue is that when hooking these nodes one may create a loop, so we need to be able to partition
-    # the nodes around the node being swapped out.
-    # ^^ I think this was fixed by introducing counter unique ids but I can't quite remember lmao
     if priority_nodes:  # For use when favoring some nodes, i.e. swapping out subgraph with random subgraph
         #use_nodes = priority_nodes
         use_nodes = existing_nodes
@@ -329,16 +361,6 @@ class CGPProgram:
         outputs = []
         for index in self.output_indexes:
             output = self.nodes[index].output
-            
-            # without clipping program may crash in some rare instances
-            # but it should be like super rare so it shouldn't really ever occur...
-            #if output > self.output_absolute_maxvalue:
-            #    raise Exception()
-            #    output = self.output_absolute_maxvalue
-            #elif output < -self.output_absolute_maxvalue:
-            #    raise Exception()
-            #    output = -self.output_absolute_maxvalue
-#
             outputs.append(output)
         if None in outputs:
             raise Exception("None in outputs detected")
@@ -376,6 +398,7 @@ class CGPProgram:
             outputs.append(output)
         return outputs
 
+
     def get_active_nodes(self):
         self.reset()
         for node in self.input_nodes:
@@ -397,45 +420,6 @@ class CGPProgram:
         self.reset()
         return list(dict.fromkeys(active_nodes2))
 
-    def self_prune(self):
-        # Removes every node not connected to an output node from self.
-        output_ids = [x.id for x in [self.nodes[indx] for indx in self.output_indexes]]
-        active_nodes = []
-        # Debugging
-        for node in self.nodes:
-            node.validate()
-
-        for index in self.output_indexes:
-            node = self.nodes[index]
-            def recursive_collect_children(node, children):
-                if node.id in [x.id for x in children]:
-                    return children
-                if "inputs" in node.__dict__:
-                    for child in node.inputs:
-                        recursive_collect_children(child, children)
-                children.append(node)
-                return children
-            active_nodes += recursive_collect_children(node, [])
-        
-        # Debugging
-        self.validate_nodes()
-
-        found_node_ids = [x.id for x in active_nodes]
-        to_remove = []
-        for node in self.nodes:
-            if node.id not in found_node_ids:
-                to_remove.append(node)
-                node.disconnect()
-
-        self.validate_nodes()
-        recursive_remove(to_remove, self.nodes)
-        self.validate_nodes()
-        new_output_indexes = []
-        node_ids = [x.id for x in self.nodes]
-        for id in output_ids:
-            new_output_indexes.append(node_ids.index(id))
-        self.output_indexes = new_output_indexes
-
     def get_active_modules(self, recursive=False):
         module_types = []
         for node in self.get_active_nodes():
@@ -449,31 +433,10 @@ class CGPProgram:
         self.validate_nodes()
         for node in self.nodes:
             node.age += 1
-        #self.fix_row()
         subgraph_size_max = 5
         node_swap_chance = 1.0
         node_link_mutate_chance = self.config['mutation_chance_link']
         node_type_mutate_chance = self.config['mutation_chance_node']
-        def _simple_mutate_randsubgraph(nodes):
-            if random.random() < node_swap_chance:
-                node = randchoice(nodes)
-                node_inputs = [x for x in node.inputs]
-                node_output_links = node.subscribers
-                node.disconnect()
-                new_nodes = []
-                subgraph_size = randchoice(range(1, subgraph_size_max))
-                for _ in range(subgraph_size):
-                    legal_inputs = [x for x in self.nodes + self.input_nodes if x.row_depth < node.row_depth]
-                    new_node = genRandomNode(legal_inputs, self.counter, node_inputs + new_nodes, self.debugging)
-                    new_nodes.append(new_node)
-                    new_node.validate()
-                recursive_remove(node_inputs, new_nodes)
-                self.nodes += new_nodes
-                for output_node in node_output_links:
-                    output_node.add_connection(randchoice(new_nodes))
-                self.nodes.remove(node)
-                node.validate()
-            return None
         def _simple_mutate(nodes):
             effected_nodes = []
             module_types = []
@@ -532,9 +495,6 @@ class CGPProgram:
             if random.random() < node_type_mutate_chance or self.nodes[self.output_indexes[num]] not in output_node_alternatives:
                 self.output_indexes[num] = self.nodes.index(randchoice(output_node_alternatives))
         self.validate_input_node_array()
-        # In practice not pruning is better as it allows for multi-step neutral drift 
-        #self.self_prune()
-        #self.fix_row()  # fix row not necessary for link-only CGP mutation
         return self
     
     def validate_nodes(self):
@@ -601,76 +561,12 @@ class CGPProgram:
         alternatives = [x.simple_mutate(cgp_modules) for x in alternatives]
         return alternatives
 
-    def four_plus_one_evolution(self, eval_routine, inputs):
-        # Standard 4-child 1 survivor evolution policy for CGP
-        alternatives = self.produce_children(4)
-        alternatives.append(self)
-        outputs = []
-        for cgp_program in alternatives:
-            output = []
-            for input_tuple in inputs:
-                output.append(cgp_program.run(input_tuple))
-            outputs.append(output)
-        eval_scores = [eval_routine(x) for x in outputs]
-        max_score = max(eval_scores)
-        max_index = eval_scores.index(max_score)
-        print(max_score, max_index, len(alternatives[max_index].nodes), self.nodes[0].type)
-        if max_index != 4:
-            winner = alternatives[max_index]
-            self.nodes = winner.nodes
-            self.input_nodes = winner.input_nodes
-            self.output_indexes = winner.output_indexes
-        self.reset()
-        # Max should default to the first found, so since we put the original in the back, the CGP should neutral drift. 
 
     def reset(self):
         for node in self.nodes + self.input_nodes:
             node.reset()
     
-    def fix_row(self):
-        # When setting row depth on creation what is actually being set is an estimate of row depth (edges from leaf).
-        # This function fixes this and places one node on each row
-        # Additionally fixes changes which may occur from changing the network. 
-        # RFI Make updates when changing network automatic to improve runtime
-        visited_nodes = []
-        frontier = self.input_nodes
-        depth = 1
-        bins = []
-        bins.append(self.input_nodes)
-        # Sort nodes into bins based on depth from first node
-        while len(frontier) > 0:
-            new_frontier = []
-            for node in frontier:
-                for subscriber in node.subscribers:
-                    # To ensure that maximal depth is used as basis for assigning row
-                    # i.e. a node may be directly connected to an input node, but it should still be possible for that node to have
-                    # many nodes calculating its other input
-                    if subscriber in visited_nodes and subscriber.row_depth != depth:
-                        bins[subscriber.row_depth].remove(subscriber)
-                    visited_nodes.append(subscriber)
-                    new_frontier.append(subscriber)
-                    subscriber.row_depth = depth
-            bins.append(new_frontier)
-            depth += 1
-            frontier = new_frontier
-        
-        row = 1
-        for bin in bins: 
-            for node in bin:
-                node.row_depth = row
-                row += 1
-        
-        self.validate_acyclic()
     
-    def validate_acyclic(self):
-        # The following function checks that the CGP program is acyclic, and if it is not it throws an exception. 
-        # The function is not necessary for the program to run, but is helpful for debugging new code. 
-        if self.debugging:
-            for node in self.nodes:
-                for subscriber in node.subscribers: 
-                    if subscriber.row_depth < node.row_depth:
-                        raise Exception("Cyclic CGP program detected")
-
     def extract_subgraphs(self, max_size, subgraph_count):
         """
         Extracts count subgraphs from program in size range [1, max_size]. May be overlapping. Returns
@@ -742,12 +638,6 @@ class CGPProgram:
                 subgraphs.append(CGPModuleType(subgraph_input_arity, subgraph_partly_copied, 0, self.counter, self.config, self.debugging))
             return subgraphs
     
-    def eval(self, inputs, eval_func):
-        output = []
-        for input_tuple in inputs:
-            output.append(self.run(input_tuple))
-        eval_score = eval_func(output)
-        return eval_score
     
     def __eq__(self, o: object) -> bool:
         ownnodes = self.input_nodes + self.nodes
@@ -786,65 +676,6 @@ def subgraph_crossover(mate1, mate2, subgraph_extract_count, subgraph_size):
         else:
             target = randchoice(mate1.nodes)
         target.change_type(subgraph)
-
-
-class EvolutionController():
-    def __init__(self, population_size, child_count, input_arity, output_arity, debugging, subgraph_extract_count, subgraph_max_size):
-        if population_size % 2 == 1:
-            raise Exception("Population size should be an even number for mating")
-        # init population
-        self.population = [CGPProgram(input_arity, output_arity, Counter(), self.config, debugging) for x in range(population_size)]
-        self.child_count = child_count
-        self.population_size = population_size
-        self.debugging = debugging
-        self.max_size = self.config['cgp_program_size']
-        self.population_fitness = [None for x in range(population_size)]
-        self.subgraph_extract_count = subgraph_extract_count
-        self.subgraph_max_size = subgraph_max_size
-    
-    def evolution_step(self, inputs, eval_func):
-        if None in self.population_fitness:
-            for num in range(0, len(self.population)):
-                self.population_fitness[num] = self.population[num].eval(inputs, eval_func)
-        egligable_bachelors = [pop for pop in self.population]
-        # This is a stupid mating strategy, so room for improvement here, but I suppose it could
-        # work okay with neutral drift and elitism. 
-        # Should also be quite quick
-        while len(egligable_bachelors) > 0:
-            mate1 = randchoice(egligable_bachelors)
-            egligable_bachelors.remove(mate1)
-            mate2 = randchoice(egligable_bachelors)
-            egligable_bachelors.remove(mate2)
-            self.crossover(mate1, mate2)
-        # Then produce new chlidren 
-        children = []
-        for parent in self.population:
-            children += parent.produce_children(self.child_count)
-        children_fitness = [child.eval(inputs, eval_func) for child in children]
-        # Generational selection
-        gen = self.population + children
-        gen_fitness = self.population_fitness + children_fitness
-        gen_data = list(zip(gen, gen_fitness))
-        # This could be done faster, currently it is O(n*log(n)), 
-        # which would be really bad for large population sizes
-        gen_data.sort(key=lambda x: x[1], reverse=True)
-        self.population = [x[0] for x in gen_data[:self.population_size]]
-        self.fitness = [x[1] for x in gen_data[:self.population_size]]
-        print(max(self.fitness), average(self.fitness), var(self.fitness),  # To get a gauge of variance in the population and performance
-                    len([x for x in self.population[0].nodes if type(x.type) is CGPModuleType]),  # To see how often modules are in genome of best solution
-                    len([x for x in self.population[0].get_active_nodes() if type(x.type) is CGPModuleType]),   # To see how often modules are actually used in best solutoin
-                    len(self.population[0].get_active_nodes())  # To see complexity of best solution
-                    )
-    
-    def crossover(self, mate1, mate2):
-        # Code duplication issues
-        subgraph_crossover(mate1, mate2, self.subgraph_extract_count, self.subgraph_max_size)
-        
-        
-
-
-
-
 
 
 class CGPModuleType:

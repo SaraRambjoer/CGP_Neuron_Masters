@@ -6,9 +6,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import time
 
-
-
-
 class Counter:
     def __init__(self) -> None:
         self.count = 0
@@ -18,13 +15,14 @@ class Counter:
         return self.count
 
 
-#seed = 100
-#random.seed(seed)
+# TODO I think the reason that randomness is not correctly seeded is that the correct seed is never set in these helper functions. 
+# Solution would be to put these in a class object, such that they can be seeded, and passing around the class object. 
 def randchoice(alternative_list):
     randval = random.random()
     max = len(alternative_list)-1
     index = int(math.ceil(randval*max))
     return alternative_list[index]
+
 
 def randchoice_scaled(alternative_list, value_scaling):
     # Normalize value_scaling values to sum to 1, then calculate valule intervals and pick random
@@ -45,41 +43,6 @@ def randchoice_scaled(alternative_list, value_scaling):
         index += 1
     raise Exception("randchoice_scaled function is broken - no value found in scaled interval")
 
-def drawProgram(active_nodes, output_nodes, input_nodes):
-    input_node_types =  [f"{node.type}-{node.id}-{node.arity}" for node in input_nodes]
-    output_node_types =  [f"{node.type}-{node.id}-{node.arity}" for node in output_nodes]
-    node_types = [f"{node.type}-{node.id}-{node.arity}" for node in active_nodes + input_nodes]
-    connection_pairs = []
-    for node in active_nodes + output_nodes + input_nodes:
-        for subscriber in node.subscribers:
-            if subscriber in active_nodes + output_nodes + input_nodes:
-                connection_pairs.append((f"{node.type}-{node.id}-{node.arity}", f"{subscriber.type}-{subscriber.id}-{subscriber.arity}"))
-        for input_node in node.inputs:
-            if input_node in active_nodes + output_nodes + input_nodes:
-                connection_pairs.append((f"{input_node.type}-{input_node.id}-{input_node.arity}", f"{node.type}-{node.id}-{node.arity}"))
-
-
-
-    g = nx.DiGraph()
-    g.add_nodes_from(node_types)
-    for pair in connection_pairs:
-        g.add_edge(pair[0], pair[1])
-    color_map = []
-    for node in g.nodes:
-        if node in input_node_types:
-            color_map.append('green')
-        elif node in output_node_types:
-            color_map.append('red')
-        else:
-            color_map.append('blue')
-    nx.draw(g, node_color = color_map, with_labels = False)
-    labels = {node:node for node in node_types + output_node_types}
-    nx.draw_networkx_labels(g, nx.spring_layout(g), labels, font_size = 16, font_color='b')
-    print(g.nodes)
-    print(g.edges)
-    plt.draw()
-    plt.show()
-    #plt.savefig(str(time.time()) + ".png", format="PNG")
 
 def randcheck(val):
     return random.random() <= val

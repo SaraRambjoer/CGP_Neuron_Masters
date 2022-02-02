@@ -297,7 +297,12 @@ class NeuronEngine():
                 self.actions_count += 1
             self.action_index += 1
         outputs = [output_neuron.value for output_neuron in self.output_neurons]
+        self.reset_outputs()
         return outputs
+
+    def reset_outputs(self):
+        for output_neuron in self.output_neurons: 
+            output_neuron.value = None
 
     def run(self, problem, runnum):
         # for every sample in inputs run it, some way of evaluating result as well

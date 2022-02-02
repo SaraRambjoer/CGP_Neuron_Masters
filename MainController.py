@@ -9,6 +9,13 @@ import stupid_problem_test
 import random
 from HelperClasses import Counter, randchoice, copydict, randcheck, copydict
 import os
+from multiprocessing import Pool
+
+def multiprocess_code(engine_problem):
+    engine = engine_problem[0]
+    problem = engine_problem[1]
+    num = engine_problem[2]
+    return engine.run(problem, num)
 
 def log_genome(genomes, runinfo):
     for genome in genomes:
@@ -143,7 +150,6 @@ def run(config, print_output = False):
         }
         return neuron_init_data, axon_init_data
 
-    import CGPEngine
     genome_successor_count = 4
     if not config['non_crossover_children']:
         genome_successor_count = 2
@@ -203,6 +209,8 @@ def run(config, print_output = False):
     diagnostic_data['config'] = copydict(config)
     diagnostic_data['iterations'] = []
 
+    print("Setup complete. Beginning evolution.")
+
     for num in range(learning_iterations):   
         statistic_entry = {}
 
@@ -239,6 +247,39 @@ def run(config, print_output = False):
             genome_results = []
             time_genes += time.time() - time_genes_stamp
             time_eval_stamp = time.time()
+
+
+            #engine_problems = []
+            #for numero in range(len(new_genomes)):
+            #    genome = new_genomes[numero]
+            #    if not skip_eval[numero]:
+            #        neuron_initialization_data, axon_initialization_data = genome_to_init_data(genome)
+            #        engine = NeuronEngine(
+            #            input_arity = problem.input_arity,
+            #            output_arity = problem.output_arity,
+            #            grid_count = grid_count,
+            #            grid_size = grid_size,
+            #            actions_max = actions_max,
+            #            neuron_initialization_data = neuron_initialization_data,
+            #            axon_initialization_data = axon_initialization_data,
+            #            signal_arity = signal_dimensionality,
+            #            hox_variant_count = hox_variant_count,
+            #            instances_per_iteration = instances_per_iteration,
+            #            logger = logger,
+            #            genome_id = genome.id,
+            #            config_file = copydict(config)
+            #        )
+            #        engine_problems.append((engine, problem, num))
+            #    elif skip_eval[numero] == 1:
+            #        genome_results.append((genomes[indexes[0]][1], genomes[indexes[0]][2]))
+            #    else:
+            #        genome_results.append((genomes[indexes[1]][1], genomes[indexes[1]][2]))
+#
+            #with Pool() as p:
+            #    results = p.map(multiprocess_code, engine_problems)
+            #
+            #genome_results += results
+        
             for numero in range(len(new_genomes)):
                 genome = new_genomes[numero]
                 if not skip_eval[numero]:
@@ -266,11 +307,7 @@ def run(config, print_output = False):
 
             time_eval += time.time() - time_eval_stamp
 
-            #def multiprocess_code(engine_problem):
-            #    return engine_problem[0].run(engine_problem[1])
 
-            #with Pool() as p:
-            #    results = p.map(multiprocess_code, list(zip(new_genomes, [stupid_problem_test.StupidProblem() for _ in range(len(new_genomes))])))
             time_genes_stamp = time.time()
             base_problems = [x[1] for x in genome_results]
             genome_results = [x[0] for x in genome_results]
@@ -408,8 +445,8 @@ if __name__ == "__main__":
     if config['mode'] == 'run':
         print("Running evolution")
         import cProfile
-        cProfile.run("run(config, print_output=True)")
-        #run(config, print_output=True)
+        #cProfile.run("run(config, print_output=True)")
+        run(config, print_output=True)
     elif config['mode'][0] == 'load':
         # TODO not fully implemented
         # TODO if fully implementing unify code with run function better, outdated due to code duplications
@@ -492,7 +529,7 @@ if __name__ == "__main__":
                 [dimensions + dendrite_internal_states, 1+signal_dimensionality], # die
                 [dendrite_internal_states + dimensions, 3]
             ]
-            logger = Logger.Logger(os.path.join(os.path.dirname(__file__), "logfiles") + "\\log", config['logger_ignore_messages'])
+            logger = Logger.Logger(os.path.join(os.path.dirname(__file__), "logfiles") + "\\log", config['logger_ignore_messages'], config['advanced_logging'])
             genome_successor_count = 4
             if not config['non_crossover_children']:
                 genome_successor_count = 2

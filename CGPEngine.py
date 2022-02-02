@@ -4,44 +4,21 @@ from HelperClasses import Counter, randchoice, randcheck, randchoice_scaled
 from numpy.core.fromnumeric import sort, var
 from numpy.lib.function_base import average
 from numpy.ma import count
-
-# IDEA for functions: 
-# Something probabilistic? Like a gaussian sampling with input mean and std?
-
+import numpy
 
 # Define node type constants
 CPGNodeTypes = [
     "ADDI",
     "SUBI",
-    "MULT",
-    "DIVI",
     "SINU",
-    "NOT",
-    "GTE",
-    "ISZERO",
-    "AND",
-    "NAND",
-    "XOR",
-    "OR",
-    "EQ",
-    "ROUND"  # TO 1 or 0
+    "GAUS"
 ]
 
 NodeTypeArity = {
     "ADDI":2,
     "SUBI":2,
-    "MULT":2,
-    "DIVI":2,
+    "GAUS":2,
     "SINU":1,
-    "NOT":1,
-    "GTE":2,
-    "ISZERO":1,
-    "OR":2,
-    "AND":2,
-    "NAND":2,
-    "XOR":2,
-    "EQ":2,
-    "ROUND":1
 }
 oneary = [x[0] for x in NodeTypeArity.items() if x[1] == 1]
 twoary = [x[0] for x in NodeTypeArity.items() if x[1] == 2]
@@ -69,6 +46,12 @@ class NodeAbstract():
 
 
 class CGPNode(NodeAbstract):
+    type_func_map = {
+        "ADDI": lambda x0, x1: x0 + x1,
+        "SUBI": lambda x0, x1: x0-x1,
+        "SINU": lambda x0: numpy.sin(x0),
+        "GAUS": lambda x0, x1: numpy.random.normal(numpy.absolute(x0), numpy.absolute(x1))
+    }
     def __init__(self, node_function_type, inputs, counter, row_depth, debugging=False) -> None:
         """Node for CGP, non-recursive
 
@@ -125,64 +108,25 @@ class CGPNode(NodeAbstract):
     def input_ready(self):
         """Increments count of node inputs, if node has enough inputs to execture exectues. 
         """
-        if self.debugging:
-            if len(self.inputs) > self.arity:
-                raise Exception("Inputs greater than node type arity on input_ready")
-            if self.ready_inputs > self.arity:
-                raise Exception("More ready inputs than maximum inputs. Likely forgetting to reset node.")
-        self.ready_inputs += 1
-        if type(self.type) is CGPModuleType and self.ready_inputs == self.arity:
-            self.output = self.type.run([x.output for x in self.inputs])
-        elif self.ready_inputs == 2 and self.type in twoary:
-            x0 = self.inputs[0].output
-            x1 = self.inputs[1].output
-            if self.type == "ADDI":
-                self.output = x0 + x1
-            elif self.type == "SUBI":
-                self.output = x0 - x1
-            elif self.type == "MULT":
-                self.output = x0 * x1
-            elif self.type == "DIVI":
-                # To handle very low values to avoid infinity values
-                if x1 > -0.1 and x1 < 0.1:
-                    if x1 < 0:
-                        x1 = -0.1
-                    else:
-                        x1 = 0.1
-                self.output = x0 / x1
-            elif self.type == "GTE":
-                self.output = 1 if x1 > x0 else 0.0
-            elif self.type == "EQ":
-                self.output = 1 if x1 == x0 else 0.0
-            elif self.type == "AND":
-                self.output = 1.0 if x0 == 1.0 and x1 == 1.0 else 0.0
-            elif self.type == "NAND":
-                self.output = 1.0 if x0 != x1 else 0.0
-            elif self.type == "XOR":
-                self.output = 1.0 if x0 != x1 and (x0 == 1.0 or x1 == 1.0) else 0.0
-            elif self.type == "OR":
-                self.output = 1.0 if x0 == 1.0 or x1 == 1.0 else 0.0
-            self.alert_subscribers()
-        elif self.ready_inputs >= 1 and self.type in oneary:
-            x0 = self.inputs[0].output
-            if self.type == "SINU":
-                if x0 >= float('inf')-1 or x0 >= 999999999999:
-                    self.output = 0.0
-                else:
-                    try:
-                        self.output = math.sin(x0)
-                    except ValueError:  # For some reason the above doesn't always catch inf, so...
-                        self.output = 0
-            elif self.type == "ROUND":
-                self.output = 1.0 if x0 >= 0.5 else 0.0
-            elif self.type == "ISZERO":
-                self.output = 1.0 if x0 == 0.0 else 0.0
-            elif self.type == "NOT":
-                try:
-                    self.output = max(1.0 - x0, 0.0)
-                except:
-                    print(x0)
-            self.alert_subscribers()
+
+        # If adding new node functions, take care to implement cropping values to a specific range
+        # if new node functions can reasonably cause overflow, ex. multiplication.
+        if len(self.inputs) == self.arity:
+            if self.debugging:
+                if len(self.inputs) > self.arity:
+                    raise Exception("Inputs greater than node type arity on input_ready")
+                if self.ready_inputs > self.arity:
+                    raise Exception("More ready inputs than maximum inputs. Likely forgetting to reset node.")
+            self.ready_inputs += 1
+            if type(self.type) is CGPModuleType and self.ready_inputs == self.arity:
+                self.output = self.type.run([x.output for x in self.inputs])
+                self.alert_subscribers()    
+            elif self.ready_inputs == 2 and NodeTypeArity[self.type] == 2:
+                self.output = CGPNode.type_func_map[self.type](self.inputs[0].output, self.inputs[1].output)
+                self.alert_subscribers()
+            elif self.ready_inputs >= 1 and NodeTypeArity[self.type] == 1:
+                self.output = CGPNode.type_func_map[self.type](self.inputs[0].output)
+                self.alert_subscribers()
              
 
     def change_type(self, newtype):

@@ -1716,13 +1716,12 @@ class Axon(CellObjectSuper):
             if timestep is not None:
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Found connection to {self.connected_dendrite.id}. Type: Axon")
         else:
-            if timestep is not None:
-                if type(self.connected_dendrite) == InputNeuron:
-                    self.logger.log("engine_action", f"{self.id}, {timestep}: Found connection to {self.connected_dendrite.id}. Type: InputNeuron")
-                else:
-                    self.logger.log("engine_action", f"{self.id}, {timestep}: Found connection to {self.connected_dendrite.id}. Type: OutputNeuron")
             target_dendrite.add_subscriber(self)
             self.connected_dendrite = target_dendrite
+            if type(self.connected_dendrite) == InputNeuron:
+                self.logger.log("engine_action", f"{self.id}, {timestep}: Found connection to {self.connected_dendrite.id}. Type: InputNeuron")
+            elif type(self.connected_dendrite) == OutputNeuron:
+                self.logger.log("engine_action", f"{self.id}, {timestep}: Found connection to {self.connected_dendrite.id}. Type: OutputNeuron")
         self.neuron.grid.remove_free_dendrite(self)
         return True
 

@@ -74,6 +74,7 @@ class CGPNode(NodeAbstract):
         self.id = self.counter.counterval()
         self.row_depth = self.id  # Just to get an initial ordering
         self.debugging = debugging
+        self.is_active = False
 
         self.age = 1  # Used for extracting cones
         if type(self.type) is not CGPModuleType:
@@ -111,7 +112,7 @@ class CGPNode(NodeAbstract):
 
         # If adding new node functions, take care to implement cropping values to a specific range
         # if new node functions can reasonably cause overflow, ex. multiplication.
-        if len(self.inputs) == self.arity:
+        if self.is_active:
             if self.debugging:
                 if len(self.inputs) > self.arity:
                     raise Exception("Inputs greater than node type arity on input_ready")
@@ -121,10 +122,10 @@ class CGPNode(NodeAbstract):
             if type(self.type) is CGPModuleType and self.ready_inputs == self.arity:
                 self.output = self.type.run([x.output for x in self.inputs])
                 self.alert_subscribers()    
-            elif self.ready_inputs == 2 and NodeTypeArity[self.type] == 2:
+            elif self.ready_inputs == 2 and type(self.type) is not CGPModuleType and NodeTypeArity[self.type] == 2:
                 self.output = CGPNode.type_func_map[self.type](self.inputs[0].output, self.inputs[1].output)
                 self.alert_subscribers()
-            elif self.ready_inputs >= 1 and NodeTypeArity[self.type] == 1:
+            elif self.ready_inputs >= 1 and type(self.type) is not CGPModuleType and NodeTypeArity[self.type] == 1:
                 self.output = CGPNode.type_func_map[self.type](self.inputs[0].output)
                 self.alert_subscribers()
              
@@ -279,6 +280,7 @@ class CGPProgram:
         if init_nodes:
             for _ in range(self.output_arity):
                 new_node = genRandomNode(self.input_nodes + self.nodes, counter, None, self.debugging)
+                new_node.is_active = True
                 self.nodes.append(new_node)
             for _ in range(self.max_size - self.output_arity):
                 node_type = randchoice(CPGNodeTypes)
@@ -287,12 +289,15 @@ class CGPProgram:
         self.output_indexes = [x for x in range(0, output_arity)]  
         # Because first nodes are guaranteed to be connected at start
 
+
     def set_config(self, config):
         self.config = config
+
 
     def validate_input_node_array(self):
         if self.debugging and len(self.input_nodes) > self.input_arity:
             raise Exception("Nodes added to input_nodes")
+
 
     def run(self, input_vals):
         self.reset()
@@ -363,15 +368,20 @@ class CGPProgram:
                         active_nodes2.append(node2)
             frontier = new_frontier
         self.reset()
-        return list(dict.fromkeys(active_nodes2))
+        active_nodes = list(dict.fromkeys(active_nodes2))
+        for node in self.nodes:
+            node.is_active = False
+        for node in active_nodes:
+            node.is_active = True
+        return active_nodes
 
     def get_active_modules(self, recursive=False):
         module_types = []
         for node in self.get_active_nodes():
-            if type(node) != InputCGPNode and node.type not in CPGNodeTypes and node.id not in [x.id for x in module_types]:
+            if type(node) != InputCGPNode and type(node.type) is CGPModuleType and node.id not in [x.id for x in module_types]:
                 module_types.append(node.type)
                 if recursive:
-                    module_types += node.program.get_active_modules(recursive)
+                    module_types += node.type.program.get_active_modules(recursive)
         return module_types
 
     def simple_mutate(self, cgp_modules = None):
@@ -431,6 +441,7 @@ class CGPProgram:
             #    effected_nodes = _simple_mutate(self.nodes)
             self.validate_input_node_array()
             self.validate_nodes()
+            self.get_active_nodes()
             for node in self.input_nodes:
                 node.set_output(1.0)
                 node.alert_subscribers()
@@ -440,11 +451,13 @@ class CGPProgram:
             if random.random() < node_type_mutate_chance or self.nodes[self.output_indexes[num]] not in output_node_alternatives:
                 self.output_indexes[num] = self.nodes.index(randchoice(output_node_alternatives))
         self.validate_input_node_array()
+        self.get_active_nodes()
         return self
     
     def validate_nodes(self):
-        for node in self.nodes:
-            node.validate()
+        if self.debugging:
+            for node in self.nodes:
+                node.validate()
     
     def get_input_none_index(self):
         index = 0

@@ -15,7 +15,8 @@ def multiprocess_code(engine_problem):
     engine = engine_problem[0]
     problem = engine_problem[1]
     num = engine_problem[2]
-    return engine.run(problem, num)
+    to_return = engine.run(problem, num)
+    return to_return
 
 def log_genome(genomes, runinfo):
     for genome in genomes:
@@ -55,7 +56,7 @@ def run(config, print_output = False):
     problem = stupid_problem_test.StupidProblem()
     # Setup logging
     # ["CGPProgram image", "cgp_function_exec_prio1", "cgp_function_exec_prio2", "graphlog_instance", "graphlog_run", "setup_info"]
-    logger = Logger.Logger(os.path.join(os.path.dirname(__file__), "logfiles") + "\\log", config['logger_ignore_messages'])
+    logger = Logger.Logger(os.path.join(os.path.dirname(__file__), "logfiles") + "\\log", config['logger_ignore_messages'], config['advanced_logging'])
     # Setup CGP genome
     # - define a counter
     counter = Counter()
@@ -68,6 +69,11 @@ def run(config, print_output = False):
     genome_count = config['genome_count']
     seed = config['seed']
     random.seed(seed)
+
+    estimated_calls = 1.1*config['genome_count']*config['iterations']*config['cgp_program_size']*config['actions_max']*2*config['instances_per_iteration']
+    print(f"Estimated upper limit to calls to CGP node primitives: {estimated_calls}")
+    print(f"Estimated total computation time at upper limit: {500*estimated_calls/1600000} seconds")
+    print(f"Based on limited empirical data actual computation time will often be up to 70 times as low.")
 
     logger.log_json("setup_info", dict(config))
 
@@ -249,37 +255,7 @@ def run(config, print_output = False):
             time_eval_stamp = time.time()
 
 
-            #engine_problems = []
-            #for numero in range(len(new_genomes)):
-            #    genome = new_genomes[numero]
-            #    if not skip_eval[numero]:
-            #        neuron_initialization_data, axon_initialization_data = genome_to_init_data(genome)
-            #        engine = NeuronEngine(
-            #            input_arity = problem.input_arity,
-            #            output_arity = problem.output_arity,
-            #            grid_count = grid_count,
-            #            grid_size = grid_size,
-            #            actions_max = actions_max,
-            #            neuron_initialization_data = neuron_initialization_data,
-            #            axon_initialization_data = axon_initialization_data,
-            #            signal_arity = signal_dimensionality,
-            #            hox_variant_count = hox_variant_count,
-            #            instances_per_iteration = instances_per_iteration,
-            #            logger = logger,
-            #            genome_id = genome.id,
-            #            config_file = copydict(config)
-            #        )
-            #        engine_problems.append((engine, problem, num))
-            #    elif skip_eval[numero] == 1:
-            #        genome_results.append((genomes[indexes[0]][1], genomes[indexes[0]][2]))
-            #    else:
-            #        genome_results.append((genomes[indexes[1]][1], genomes[indexes[1]][2]))
-#
-            #with Pool() as p:
-            #    results = p.map(multiprocess_code, engine_problems)
-            #
-            #genome_results += results
-        
+            engine_problems = []
             for numero in range(len(new_genomes)):
                 genome = new_genomes[numero]
                 if not skip_eval[numero]:
@@ -299,11 +275,41 @@ def run(config, print_output = False):
                         genome_id = genome.id,
                         config_file = copydict(config)
                     )
-                    genome_results.append(engine.run(problem, num))
+                    engine_problems.append((engine, problem, num))
                 elif skip_eval[numero] == 1:
                     genome_results.append((genomes[indexes[0]][1], genomes[indexes[0]][2]))
                 else:
                     genome_results.append((genomes[indexes[1]][1], genomes[indexes[1]][2]))
+
+            with Pool() as p:
+                results = p.map(multiprocess_code, engine_problems)
+            
+            genome_results += results
+        
+            #for numero in range(len(new_genomes)):
+            #    genome = new_genomes[numero]
+            #    if not skip_eval[numero]:
+            #        neuron_initialization_data, axon_initialization_data = genome_to_init_data(genome)
+            #        engine = NeuronEngine(
+            #            input_arity = problem.input_arity,
+            #            output_arity = problem.output_arity,
+            #            grid_count = grid_count,
+            #            grid_size = grid_size,
+            #            actions_max = actions_max,
+            #            neuron_initialization_data = neuron_initialization_data,
+            #            axon_initialization_data = axon_initialization_data,
+            #            signal_arity = signal_dimensionality,
+            #            hox_variant_count = hox_variant_count,
+            #            instances_per_iteration = instances_per_iteration,
+            #            logger = logger,
+            #            genome_id = genome.id,
+            #            config_file = copydict(config)
+            #        )
+            #        genome_results.append(engine.run(problem, num))
+            #    elif skip_eval[numero] == 1:
+            #        genome_results.append((genomes[indexes[0]][1], genomes[indexes[0]][2]))
+            #    else:
+            #        genome_results.append((genomes[indexes[1]][1], genomes[indexes[1]][2]))
 
             time_eval += time.time() - time_eval_stamp
 
@@ -445,8 +451,8 @@ if __name__ == "__main__":
     if config['mode'] == 'run':
         print("Running evolution")
         import cProfile
-        #cProfile.run("run(config, print_output=True)")
-        run(config, print_output=True)
+        cProfile.run("run(config, print_output=True)")
+        #run(config, print_output=True)
     elif config['mode'][0] == 'load':
         # TODO not fully implemented
         # TODO if fully implementing unify code with run function better, outdated due to code duplications

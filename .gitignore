@@ -19,4 +19,6 @@ p5-test.js
 p5.rovercam.js
 p5.sound.js
 p5.sound.min.js
-
+*.c
+*.pyd
+*.obj

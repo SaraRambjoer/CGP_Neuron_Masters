@@ -133,7 +133,7 @@ class CGPNode(NodeAbstract):
         if type(self.type) is not CGPModuleType:
             return self.type
         else:
-            return f"CGPModule({str(self.type.arity)})"
+            return "".join(["CGPModule(", str(self.type.arity), ")"])
 
     def input_ready(self):
         """Increments count of node inputs, if node has enough inputs to execture exectues. 

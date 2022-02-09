@@ -5,7 +5,7 @@ from numpy import diag
 from engine import NeuronEngine
 from genotype import Genome
 import Logger
-import stupid_problem_test
+import one_pole_problem
 import random
 from HelperClasses import Counter, randchoice, copydict, randcheck, copydict
 import os
@@ -53,7 +53,7 @@ def process_config(config):
 
 def run(config, print_output = False):
     # Setup problems
-    problem = stupid_problem_test.StupidProblem()
+    problem = one_pole_problem.PoleBalancingProblem()
     # Setup logging
     # ["CGPProgram image", "cgp_function_exec_prio1", "cgp_function_exec_prio2", "graphlog_instance", "graphlog_run", "setup_info"]
     logger = Logger.Logger(os.path.join(os.path.dirname(__file__), "logfiles") + "\\log", config['logger_ignore_messages'], config['advanced_logging'])
@@ -389,7 +389,8 @@ def run(config, print_output = False):
 
         time_genes_post += time.time() - time_genes_post_stamp
         #print(num, [f"{x[1]}, {x[2]}" for x in genomes])
-        print(f"------------------- {num} ------------------")
+        print(num)
+        print("------------------- {num} ------------------")
         print(f"genes:{time_genes}, genes_selection:{time_genes_selection}, genes_crossover:{time_genes_crossover}, " +\
             f"genes_skip_check:{time_genes_skip_check}, eval:{time_eval}, genes_post:{time_genes_post}")
         
@@ -442,7 +443,7 @@ def run(config, print_output = False):
     logger.log_statistic_data(diagnostic_data)
     return to_return_fitness, diagnostic_data
 
-if __name__ == "__main__":
+def runme():
     import configparser
     config = configparser.ConfigParser()
     config.read('config.ini')
@@ -451,8 +452,7 @@ if __name__ == "__main__":
     if config['mode'] == 'run':
         print("Running evolution")
         import cProfile
-        cProfile.run("run(config, print_output=True)")
-        #run(config, print_output=True)
+        run(config, print_output=True)
     elif config['mode'][0] == 'load':
         # TODO not fully implemented
         # TODO if fully implementing unify code with run function better, outdated due to code duplications
@@ -554,7 +554,7 @@ if __name__ == "__main__":
 
             genome.load(correct_genome)
 
-            problem = stupid_problem_test.StupidProblem()
+            problem = one_pole_problem.PoleBalancingProblem()
 
             def genome_to_init_data(genome):
                 neuron_init_data = {

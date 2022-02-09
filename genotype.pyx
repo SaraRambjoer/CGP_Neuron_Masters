@@ -304,6 +304,7 @@ class FunctionChromosome:
                 child2.hex_variants[num] = other_chromosome.hex_variants[num]
             else: 
                 child2.hex_variants[num] = self.hex_variants[num]
+        # TODO: Add option for "shifting"/"copying" around hex variants (duplication & differation)
 
         for x in range(0, len(self.hex_variants)):
             if self.config['non_crossover_children']:
@@ -316,6 +317,8 @@ class FunctionChromosome:
                 [n1, n2] = child1.hex_variants[x].crossover(child2.hex_variants[x], 2, cgp_modules)
                 child1.hex_variants[x].program = n1
                 child2.hex_variants[x].program = n2
+
+
         if self.config['non_crossover_children']:
             return child1, child2, child3, child4
         else:

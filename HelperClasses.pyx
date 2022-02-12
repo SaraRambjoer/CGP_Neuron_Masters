@@ -5,14 +5,20 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import networkx as nx
 import time
+from threading import Lock
+
 
 class Counter:
     def __init__(self) -> None:
         self.count = 0
+        self.counter_lock = Lock()
 
     def counterval(self):
+        self.counter_lock.acquire()
         self.count += 1
-        return self.count
+        to_return = int(self.count)
+        self.counter_lock.release()
+        return to_return
 
 
 # TODO I think the reason that randomness is not correctly seeded is that the correct seed is never set in these helper functions. 

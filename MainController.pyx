@@ -346,7 +346,7 @@ def run(config, print_output = False):
             new_genome_parent_indexes = new_genome[3]
             parent1_score = genomes[new_genome_parent_indexes[0]][6][0]
             parent2_score = genomes[new_genome_parent_indexes[1]][6][0]
-            if new_genome_score <= parent1_score and not changed[new_genome_parent_indexes[0]]:
+            if new_genome_score < parent1_score or new_genome_score == parent1_score and not changed[new_genome_parent_indexes[0]]:
                 genomes[new_genome_parent_indexes[0]] = new_genome
                 changed[new_genome_parent_indexes[0]] = True
                 if new_genome_score < parent1_score:
@@ -354,7 +354,7 @@ def run(config, print_output = False):
                 elif new_genome[5]:
                     change_neutral[new_genome_parent_indexes[0]] = True
                 parent1_score = new_genome_score
-            elif new_genome_score <= parent2_score  and not changed[new_genome_parent_indexes[1]]:
+            elif new_genome_score < parent2_score or new_genome_score == parent1_score and not changed[new_genome_parent_indexes[1]]:
                 genomes[new_genome_parent_indexes[1]] = new_genome
                 changed[new_genome_parent_indexes[1]] = True
                 if new_genome_score < parent2_score:

@@ -148,8 +148,24 @@ class NeuronEngine():
         gridy, localy, globaly = _modify_pattern(yl, self.grid_size, neuron.y_glob, yg, self.grid_count)
         gridz, localz, globalz = _modify_pattern(zl, self.grid_size, neuron.z_glob, zg, self.grid_count)
 
-        if globalx >= self.grid_count*self.grid_size or globaly >= self.grid_count*self.grid_size or globalz >= self.grid_count*self.grid_size:
-            raise Exception("Global position out of bounds")
+        while globalx >= self.grid_count*self.grid_size:
+            globalx -= 1
+            localx -= 1
+            if localx < 0:
+                gridx -= 1
+                localx = self.grid_size-1
+        while globaly >= self.grid_count*self.grid_size:
+            globaly -= 1
+            localy -= 1
+            if localy < 0:
+                gridy -= 1
+                localy = self.grid_size-1
+        while globalz >= self.grid_count*self.grid_size:
+            globalz -= 1
+            localz -= 1
+            if localz < 0:
+                gridz -= 1
+                localz = self.grid_size-1
         return self.grids[gridx][gridy][gridz], (localx, localy, localz), (globalx, globaly, globalz)
 
 

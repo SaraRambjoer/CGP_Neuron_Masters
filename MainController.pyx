@@ -10,13 +10,23 @@ import random
 from HelperClasses import Counter, randchoice, copydict, randcheck, copydict
 import os
 from multiprocessing import Pool
+import datetime
 
-def multiprocess_code(engine_problem):
-    engine = engine_problem[0]
-    problem = engine_problem[1]
-    num = engine_problem[2]
-    to_return = engine.run(problem, num)
-    return to_return
+def multiprocess_code_2(child_data_packs):
+    x = child_data_packs
+    return [x[0].crossover(x[1]), x[0], x[1], x[2]]
+
+
+
+def multiprocess_code(engine_problem): 
+    if engine_problem[5]:
+        engine = engine_problem[5][0]
+        problem = engine_problem[5][1]
+        num = engine_problem[5][2]
+        to_return = engine.run(problem, num)
+        engine_problem[6] = to_return
+        engine_problem[5] = None
+    return engine_problem
 
 def log_genome(genomes, runinfo):
     for genome in genomes:
@@ -207,7 +217,7 @@ def run(config, print_output = False):
         )
         result, base_problems = engine.run(problem, "setup")
         genome_results.append((result, base_problems))
-    genomes = list(zip(genomes, [x[0] for x in genome_results], [x[1] for x in genome_results]))
+    genomes = list(zip(genomes, [x[0] for x in genome_results], [None for x in genome_results], [None for x in genome_results], [None for x in genome_results], [None for x in genome_results], [x for x in genome_results]))
     to_return_fitness.append(x[0] for x in genome_results)
     log_genome(genomes, 0)
 
@@ -228,6 +238,9 @@ def run(config, print_output = False):
         time_genes_skip_check = 0
         egligable_bachelors = [x[0] for x in genomes]
         child_data = [[] for _ in range(len(genomes))]
+        # Make this parallell in pool 
+        
+        child_data_packs = []
         while len([x for x in egligable_bachelors if x is not None]) > 0:
             time_genes_stamp = time.time()
             time_genes_selection_stamp = time.time()
@@ -237,28 +250,46 @@ def run(config, print_output = False):
             egligable_bachelors[egligable_bachelors.index(choice1)] = None  # Currently possible to do crossover with self, which does make some sense with subgraph extraction
             if choice2 in egligable_bachelors and choice2 != choice1:
                 egligable_bachelors[egligable_bachelors.index(choice2)] = None
-            time_genes_selection += time.time() - time_genes_selection_stamp
-            time_genes_crossover_stamp = time.time()
-            new_genomes = choice1.crossover(choice2)
-            time_genes_crossover += time.time() - time_genes_crossover_stamp
-            time_genes_skip_check_stamp = time.time()
-            skip_eval = [False for num in range(len(new_genomes))]
-            for numero in range(len(new_genomes)):
-                genome = new_genomes[numero]
+            child_data_packs.append((choice1, choice2, indexes))
+
+
+        
+        time_genes_selection += time.time() - time_genes_selection_stamp
+        time_genes_crossover_stamp = time.time()
+
+        with Pool() as p:
+            new_genomes = p.map(multiprocess_code_2, child_data_packs)
+        
+        time_genes_crossover += time.time() - time_genes_crossover_stamp
+        time_genes_skip_check_stamp = time.time()
+        for numero in range(len(new_genomes)):
+            datapack = new_genomes[numero]
+            skip_eval = [False for x in range(len(datapack[0]))]
+            choice1 = datapack[1]
+            choice2 = datapack[2]
+            for numero2 in range(len(datapack[0])):
+                genome = datapack[0][numero2]
                 if genome.equals_no_id(choice1):
-                    skip_eval[numero] = 1
+                    skip_eval[numero2] = 1
                 if genome.equals_no_id(choice2):
-                    skip_eval[numero] = 2
-            time_genes_skip_check += time.time() - time_genes_skip_check_stamp
-            genome_results = []
-            time_genes += time.time() - time_genes_stamp
-            time_eval_stamp = time.time()
+                    skip_eval[numero2] = 2
+            datapack.append(skip_eval)
+            
+        time_genes_skip_check += time.time() - time_genes_skip_check_stamp
+        genome_results = []
+        time_genes += time.time() - time_genes_stamp
+        time_eval_stamp = time.time()
 
 
+        for num2 in range(len(new_genomes)):
+            new_genomes[num2].append(False)
+            new_genomes[num2].append([False for x in range(len(new_genomes[num2][0]))])
             engine_problems = []
-            for numero in range(len(new_genomes)):
-                genome = new_genomes[numero]
-                if not skip_eval[numero]:
+            indexes = new_genomes[num2][3]
+            for num3 in range(len(new_genomes[num2][0])):
+                genome = new_genomes[num2][0][num3]
+                skip_eval = new_genomes[num2][4][num3]
+                if not skip_eval:
                     neuron_initialization_data, axon_initialization_data = genome_to_init_data(genome)
                     engine = NeuronEngine(
                         input_arity = problem.input_arity,
@@ -276,81 +307,80 @@ def run(config, print_output = False):
                         config_file = copydict(config)
                     )
                     engine_problems.append((engine, problem, num))
-                elif skip_eval[numero] == 1:
-                    genome_results.append((genomes[indexes[0]][1], genomes[indexes[0]][2]))
-                else:
-                    genome_results.append((genomes[indexes[1]][1], genomes[indexes[1]][2]))
+                elif skip_eval == 1:
+                    engine_problems.append(False)
+                    new_genomes[num2][0][num3] = genomes[indexes[0]][0]
+                    new_genomes[6][num3] = genomes[indexes[0]][6]
+                elif skip_eval == 2:
+                    new_genomes[num2][0][num3] = genomes[indexes[1]][0]
+                    new_genomes[6][num3] = genomes[indexes[1]][6]
+            new_genomes[num2][5] = engine_problems
 
-            with Pool() as p:
-                results = p.map(multiprocess_code, engine_problems)
+
+        new_new_genomes = []
+        for num2 in range(len(new_genomes)):
+            for num3 in range(len(new_genomes[num2][0])):
+                new_new_genomes.append([new_genomes[num2][0][num3], new_genomes[num2][1], new_genomes[num2][2],
+                                        new_genomes[num2][3], new_genomes[num2][4], new_genomes[num2][5][num3], new_genomes[num2][6][num3]])
+        new_genomes = new_new_genomes
+        for num2 in range(len(new_genomes)):
+            new_genomes[num2][5][0].reset()
+
+        with Pool() as p:
+            genome_data = p.map(multiprocess_code, new_genomes)
             
-            genome_results += results
+        time_eval += time.time() - time_eval_stamp
         
-            #for numero in range(len(new_genomes)):
-            #    genome = new_genomes[numero]
-            #    if not skip_eval[numero]:
-            #        neuron_initialization_data, axon_initialization_data = genome_to_init_data(genome)
-            #        engine = NeuronEngine(
-            #            input_arity = problem.input_arity,
-            #            output_arity = problem.output_arity,
-            #            grid_count = grid_count,
-            #            grid_size = grid_size,
-            #            actions_max = actions_max,
-            #            neuron_initialization_data = neuron_initialization_data,
-            #            axon_initialization_data = axon_initialization_data,
-            #            signal_arity = signal_dimensionality,
-            #            hox_variant_count = hox_variant_count,
-            #            instances_per_iteration = instances_per_iteration,
-            #            logger = logger,
-            #            genome_id = genome.id,
-            #            config_file = copydict(config)
-            #        )
-            #        genome_results.append(engine.run(problem, num))
-            #    elif skip_eval[numero] == 1:
-            #        genome_results.append((genomes[indexes[0]][1], genomes[indexes[0]][2]))
-            #    else:
-            #        genome_results.append((genomes[indexes[1]][1], genomes[indexes[1]][2]))
-
-            time_eval += time.time() - time_eval_stamp
-
-
-            time_genes_stamp = time.time()
-            base_problems = [x[1] for x in genome_results]
-            genome_results = [x[0] for x in genome_results]
-            # all children of a parent compete for the parents spots
-
-            for x in range(len(new_genomes)):
-                child_data[indexes[0]].append((new_genomes[x], genome_results[x], base_problems[x]))
-                child_data[indexes[1]].append((new_genomes[x], genome_results[x], base_problems[x]))        
-            time_genes += time.time() - time_genes_stamp
-
-        time_genes_post_stamp = time.time()
+        time_genes_stamp = time.time()
         change_better = [False for x in range(len(genomes))]
         change_neutral = [False for x in range(len(genomes))]
-
-        for num3 in range(len(child_data)):
-            score_view = [x[1] for x in child_data[num3]]
-            score_min = min(score_view)
-            min_index = score_view.index(score_min)
-            if score_min <= genomes[num3][1]:
-                if score_min < genomes[num3][1]:
-                    change_better[num3] = True
-                else:
-                    change_neutral[num3] = True
-                genomes[num3] = child_data[num3][min_index]
-
+        new_genomes = []
         
+        scores = [x[6][0] for x in genomes]
+
+        changed = [False for x in genomes]
+        random.shuffle(genome_data)
+        for num2 in range(len(genome_data)):
+            new_genome = genome_data[num2]
+            new_genome_score = new_genome[6][0]
+            new_genome_parent_indexes = new_genome[3]
+            parent1_score = genomes[new_genome_parent_indexes[0]][6][0]
+            parent2_score = genomes[new_genome_parent_indexes[1]][6][0]
+            if new_genome_score <= parent1_score and not changed[new_genome_parent_indexes[0]]:
+                genomes[new_genome_parent_indexes[0]] = new_genome
+                changed[new_genome_parent_indexes[0]] = True
+                if new_genome_score < parent1_score:
+                    change_better[new_genome_parent_indexes[0]] = True
+                elif new_genome[5]:
+                    change_neutral[new_genome_parent_indexes[0]] = True
+                parent1_score = new_genome_score
+            elif new_genome_score <= parent2_score  and not changed[new_genome_parent_indexes[1]]:
+                genomes[new_genome_parent_indexes[1]] = new_genome
+                changed[new_genome_parent_indexes[1]] = True
+                if new_genome_score < parent2_score:
+                    change_better[new_genome_parent_indexes[1]] = True
+                elif new_genome[5]:
+                    change_neutral[new_genome_parent_indexes[1]] = True
+
+        new_scores = scores = [x[6][0] for x in genomes]
+
+        for num2 in range(len(new_scores)):
+            if scores[num2] < new_scores[num2]:
+                raise Exception("Better score discarded", scores[num2], " for ", new_scores[num2])
+        time_genes += time.time() - time_genes_stamp
+
+        time_genes_post_stamp = time.time()
         for num3 in range(len(genomes)):
             genome = genomes[num3][0]
             x = (genome.config['mutation_chance_node']+genome.config['mutation_chance_link'])/2
             genome.config['mutation_chance_link'] = x
             genome.config['mutation_chance_node'] = x
             if change_better[num3]:
-                pass
-            elif change_neutral[num3]:
                 genome.config['mutation_chance_node'] = min(genome.config['max_mutation_chance_node'], genome.config['mutation_chance_node']*config['neutral_mutation_chance_node_multiplier'])
                 genome.config['mutation_chance_link'] = min(genome.config['max_mutation_chance_link'], genome.config['mutation_chance_link']*config['neutral_mutation_chance_link_multiplier'])
-
+                genome.hypermutation = False
+            elif change_neutral:
+                genome.hypermutation = False
             else:
                 if not(genome.hypermutation):
                     genome.config['mutation_chance_node'] *= config['fail_mutation_chance_node_multiplier']
@@ -367,12 +397,12 @@ def run(config, print_output = False):
         for num4 in range(config['genome_replacement_tries']):
             genome_one = randchoice(genomes)
             genome_two = randchoice([x for x in genomes if x is not genome_one])
-            diff = abs(genome_one[1] - genome_two[1])
-            maxi = max(genome_one[1], genome_two[1])
+            diff = abs(genome_one[6][0] - genome_two[6][0])
+            maxi = max(genome_one[6][0], genome_two[6][0])
             average_takeover_probability += diff*config['replacement_fitness_difference_scaling']/maxi
             if diff > config['replacement_fitness_difference_threshold']:
                 if randcheck(diff*config['replacement_fitness_difference_scaling']/maxi):
-                    if genome_one[1] > genome_two[1]:
+                    if genome_one[6][0] > genome_two[6][0]:
                         genomes[genomes.index(genome_two)] = genome_one
                     else:
                         genomes[genomes.index(genome_one)] = genome_two
@@ -390,7 +420,7 @@ def run(config, print_output = False):
         time_genes_post += time.time() - time_genes_post_stamp
         #print(num, [f"{x[1]}, {x[2]}" for x in genomes])
         print(num)
-        print("------------------- {num} ------------------")
+        print("-------------------------------------")
         print(f"genes:{time_genes}, genes_selection:{time_genes_selection}, genes_crossover:{time_genes_crossover}, " +\
             f"genes_skip_check:{time_genes_skip_check}, eval:{time_eval}, genes_post:{time_genes_post}")
         
@@ -417,8 +447,8 @@ def run(config, print_output = False):
 
             genome_entry = {
                 "id":genome[0].id,
-                "fitness":genome[1],
-                "performance_stats":genome[2],
+                "fitness":genome[6][0],
+                "performance_stats":genome[6][1],
                 "node_mutation_chance":genome[0].config['mutation_chance_node'],
                 "link_mutation_chance":genome[0].config['mutation_chance_link'],
                 "module_count_non_recursive":len(module_list),
@@ -426,10 +456,10 @@ def run(config, print_output = False):
                 "cgp_node_types": genome[0].get_node_type_counts()
             }
             genomes_data["genome_list"] += [genome_entry]
-            print()
+
             print(genome[0].id)
-            print(genome[1])
-            print(genome[2])
+            print(genome[6][0])
+            print(genome[6][1])
             print(genome[0].config['mutation_chance_node'], genome[0].config['mutation_chance_link'])
         
         statistic_entry['genomes_data'] = genomes_data
@@ -445,6 +475,10 @@ def run(config, print_output = False):
 
 def runme():
     import configparser
+    now = datetime.datetime.now()
+    print ("Startime")
+    print (now.strftime("%H:%M:%S"))
+
     config = configparser.ConfigParser()
     config.read('config.ini')
     config = config["Default"]
@@ -453,6 +487,10 @@ def runme():
         print("Running evolution")
         import cProfile
         run(config, print_output=True)
+        now = datetime.datetime.now()
+        print ("Endtime")
+        print (now.strftime("%H:%M:%S"))
+
     elif config['mode'][0] == 'load':
         # TODO not fully implemented
         # TODO if fully implementing unify code with run function better, outdated due to code duplications

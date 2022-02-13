@@ -9,16 +9,16 @@ import one_pole_problem
 import random
 from HelperClasses import Counter, randchoice, copydict, randcheck, copydict
 import os
-from multiprocessing import Pool
+from multiprocessing import Lock
+import threading
 import datetime
 
 def multiprocess_code_2(child_data_packs):
-    x = child_data_packs
-    return [x[0].crossover(x[1]), x[0], x[1], x[2]]
-
-
+    x, return_list = child_data_packs
+    return_list.append([x[0].crossover(x[1]), x[0], x[1], x[2]])
 
 def multiprocess_code(engine_problem): 
+    engine_problem, return_list = engine_problem
     if engine_problem[5]:
         engine = engine_problem[5][0]
         problem = engine_problem[5][1]
@@ -26,7 +26,7 @@ def multiprocess_code(engine_problem):
         to_return = engine.run(problem, num)
         engine_problem[6] = to_return
         engine_problem[5] = None
-    return engine_problem
+    return_list.append(engine_problem)
 
 def log_genome(genomes, runinfo):
     for genome in genomes:
@@ -215,7 +215,7 @@ def run(config, print_output = False):
             genome_id = genome.id,
             config_file = copydict(config)
         )
-        result, base_problems = engine.run(problem, "setup")
+        result, base_problems = engine.run(one_pole_problem.PoleBalancingProblem(), "setup")
         genome_results.append((result, base_problems))
     genomes = list(zip(genomes, [x[0] for x in genome_results], [None for x in genome_results], [None for x in genome_results], [None for x in genome_results], [None for x in genome_results], [x for x in genome_results]))
     to_return_fitness.append(x[0] for x in genome_results)
@@ -256,9 +256,14 @@ def run(config, print_output = False):
         
         time_genes_selection += time.time() - time_genes_selection_stamp
         time_genes_crossover_stamp = time.time()
-
-        with Pool() as p:
-            new_genomes = p.map(multiprocess_code_2, child_data_packs)
+        
+        out_list = []
+        threads = [threading.Thread(target=multiprocess_code_2, args=[[x, out_list]]) for x in child_data_packs]
+        for x in threads:
+            x.start()
+        for x in threads:
+            x.join()
+        new_genomes = out_list
         
         time_genes_crossover += time.time() - time_genes_crossover_stamp
         time_genes_skip_check_stamp = time.time()
@@ -306,28 +311,39 @@ def run(config, print_output = False):
                         genome_id = genome.id,
                         config_file = copydict(config)
                     )
-                    engine_problems.append((engine, problem, num))
+                    engine_problems.append((engine, one_pole_problem.PoleBalancingProblem(), num))
                 elif skip_eval == 1:
                     engine_problems.append(False)
                     new_genomes[num2][0][num3] = genomes[indexes[0]][0]
-                    new_genomes[6][num3] = genomes[indexes[0]][6]
+                    new_genomes[num2][6][num3] = genomes[indexes[0]][6]
                 elif skip_eval == 2:
+                    engine_problems.append(False)
                     new_genomes[num2][0][num3] = genomes[indexes[1]][0]
-                    new_genomes[6][num3] = genomes[indexes[1]][6]
+                    new_genomes[num2][6][num3] = genomes[indexes[1]][6]
             new_genomes[num2][5] = engine_problems
 
 
         new_new_genomes = []
         for num2 in range(len(new_genomes)):
+            num2_copy = num2
             for num3 in range(len(new_genomes[num2][0])):
+                num3_copy = num3
                 new_new_genomes.append([new_genomes[num2][0][num3], new_genomes[num2][1], new_genomes[num2][2],
                                         new_genomes[num2][3], new_genomes[num2][4], new_genomes[num2][5][num3], new_genomes[num2][6][num3]])
         new_genomes = new_new_genomes
         for num2 in range(len(new_genomes)):
-            new_genomes[num2][5][0].reset()
+            if new_genomes[num2][5]:
+                new_genomes[num2][5][0].reset()
 
-        with Pool() as p:
-            genome_data = p.map(multiprocess_code, new_genomes)
+        
+        out_list = []
+        threads = [threading.Thread(target=multiprocess_code, args=[[x, out_list]]) for x in new_genomes]
+        for x in threads:
+            x.start()
+        for x in threads:
+            x.join()
+        genome_data = out_list
+
             
         time_eval += time.time() - time_eval_stamp
         
@@ -387,6 +403,8 @@ def run(config, print_output = False):
                     genome.config['mutation_chance_link'] *= config['fail_mutation_chance_link_multiplier']
                     if genome.config['mutation_chance_node'] < 0.000001:
                         genome.hypermutation = True
+                        genome.config['mutation_chance_node'] = config['hypermutation_mutation_chance']
+                        genome.config['mutation_chance_link'] = config['hypermutation_mutation_chance']
                 else:
                     genome.config['mutation_chance_node'] = config['hypermutation_mutation_chance']
                     genome.config['mutation_chance_link'] = config['hypermutation_mutation_chance']

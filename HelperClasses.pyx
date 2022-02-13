@@ -18,7 +18,7 @@ class Counter:
         self.count += 1
         to_return = int(self.count)
         self.counter_lock.release()
-        return to_return
+        return self.count
 
 
 # TODO I think the reason that randomness is not correctly seeded is that the correct seed is never set in these helper functions. 

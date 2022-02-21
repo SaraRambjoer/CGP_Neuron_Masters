@@ -1,3 +1,4 @@
+from dis import Instruction
 import math
 import random
 from HelperClasses import Counter, randchoice, randcheck, randchoice_scaled
@@ -5,7 +6,7 @@ from numpy.core.fromnumeric import sort, var
 from numpy.lib.function_base import average
 from numpy.ma import count
 import numpy
-
+from cgp_program_executor import run_code
 
 class NodeAbstract():
     """Abstract superclass for nodes"""
@@ -283,7 +284,8 @@ class CGPProgram:
                 node_type = randchoice(_dummy_node.CPGNodeTypes)
                 new_node = CGPNode(node_type, [], self.counter, 0, self.debugging)
                 self.nodes.append(new_node)
-        self.output_indexes = [x for x in range(0, output_arity)]  
+        self.output_indexes = [x for x in range(0, output_arity)] 
+        self.compiled = None
         # Because first nodes are guaranteed to be connected at start
 
 
@@ -337,14 +339,23 @@ class CGPProgram:
     def run_presetinputs(self):
         if None in [x.output for x in self.input_nodes]:
             raise Exception("All outputs not set")
-        for input_node in self.input_nodes:
-            input_node.alert_subscribers()
-        outputs = []
-        for index in self.output_indexes:
-            output = self.nodes[index].output
-            outputs.append(output)
-        return outputs
-
+        if self.compiled is None:
+            for input_node in self.input_nodes:
+                input_node.alert_subscribers()
+            outputs = []
+            for index in self.output_indexes:
+                output = self.nodes[index].output
+                outputs.append(output)
+            return outputs
+        else:
+            inputs = [x.output for x in self.input_nodes]
+            if len(inputs) < self.compiled_max_width:
+                inputs += [0 for x in range(self.compiled_max_width - len(inputs))]
+            outputs = run_code(self.compiled, inputs)[0]
+            output_node_ids = [x.id for x in [self.nodes[y] for y in self.output_indexes]]
+            to_return = [outputs[self.node_input_ids.index(x)] for x in output_node_ids]
+            return to_return
+        
 
     def get_active_nodes(self):
         self.reset()
@@ -438,8 +449,48 @@ class CGPProgram:
             if random.random() < node_type_mutate_chance or self_nodes[self.output_indexes[num]] not in output_node_alternatives:
                 self.output_indexes[num] = self_nodes.index(randchoice(output_node_alternatives))
         #self.validate_input_node_array()
+        self.compile_self()
         return self
-    
+
+
+    def compile_self(self, active_nodes = None):
+        if active_nodes is None:
+            active_nodes = self.get_active_nodes()
+        instructions = []
+        current_depth = 1
+        nodes_at_next_layer = [x for x in active_nodes if x.row_depth == current_depth]
+        node_input_ids = [x.id for x in self.input_nodes] + [x.id for x in active_nodes]
+        self.node_input_ids = node_input_ids
+        self.compiled_max_width = len(node_input_ids)
+        while True:
+            nodes_at_layer = nodes_at_next_layer
+            nodes_at_next_layer = [x for x in active_nodes if x.row_depth == current_depth+1]
+            if len(nodes_at_layer) == 0:
+                break
+            for node in nodes_at_layer:
+                if type(node.type) is CGPModuleType:
+                    instructions.append("MODULAR")
+                    module_compiled = node.type.program.compile_self()
+                    module_data_width = node.type.program.compiled_max_width
+                    instructions.append(module_data_width)
+                    modular_inputs = []
+                    for in_id in [x.id for x in node.inputs]:
+                        modular_inputs.append(node_input_ids.index(in_id))
+                    instructions += modular_inputs
+                    instructions.append("MODULARINPUTEND")
+                    instructions += module_compiled
+                    instructions.append("ENDMODULAR")
+                else:
+                    instructions.append(node.type)
+                    for in_id in [x.id for x in node.inputs]:
+                        instructions.append(node_input_ids.index(in_id))
+                instructions.append(node_input_ids.index(node.id))
+            current_depth += 1
+        
+        self.compiled = instructions
+        return instructions
+            
+
     def validate_nodes(self):
         if self.debugging:
             for node in self.nodes:

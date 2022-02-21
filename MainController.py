@@ -258,11 +258,13 @@ def run(config, print_output = False):
         time_genes_crossover_stamp = time.time()
         
         out_list = []
-        threads = [threading.Thread(target=multiprocess_code_2, args=[[x, out_list]]) for x in child_data_packs]
-        for x in threads:
-            x.start()
-        for x in threads:
-            x.join()
+        for x in child_data_packs:
+            multiprocess_code_2([x, out_list])
+        #threads = [threading.Thread(target=multiprocess_code_2, args=[[x, out_list]]) for x in child_data_packs]
+        #for x in threads:
+        #    x.start()
+        #for x in threads:
+        #    x.join()
         new_genomes = out_list
         
         time_genes_crossover += time.time() - time_genes_crossover_stamp
@@ -337,11 +339,13 @@ def run(config, print_output = False):
 
         
         out_list = []
-        threads = [threading.Thread(target=multiprocess_code, args=[[x, out_list]]) for x in new_genomes]
-        for x in threads:
-            x.start()
-        for x in threads:
-            x.join()
+        for x in new_genomes:
+            multiprocess_code([x, out_list])
+        #threads = [threading.Thread(target=multiprocess_code, args=[[x, out_list]]) for x in new_genomes]
+        #for x in threads:
+        #    x.start()
+        #for x in threads:
+        #    x.join()
         genome_data = out_list
 
             
@@ -353,7 +357,7 @@ def run(config, print_output = False):
         new_genomes = []
         
         scores = [x[6][0] for x in genomes]
-
+        old_genomes = [x for x in genomes]
         changed = [False for x in genomes]
         random.shuffle(genome_data)
         for num2 in range(len(genome_data)):
@@ -368,7 +372,8 @@ def run(config, print_output = False):
                 if new_genome_score < parent1_score:
                     change_better[new_genome_parent_indexes[0]] = True
                 elif new_genome[5]:
-                    change_neutral[new_genome_parent_indexes[0]] = True
+                    if new_genome[0].id != old_genomes[new_genome_parent_indexes[0]].id and new_genome[0].id != old_genomes[new_genome_parent_indexes[1]].id:
+                        change_neutral[new_genome_parent_indexes[0]] = True
                 parent1_score = new_genome_score
             elif new_genome_score < parent2_score or new_genome_score == parent1_score and not changed[new_genome_parent_indexes[1]]:
                 genomes[new_genome_parent_indexes[1]] = new_genome
@@ -376,7 +381,13 @@ def run(config, print_output = False):
                 if new_genome_score < parent2_score:
                     change_better[new_genome_parent_indexes[1]] = True
                 elif new_genome[5]:
-                    change_neutral[new_genome_parent_indexes[1]] = True
+                    if new_genome[0].id != old_genomes[new_genome_parent_indexes[0]].id and new_genome[0].id != old_genomes[new_genome_parent_indexes[1]].id:
+                        change_neutral[new_genome_parent_indexes[1]] = True
+
+        statistic_entry['replacement_stats'] = {
+            'better_changes_percentage' : len([x for x in change_better if x]),
+            'neutral_changes_percentage' : len([x for x in change_neutral if x])
+        }
 
         new_scores = scores = [x[6][0] for x in genomes]
 
@@ -412,20 +423,16 @@ def run(config, print_output = False):
         
         times_a_genome_took_population_slot_from_other_genome = 0
         average_takeover_probability = 0
-        for num4 in range(config['genome_replacement_tries']):
-            genome_one = randchoice(genomes)
-            genome_two = randchoice([x for x in genomes if x is not genome_one])
-            diff = abs(genome_one[6][0] - genome_two[6][0])
-            maxi = max(genome_one[6][0], genome_two[6][0])
-            average_takeover_probability += diff*config['replacement_fitness_difference_scaling']/maxi
-            if diff > config['replacement_fitness_difference_threshold']:
-                if randcheck(diff*config['replacement_fitness_difference_scaling']/maxi):
-                    if genome_one[6][0] > genome_two[6][0]:
-                        genomes[genomes.index(genome_two)] = genome_one
-                    else:
-                        genomes[genomes.index(genome_one)] = genome_two
-                    times_a_genome_took_population_slot_from_other_genome += 1
-        
+
+        genome_avg = sum(x[6][0] for x in genomes)/len(genomes)
+        top_genomes = [x for x in genomes if x[6][0] > genome_avg]
+        bottom_genomes = [x for x in genomes if x[6][0] <= genome_avg]
+        if len(top_genomes) > 0:
+            one = randchoice(top_genomes)
+            two = randchoice(bottom_genomes)
+            genomes[genomes.index(two)] = one
+
+
         if times_a_genome_took_population_slot_from_other_genome != 0:
             average_takeover_probability = average_takeover_probability/config['genome_replacement_tries']
         statistic_entry["genome_replacement_stats"] = {
@@ -488,7 +495,12 @@ def run(config, print_output = False):
         #_genomes = [x[0] for x in genomes]
         #for gen in _genomes:
         #  print(str(gen))
-    logger.log_statistic_data(diagnostic_data)
+        # To prevent logging data from becoming too large in ram 
+        if num % 25 == 0:
+            logger.log_statistic_data(diagnostic_data)
+            diagnostic_data = {}
+            diagnostic_data['iterations'] = []
+
     return to_return_fitness, diagnostic_data
 
 def runme():
@@ -505,6 +517,7 @@ def runme():
         print("Running evolution")
         import cProfile
         run(config, print_output=True)
+        #cProfile.run("run(config, print_output=True")
         now = datetime.datetime.now()
         print ("Endtime")
         print (now.strftime("%H:%M:%S"))

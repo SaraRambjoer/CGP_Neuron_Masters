@@ -71,3 +71,12 @@ def copydict(input_dict):
     else:
         return input_dict
 
+def dict_merge(source, destination):
+    for key, value in source.items():
+        if isinstance(value, dict):
+            node = destination.setdefault(key, {})
+            dict_merge(value, node)
+        else:
+            destination[key] = value
+
+    return destination

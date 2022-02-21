@@ -319,17 +319,17 @@ class CGPProgram:
         node_type_counts = {}
         for node in self.get_active_nodes():
             if type(node) != InputCGPNode:
-                if type(node) != CGPModuleType:
+                if type(node.type) != CGPModuleType:
                     if node.type not in node_type_counts.keys():
                         node_type_counts[node.type] = 1
                     else:
                         node_type_counts[node.type] += 1
                 else:
-                    for key, val in node.program.get_node_type_counts().items():
+                    for key, val in node.type.program.get_node_type_counts().items():
                         if key not in node_type_counts.keys():
-                            node_type_counts[node.type] = val
+                            node_type_counts[key] = val
                         else:
-                            node_type_counts[node.type] += val
+                            node_type_counts[key] += val
         return node_type_counts
 
     

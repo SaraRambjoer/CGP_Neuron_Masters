@@ -10,6 +10,7 @@ yaml_stats = None
 with open(statistics_file, 'r') as f:
     yaml_stats = yaml.load(f)
 
+# TODO ANALYZE 'replacement_stats'
 
 def plot_basic(data, ylabel, xlabel, figname):
     plt.plot(data)

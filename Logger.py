@@ -25,12 +25,12 @@ class Logger:
         self.enabled = enabled
 
     def log_statistic_data(self, statistic_data):
-        if os.path.exists(os.path.join(self.output_dir, "statistics.yml")):
-            with open(os.path.join(self.output_dir, "statistics.yml"), 'r') as f:
-                loaded = yaml.load(f, Loader=yaml.FullLoader)
-            dict_merge(statistic_data, loaded)
+        #if os.path.exists(os.path.join(self.output_dir, "statistics.yml")):
+        #    with open(os.path.join(self.output_dir, "statistics.yml"), 'r') as f:
+        #        loaded = yaml.load(f, Loader=yaml.FullLoader)
+        #    statistic_data = dict_merge(statistic_data, loaded)
 
-        with open(os.path.join(self.output_dir, "statistics.yml"), 'w') as f:
+        with open(os.path.join(self.output_dir, "statistics.yml"), 'a') as f:
             yaml.dump(statistic_data, f)
 
     def log(self, message_type, message):

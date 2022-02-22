@@ -1,4 +1,3 @@
-from dis import Instruction
 import math
 import random
 from HelperClasses import Counter, randchoice, randcheck, randchoice_scaled
@@ -17,7 +16,9 @@ class NodeAbstract():
             "ADDI",
             "SUBI",
             "SINU",
-            "GAUS"
+            "GAUS",
+            "DIVI",
+            "MULI"
         ]
 
         self.NodeTypeArity = {
@@ -25,6 +26,8 @@ class NodeAbstract():
             "SUBI":2,
             "GAUS":2,
             "SINU":1,
+            "DIVI":2,
+            "MULI":2
         }
         self.oneary = [x[0] for x in self.NodeTypeArity.items() if x[1] == 1]
         self.twoary = [x[0] for x in self.NodeTypeArity.items() if x[1] == 2]
@@ -32,7 +35,9 @@ class NodeAbstract():
             "ADDI": self._addi,
             "SUBI": self._subi,
             "SINU": self._sinu,
-            "GAUS": self._gaus
+            "GAUS": self._gaus,
+            "MULI": self._muli,
+            "DIVI": self._divi
         }  
 
     def _addi(self, x0, x1):
@@ -43,6 +48,27 @@ class NodeAbstract():
         return numpy.sin(x0)
     def _gaus(self, x0, x1):
         return numpy.random.normal(numpy.absolute(x0), numpy.absolute(x1))
+    def _muli(self, x0, x1):
+        result = x0*x1
+        if result < -100.0:
+            return -100.0
+        elif result > 100.0:
+            return 100.0
+        return result
+    def _divi(self, x0, x1):
+        if abs(x1) < 0.01:
+            if x1 < 0.0:
+                result = x0/-0.01
+            else:
+                result = x0/0.01
+            if result < -100.0:
+                return -100.0
+            elif result > 100.0:
+                return 100.0
+            return result
+        return x0/x1
+
+
 
     def subscribe(self, node):
         """Register a listener
@@ -659,17 +685,19 @@ def subgraph_crossover(mate1, mate2, subgraph_extract_count, subgraph_size):
     mate1_subgraphs = mate1.extract_subgraphs(subgraph_size, min(subgraph_extract_count, len(mate1_active_nodes)),mate1_active_nodes)
     mate2_subgraphs = mate2.extract_subgraphs(subgraph_size, min(subgraph_extract_count, len(mate2_active_nodes)),mate2_active_nodes)
     for subgraph in mate1_subgraphs:
-        if len(mate2_inactive_nodes) != 0:
-            target = randchoice(mate2_inactive_nodes)
-        else:
-            target = randchoice(mate2.nodes)
-        target.change_type(subgraph)
+        if len(subgraph.program.get_active_nodes()) > 4:
+            if len(mate2_inactive_nodes) != 0:
+                target = randchoice(mate2_inactive_nodes)
+            else:
+                target = randchoice(mate2.nodes)
+            target.change_type(subgraph)
     for subgraph in mate2_subgraphs:
-        if len(mate1_inactive_nodes) != 0:
-            target = randchoice(mate1_inactive_nodes)
-        else:
-            target = randchoice(mate1.nodes)
-        target.change_type(subgraph)
+        if len(subgraph.program.get_active_nodes()) > 4:
+            if len(mate1_inactive_nodes) != 0:
+                target = randchoice(mate1_inactive_nodes)
+            else:
+                target = randchoice(mate1.nodes)
+            target.change_type(subgraph)
 
 
 class CGPModuleType:

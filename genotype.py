@@ -205,7 +205,7 @@ def generalized_cgp_crossover(parent1, parent2, child_count, samemut, cgp_module
         program_child_3.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
         program_child_4.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
 
-        CGPEngine.subgraph_crossover(program_child_1, program_child_2, 12, 12)
+        CGPEngine.subgraph_crossover(program_child_1, program_child_2, 3, 15)
         children = program_child_1.produce_children(1, cgp_modules) + program_child_2.produce_children(1, cgp_modules) + \
           program_child_3.produce_children(1, cgp_modules) + program_child_4.produce_children(1, cgp_modules)
         return children
@@ -216,7 +216,7 @@ def generalized_cgp_crossover(parent1, parent2, child_count, samemut, cgp_module
         program_child_1.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
         program_child_2.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
 
-        CGPEngine.subgraph_crossover(program_child_1, program_child_2, 12, 12)
+        CGPEngine.subgraph_crossover(program_child_1, program_child_2, 3, 15)
         children = program_child_1.produce_children(1, cgp_modules) + program_child_2.produce_children(1, cgp_modules)
         return children
 

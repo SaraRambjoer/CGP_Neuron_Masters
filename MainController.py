@@ -11,6 +11,7 @@ from HelperClasses import Counter, randchoice, copydict, randcheck, copydict
 import os
 from multiprocessing import Lock
 import threading
+import copy
 import datetime
 
 def multiprocess_code_2(child_data_packs):
@@ -406,28 +407,32 @@ def run(config, print_output = False):
                 genome.config['mutation_chance_node'] = min(genome.config['max_mutation_chance_node'], genome.config['mutation_chance_node']*config['neutral_mutation_chance_node_multiplier'])
                 genome.config['mutation_chance_link'] = min(genome.config['max_mutation_chance_link'], genome.config['mutation_chance_link']*config['neutral_mutation_chance_link_multiplier'])
                 genome.hypermutation = False
-            elif change_neutral:
+            elif change_neutral[num3]:
                 genome.hypermutation = False
             else:
                 if not(genome.hypermutation):
                     genome.config['mutation_chance_node'] *= config['fail_mutation_chance_node_multiplier']
                     genome.config['mutation_chance_link'] *= config['fail_mutation_chance_link_multiplier']
-                    if genome.config['mutation_chance_node'] < 0.000001:
+                    if genome.config['mutation_chance_node'] < 0.0001:
                         genome.hypermutation = True
                         genome.config['mutation_chance_node'] = config['hypermutation_mutation_chance']
                         genome.config['mutation_chance_link'] = config['hypermutation_mutation_chance']
                 else:
                     genome.config['mutation_chance_node'] = config['hypermutation_mutation_chance']
                     genome.config['mutation_chance_link'] = config['hypermutation_mutation_chance']
+            if genomes[num3][6][0] == 1.0:
+                genome.hypermutation = True
+                genome.config['mutation_chance_node'] = config['hypermutation_mutation_chance']
+                genome.config['mutation_chance_link'] = config['hypermutation_mutation_chance']
             genome.update_config()
         
         times_a_genome_took_population_slot_from_other_genome = 0
         average_takeover_probability = 0
 
         genome_avg = sum(x[6][0] for x in genomes)/len(genomes)
-        top_genomes = [x for x in genomes if x[6][0] > genome_avg]
-        bottom_genomes = [x for x in genomes if x[6][0] <= genome_avg]
-        if len(top_genomes) > 0:
+        top_genomes = [x for x in genomes if x[6][0] < genome_avg]
+        bottom_genomes = [x for x in genomes if x[6][0] > genome_avg]
+        if len(top_genomes) > 0 and len(bottom_genomes) > 0:
             one = randchoice(top_genomes)
             two = randchoice(bottom_genomes)
             genomes[genomes.index(two)] = one
@@ -437,7 +442,7 @@ def run(config, print_output = False):
             average_takeover_probability = average_takeover_probability/config['genome_replacement_tries']
         statistic_entry["genome_replacement_stats"] = {
             "times_a_genome_took_population_slot_from_other_genome" : times_a_genome_took_population_slot_from_other_genome,
-            "average_takover_probability" : average_takeover_probability
+            "average_takeover_probability" : average_takeover_probability
         }
 
 
@@ -470,15 +475,20 @@ def run(config, print_output = False):
             module_list = genome[0].add_cgp_modules_to_list([], genome[0])
             module_list_recursive = genome[0].add_cgp_modules_to_list([], genome[0], True)
 
+            module_size_average = 0
+            if len(module_list_recursive) > 0:
+                module_size_average = sum(len(x.program.get_active_nodes()) for x in module_list_recursive)/len(module_list_recursive)
+
             genome_entry = {
                 "id":genome[0].id,
                 "fitness":genome[6][0],
-                "performance_stats":genome[6][1],
+                "performance_stats":copy.deepcopy(genome[6][1]),
                 "node_mutation_chance":genome[0].config['mutation_chance_node'],
                 "link_mutation_chance":genome[0].config['mutation_chance_link'],
                 "module_count_non_recursive":len(module_list),
-                "module_count_recursive":len(module_list_recursive),
-                "cgp_node_types": genome[0].get_node_type_counts()
+                "module_count_recursive":len(module_list_recursive)-len(module_list),
+                "cgp_node_types": genome[0].get_node_type_counts(),
+                "module_size_average": module_size_average
             }
             genomes_data["genome_list"] += [genome_entry]
 
@@ -496,7 +506,7 @@ def run(config, print_output = False):
         #for gen in _genomes:
         #  print(str(gen))
         # To prevent logging data from becoming too large in ram 
-        if num % 25 == 0:
+        if num % 3 == 0:
             logger.log_statistic_data(diagnostic_data)
             diagnostic_data = {}
             diagnostic_data['iterations'] = []

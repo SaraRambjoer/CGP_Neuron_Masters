@@ -18,12 +18,33 @@ def calc_function(function, init_data, function_input_pointers):
             )
     elif function == "SUBI":
         return init_data[function_input_pointers[0]] - init_data[function_input_pointers[1]]
+    
+    elif function == "MULI": 
+        result = init_data[function_input_pointers[0]]*init_data[function_input_pointers[1]]
+        if result < -100.0:
+            return -100.0
+        elif result > 100.0:
+            return 100.0
+        return result
+    
+    elif function == "DIVI":
+        if abs(init_data[function_input_pointers[1]]) < 0.01:
+            if init_data[function_input_pointers[1]] < 0.0:
+                result = init_data[function_input_pointers[0]]/-0.01
+            else:
+                result = init_data[function_input_pointers[0]]/0.01
+            if result < -100.0:
+                return -100.0
+            elif result > 100.0:
+                return 100.0
+            return result
+        return init_data[function_input_pointers[0]]/init_data[function_input_pointers[1]]
 
 
 def get_func_input_length(function):
     if function == "SINU":
         return 1
-    elif function in ["ADDI", "GAUS", "SUBI"]:
+    elif function in ["ADDI", "GAUS", "SUBI", "MULI", "DIVI"]:
         return 2
     else:
         raise Exception("Function is invalid function", function)

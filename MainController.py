@@ -64,12 +64,12 @@ def process_config(config):
     return config
 
 
-def run(config, config_filename, print_output = False):
+def run(config, config_filename, output_path, print_output = False):
     # Setup problems
     problem = one_pole_problem.PoleBalancingProblem()
     # Setup logging
     # ["CGPProgram image", "cgp_function_exec_prio1", "cgp_function_exec_prio2", "graphlog_instance", "graphlog_run", "setup_info"]
-    logger = Logger.Logger("/cluster/work/jonora/CGP_Neuron_masters/logfiles" + "/log_" + config_filename + "_", config['logger_ignore_messages'], config['advanced_logging'])
+    logger = Logger.Logger(output_path + "/log_" + config_filename + "_", config['logger_ignore_messages'], config['advanced_logging'])
     # Setup CGP genome
     # - define a counter
     counter = Counter()
@@ -473,9 +473,11 @@ def run(config, config_filename, print_output = False):
             "genome_list":[]
         }
         for genome in genomes: 
-
-            module_list = genome[0].add_cgp_modules_to_list([], genome[0])
-            module_list_recursive = genome[0].add_cgp_modules_to_list([], genome[0], True)
+        
+            module_list, _ = genome[0].add_cgp_modules_to_list([], genome[0])
+            module_list_recursive, module_max_depth = genome[0].add_cgp_modules_to_list([], genome[0], True)
+            node_type_counts = genome[0].get_node_type_counts()
+            total_active_nodes = sum(node_type_counts.values())
 
             module_size_average = 0
             if len(module_list_recursive) > 0:
@@ -489,8 +491,10 @@ def run(config, config_filename, print_output = False):
                 "link_mutation_chance":genome[0].config['mutation_chance_link'],
                 "module_count_non_recursive":len(module_list),
                 "module_count_recursive":len(module_list_recursive)-len(module_list),
-                "cgp_node_types": genome[0].get_node_type_counts(),
-                "module_size_average": module_size_average
+                "module_size_average": module_size_average,
+                "cgp_node_types": node_type_counts,
+                "total_active_nodes" : total_active_nodes,
+                "module_max_depth" : module_max_depth
             }
             genomes_data["genome_list"] += [genome_entry]
 
@@ -515,7 +519,7 @@ def run(config, config_filename, print_output = False):
 
     return to_return_fitness, diagnostic_data
 
-def runme(config_filename):
+def runme(config_filename, output_path):
     import configparser
     now = datetime.datetime.now()
     #print ("Startime")
@@ -530,7 +534,7 @@ def runme(config_filename):
         print("We are running")
         #print("Running evolution")
         import cProfile
-        run(config, config_filename, print_output=True)
+        run(config, config_filename, output_path, print_output=True)
         #cProfile.run("run(config, #print_output=True")
         now = datetime.datetime.now()
         #print ("Endtime")

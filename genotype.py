@@ -132,13 +132,18 @@ class Genome:
         return node_type_counts
         
     def add_cgp_modules_to_list(self, input_list, genome, recursive=False):
-        for cgp_module in genome.hex_selector_genome.program.get_active_modules(recursive):
+        maxdepth = 0
+        cgp_modules, depth = genome.hex_selector_genome.program.get_active_modules(recursive)
+        maxdepth = max(maxdepth, depth)
+        for cgp_module in cgp_modules:
             input_list.append(cgp_module)
         for cgp_function_chromosome in genome.function_chromosomes:
             for hex_variant in cgp_function_chromosome.hex_variants:
-                for cgp_module in hex_variant.program.get_active_modules(recursive):
+                cgp_modules, depth = hex_variant.program.get_active_modules(recursive)
+                maxdepth = max(maxdepth, depth)
+                for cgp_module in cgp_modules:
                     input_list.append(cgp_module)
-        return input_list
+        return input_list, maxdepth
 
     def crossover(self, target):
         self.update_config()

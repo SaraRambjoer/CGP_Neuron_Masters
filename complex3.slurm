@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH --partition=CPUQ
 #SBATCH --account=ie-idi
-#SBATCH --time=00:30:00
+#SBATCH --time=10:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=12000
@@ -27,6 +27,6 @@ pip install numpy --user
 pip install pyyaml --user
 pip install pygame --user
 pip install gym --user
-python /cluster/home/jonora/CGP_Neuron_Masters/runfile.py config_complex_3
+python /cluster/home/jonora/CGP_Neuron_Masters/runfile.py config_complex_3 "/cluster/work/jonora/CGP_Neuron_masters/logfiles" 
 
 uname -a

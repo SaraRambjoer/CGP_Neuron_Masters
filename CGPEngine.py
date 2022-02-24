@@ -409,12 +409,16 @@ class CGPProgram:
 
     def get_active_modules(self, recursive=False):
         module_types = []
+        depth = -1
         for node in self.get_active_nodes():
             if type(node) != InputCGPNode and type(node.type) is CGPModuleType and node.id not in [x.id for x in module_types]:
                 module_types.append(node.type)
                 if recursive:
-                    module_types += node.type.program.get_active_modules(recursive)
-        return module_types
+                    new_modules, new_depth = node.type.program.get_active_modules(recursive)
+                    if new_depth != 0:
+                        depth = new_depth
+                    module_types += new_modules
+        return module_types, depth + 1
 
     def simple_mutate(self, cgp_modules = None):
         #self.validate_nodes()
@@ -430,7 +434,7 @@ class CGPProgram:
             if cgp_modules is not None:
                 module_types = cgp_modules
             else:
-                module_types = self.get_active_modules()
+                module_types, _ = self.get_active_modules()
             for node in nodes:
                 for num in range(0, node.arity):
                     if randcheck(node_link_mutate_chance):

@@ -244,6 +244,43 @@ for iteration in yaml_stats['iterations']:
     recursive_module_count_avg.append(average([x['module_count_recursive'] for x in genome_list]))
     recursive_module_count_std.append(np.std([x['module_count_recursive'] for x in genome_list]))
 
+plot_multiple(
+    [module_count_avg, module_count_std, recursive_module_count_avg, recursive_module_count_std],
+    ['module count average', 'module count std', 'recursive module count average', 'recursive module count std'],
+    'Averaeg module count per genome',
+    'iteration',
+    'module_count.png'
+)
+
+max_module_depth_average = []
+max_module_depth_std = []
+
+for iteration in yaml_stats['iterations']:
+    genome_list = iteration['genomes_data']['genome_list']
+    max_module_depth_average.append(average([x['module_max_depth'] for x in genome_list]))
+    max_module_depth_std.append(np.std([x['module_max_depth'] for x in genome_list]))
+
+plot_multiple(
+    [max_module_depth_average, max_module_depth_std],
+    ['Average max module depth', 'Max module depth std'],
+    'Iteration',
+    'max_module_depth.png'
+)
+
+total_active_nodes_average = []
+total_active_nodes_std = []
+
+for iteration in yaml_stats['iterations']:
+    genome_list = iteration['genomes_data']['genome_list']
+    total_active_nodes_average.append(average([x['total_active_nodes'] for x in genome_list]))
+    total_active_nodes_std.append(np.std([x['total_active_nodes'] for x in genome_list]))
 
 
-# TODO: Maybe do nice error bars for std. 
+plot_multiple(
+    [total_active_nodes_average, total_active_nodes_std],
+    ['Total active nodes avg.', 'Total active nodes std.'],
+    'Iteration',
+    'total_active_nodes.png'
+)
+
+

@@ -5,8 +5,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=12000
-#SBATCH --job-name="cgp_program_test"
-#SBATCH --output=test-srun.out
+#SBATCH --job-name="cgp_config_3_run"
+#SBATCH --output=config_3_run.out
 #SBATCH --mail-user=jonora@stud.ntnu.no
 #SBATCH --mail-type=ALL
 

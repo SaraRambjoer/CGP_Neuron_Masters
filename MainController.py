@@ -512,7 +512,7 @@ def run(config, config_filename, output_path, print_output = False):
         #for gen in _genomes:
         #  print(str(gen))
         # To prevent logging data from becoming too large in ram 
-        if num % 1 == 0:
+        if num % 50 == 0:
             logger.log_statistic_data(diagnostic_data)
             diagnostic_data = {}
             diagnostic_data['iterations'] = []

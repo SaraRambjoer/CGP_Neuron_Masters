@@ -411,9 +411,10 @@ def run(config, print_output = False):
         }
         for genome in genomes: 
 
-            module_list = genome[0].add_cgp_modules_to_list([], genome[0])
-            module_list_recursive = genome[0].add_cgp_modules_to_list([], genome[0], True)
-
+            module_list, _ = genome[0].add_cgp_modules_to_list([], genome[0])
+            module_list_recursive, module_max_depth = genome[0].add_cgp_modules_to_list([], genome[0], True)
+            node_type_counts = genome[0].get_node_type_counts()
+            total_active_nodes = sum(node_type_counts.values())
             genome_entry = {
                 "id":genome[0].id,
                 "fitness":genome[1],
@@ -422,7 +423,7 @@ def run(config, print_output = False):
                 "link_mutation_chance":genome[0].config['mutation_chance_link'],
                 "module_count_non_recursive":len(module_list),
                 "module_count_recursive":len(module_list_recursive),
-                "cgp_node_types": genome[0].get_node_type_counts()
+                "cgp_node_types": node_type_counts
             }
             genomes_data["genome_list"] += [genome_entry]
             print()

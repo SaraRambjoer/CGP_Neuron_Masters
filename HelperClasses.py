@@ -1,9 +1,9 @@
 import random
 import math
-import matplotlib
-matplotlib.use('TkAgg')
+#import matplotlib
+#matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-import networkx as nx
+#import networkx as nx
 import time
 from threading import Lock
 

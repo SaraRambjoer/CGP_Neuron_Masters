@@ -8,6 +8,7 @@ from HelperClasses import dict_merge
 class Logger:
     def __init__(self, output_dir, ignored_messages_list = [], enabled = True) -> None:
         self.output_dir = output_dir + str(time.time())
+        print(self.output_dir)
         mkdir(self.output_dir)
         self.ignored_messages_list = ignored_messages_list
         self.intermediary_output_dir = ""

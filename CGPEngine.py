@@ -1,3 +1,4 @@
+from dis import Instruction
 import math
 import random
 from HelperClasses import Counter, randchoice, randcheck, randchoice_scaled

@@ -53,6 +53,8 @@ def process_config(config):
             config[key] = False
         elif config[key] == "True":
             config[key] = True
+        elif config[key] == "NoneList":
+            config[key] = []
         else: 
             nums = [str(x) for x in range(0, 10)]
             for num in nums:
@@ -62,12 +64,12 @@ def process_config(config):
     return config
 
 
-def run(config, print_output = False):
+def run(config, config_filename, print_output = False):
     # Setup problems
     problem = one_pole_problem.PoleBalancingProblem()
     # Setup logging
     # ["CGPProgram image", "cgp_function_exec_prio1", "cgp_function_exec_prio2", "graphlog_instance", "graphlog_run", "setup_info"]
-    logger = Logger.Logger(os.path.join(os.path.dirname(__file__), "logfiles") + "\\log", config['logger_ignore_messages'], config['advanced_logging'])
+    logger = Logger.Logger("/cluster/work/jonora/CGP_Neuron_masters/logfiles" + "/log_" + config_filename + "_", config['logger_ignore_messages'], config['advanced_logging'])
     # Setup CGP genome
     # - define a counter
     counter = Counter()
@@ -82,9 +84,9 @@ def run(config, print_output = False):
     random.seed(seed)
 
     estimated_calls = 1.1*config['genome_count']*config['iterations']*config['cgp_program_size']*config['actions_max']*2*config['instances_per_iteration']
-    print(f"Estimated upper limit to calls to CGP node primitives: {estimated_calls}")
-    print(f"Estimated total computation time at upper limit: {500*estimated_calls/1600000} seconds")
-    print(f"Based on limited empirical data actual computation time will often be up to 70 times as low.")
+    #print(f"Estimated upper limit to calls to CGP node primitives: {estimated_calls}")
+    #print(f"Estimated total computation time at upper limit: {500*estimated_calls/1600000} seconds")
+    #print(f"Based on limited empirical data actual computation time will often be up to 70 times as low.")
 
     logger.log_json("setup_info", dict(config))
 
@@ -226,7 +228,7 @@ def run(config, print_output = False):
     diagnostic_data['config'] = copydict(config)
     diagnostic_data['iterations'] = []
 
-    print("Setup complete. Beginning evolution.")
+    #print("Setup complete. Beginning evolution.")
 
     for num in range(learning_iterations):   
         statistic_entry = {}
@@ -448,11 +450,11 @@ def run(config, print_output = False):
 
 
         time_genes_post += time.time() - time_genes_post_stamp
-        #print(num, [f"{x[1]}, {x[2]}" for x in genomes])
-        print(num)
-        print("-------------------------------------")
-        print(f"genes:{time_genes}, genes_selection:{time_genes_selection}, genes_crossover:{time_genes_crossover}, " +\
-            f"genes_skip_check:{time_genes_skip_check}, eval:{time_eval}, genes_post:{time_genes_post}")
+        ##print(num, [f"{x[1]}, {x[2]}" for x in genomes])
+        #print(num)
+        #print("-------------------------------------")
+        #print(f"genes:{time_genes}, genes_selection:{time_genes_selection}, genes_crossover:{time_genes_crossover}, " +\
+        #    f"genes_skip_check:{time_genes_skip_check}, eval:{time_eval}, genes_post:{time_genes_post}")
         
         statistic_entry['iteration'] = num
 
@@ -492,10 +494,10 @@ def run(config, print_output = False):
             }
             genomes_data["genome_list"] += [genome_entry]
 
-            print(genome[0].id)
-            print(genome[6][0])
-            print(genome[6][1])
-            print(genome[0].config['mutation_chance_node'], genome[0].config['mutation_chance_link'])
+            #print(genome[0].id)
+            #print(genome[6][0])
+            #print(genome[6][1])
+            #print(genome[0].config['mutation_chance_node'], genome[0].config['mutation_chance_link'])
         
         statistic_entry['genomes_data'] = genomes_data
         diagnostic_data['iterations'] += [statistic_entry]
@@ -506,36 +508,39 @@ def run(config, print_output = False):
         #for gen in _genomes:
         #  print(str(gen))
         # To prevent logging data from becoming too large in ram 
-        if num % 3 == 0:
+        if num % 1 == 0:
             logger.log_statistic_data(diagnostic_data)
             diagnostic_data = {}
             diagnostic_data['iterations'] = []
 
     return to_return_fitness, diagnostic_data
 
-def runme():
+def runme(config_filename):
     import configparser
     now = datetime.datetime.now()
-    print ("Startime")
-    print (now.strftime("%H:%M:%S"))
+    #print ("Startime")
+    #print (now.strftime("%H:%M:%S"))
 
     config = configparser.ConfigParser()
-    config.read('config.ini')
+    config.read(config_filename + '.ini')
+    print(config_filename + '.ini')
     config = config["Default"]
     config = process_config(config)
     if config['mode'] == 'run':
-        print("Running evolution")
+        print("We are running")
+        #print("Running evolution")
         import cProfile
-        run(config, print_output=True)
-        #cProfile.run("run(config, print_output=True")
+        run(config, config_filename, print_output=True)
+        #cProfile.run("run(config, #print_output=True")
         now = datetime.datetime.now()
-        print ("Endtime")
-        print (now.strftime("%H:%M:%S"))
+        #print ("Endtime")
+        #print (now.strftime("%H:%M:%S"))
+        print("We are done running")
 
     elif config['mode'][0] == 'load':
         # TODO not fully implemented
         # TODO if fully implementing unify code with run function better, outdated due to code duplications
-        print("Loading program")
+        #print("Loading program")
         loadfile = config['mode'][1]
         loadprogram = config['mode'][2]
 
@@ -556,9 +561,10 @@ def runme():
                 break
         
         if correct_genome is None:
-            print(f"Genome {loadprogram} not found")
+            #print(f"Genome {loadprogram} not found")
+            pass
         else:
-            print("Genome found")
+            #print("Genome found")
             neuron_internal_states = config['neuron_internal_state_count']
             dendrite_internal_states = config['axon_dendrite_internal_state_count']
             signal_dimensionality = config['signal_dimensionality']
@@ -614,7 +620,7 @@ def runme():
                 [dimensions + dendrite_internal_states, 1+signal_dimensionality], # die
                 [dendrite_internal_states + dimensions, 3]
             ]
-            logger = Logger.Logger(os.path.join(os.path.dirname(__file__), "logfiles") + "\\log", config['logger_ignore_messages'], config['advanced_logging'])
+            logger = Logger.Logger("/cluster/work/jonora/CGP_Neuron_masters/logfiles" + "/log_" + config_filename, config['logger_ignore_messages'], config['advanced_logging'])
             genome_successor_count = 4
             if not config['non_crossover_children']:
                 genome_successor_count = 2

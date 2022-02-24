@@ -1,4 +1,4 @@
-
+from unittest import skip
 
 filepath = "D:\\jonod\\masters\\CGP_Neuron_Masters\\logfiles\\log1645528312.2566803\\statistics.yml"
 

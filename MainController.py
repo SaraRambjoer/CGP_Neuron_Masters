@@ -16,7 +16,11 @@ import datetime
 
 def multiprocess_code_2(child_data_packs):
     x, return_list = child_data_packs
+    oldstr1, oldstr2 = str(x[0]), str(x[1])
     return_list.append([x[0].crossover(x[1]), x[0], x[1], x[2]])
+    newstr1, newstr2 = str(x[0]), str(x[1])
+    if oldstr1 != newstr1 or oldstr2 != newstr2:
+        raise Exception("Critical error: Crossover mutates parent genome")
 
 def multiprocess_code(engine_problem): 
     engine_problem, return_list = engine_problem
@@ -438,6 +442,7 @@ def run(config, config_filename, output_path, print_output = False):
             one = randchoice(top_genomes)
             two = randchoice(bottom_genomes)
             genomes[genomes.index(two)] = one
+            times_a_genome_took_population_slot_from_other_genome += 1
 
 
         if times_a_genome_took_population_slot_from_other_genome != 0:
@@ -517,6 +522,7 @@ def run(config, config_filename, output_path, print_output = False):
             diagnostic_data = {}
             diagnostic_data['iterations'] = []
 
+    logger.log_statistic_data(diagnostic_data)
     return to_return_fitness, diagnostic_data
 
 def runme(config_filename, output_path):

@@ -158,7 +158,6 @@ class Genome:
         function_chromosome_children = []
         for num in range(len(self.function_chromosomes)):
             function_chromosome_children.append(self.function_chromosomes[num].crossover(target.function_chromosomes[num], 2, cgp_modules))
-
         returned_genomes = []
         for num in range(self.successor_count):
             hex_selector_child = hex_selector_children[num]
@@ -183,7 +182,6 @@ class Genome:
             new_genome.function_chromosomes = function_chromosome_child
             new_genome.update_config()
             returned_genomes.append(new_genome)
-
         return returned_genomes
 
     def __eq__(self, o: object) -> bool:
@@ -205,10 +203,15 @@ def generalized_cgp_crossover(parent1, parent2, child_count, samemut, cgp_module
         program_child_3 = parent1.program.deepcopy()
         program_child_4 = parent2.program.deepcopy()
 
-        program_child_1.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
-        program_child_2.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
-        program_child_3.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
-        program_child_4.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
+        program_child_1.config['mutation_chance_node'] = float(parent1.config['mutation_chance_node'])
+        program_child_2.config['mutation_chance_node'] = float(parent1.config['mutation_chance_node'])
+        program_child_3.config['mutation_chance_node'] = float(parent1.config['mutation_chance_node'])
+        program_child_4.config['mutation_chance_node'] = float(parent1.config['mutation_chance_node'])
+
+        program_child_1.config['mutation_chance_link'] = float(parent1.config['mutation_chance_link'])
+        program_child_2.config['mutation_chance_link'] = float(parent1.config['mutation_chance_link'])
+        program_child_3.config['mutation_chance_link'] = float(parent1.config['mutation_chance_link'])
+        program_child_4.config['mutation_chance_link'] = float(parent1.config['mutation_chance_link'])
 
         CGPEngine.subgraph_crossover(program_child_1, program_child_2, 3, 15)
         children = program_child_1.produce_children(1, cgp_modules) + program_child_2.produce_children(1, cgp_modules) + \
@@ -218,11 +221,16 @@ def generalized_cgp_crossover(parent1, parent2, child_count, samemut, cgp_module
         program_child_1 = parent1.program.deepcopy()
         program_child_2 = parent2.program.deepcopy()
 
-        program_child_1.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
-        program_child_2.config['mutation_chance_node'] = parent1.config['mutation_chance_node']
+        program_child_1.config['mutation_chance_node'] = float(parent1.config['mutation_chance_node'])
+        program_child_2.config['mutation_chance_node'] = float(parent1.config['mutation_chance_node'])
+
+        program_child_1.config['mutation_chance_link'] = float(parent1.config['mutation_chance_link'])
+        program_child_2.config['mutation_chance_link'] = float(parent1.config['mutation_chance_link'])
 
         CGPEngine.subgraph_crossover(program_child_1, program_child_2, 3, 15)
+
         children = program_child_1.produce_children(1, cgp_modules) + program_child_2.produce_children(1, cgp_modules)
+        
         return children
 
 
@@ -292,24 +300,38 @@ class FunctionChromosome:
         # Should call crossover operators for homeobox variants where relevant, as well as doing n-point crossover in homeobox-variant space. 
         child1 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
         child2 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
+        self_hexvars = [x.deepcopy() for x in self.hex_variants]
+        other_hexvars = [x.deepcopy() for x in other_chromosome.hex_variants]
         if self.config['non_crossover_children']:
             child3 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
             child4 = FunctionChromosome(self.homeobox_variants, self.func_name, self.function_arities, self.counter, self.config)
-            child3.hex_variants = self.hex_variants
-            child4.hex_variants = other_chromosome.hex_variants
+            child3.hex_variants = self_hexvars
+            child4.hex_variants = other_hexvars
 
         for num in range(len(self.hex_variants)):
             if randcheck(self.config['hex_crossover_chance']):
-                child1.hex_variants[num] = other_chromosome.hex_variants[num]
+                child1.hex_variants[num] = other_hexvars[num]
             else: 
-                child1.hex_variants[num] = self.hex_variants[num]
+                child1.hex_variants[num] = self_hexvars[num]
 
         for num in range(len(self.hex_variants)):
             if randcheck(self.config['hex_crossover_chance']):
-                child2.hex_variants[num] = other_chromosome.hex_variants[num]
+                child2.hex_variants[num] = other_hexvars[num]
             else: 
-                child2.hex_variants[num] = self.hex_variants[num]
+                child2.hex_variants[num] = self_hexvars[num]
         # TODO: Add option for "shifting"/"copying" around hex variants (duplication & differation)
+        childs = []
+        if self.config['non_crossover_children']:
+            childs = [child1, child2, child3, child4]
+        else:
+            childs = [child1, child2]
+
+        for child in childs:
+            for num in range(len(self.hex_variants)):
+                if randcheck(self.config['hex_duplication_chance']):
+                    child.hex_variants[num+1%len(self.hex_variants)] = child.hex_variants[num]
+
+
 
         for x in range(0, len(self.hex_variants)):
             if self.config['non_crossover_children']:
@@ -342,6 +364,7 @@ class HexFunction:
         self.input_arity = input_arity
         self.config = config
         self.output_arity = output_arity
+        self.counter = counter
         # Should define a CGP function, should be divided into function types to determine input/output settings
         self.program = CGPEngine.CGPProgram(input_arity, output_arity, counter, self.config)
 
@@ -353,7 +376,18 @@ class HexFunction:
         pass  # In current design should do nothing
 
     def crossover(self, other_func, child_count, cgp_modules = None) -> None: 
-        return generalized_cgp_crossover(self, other_func, child_count, self.config['non_crossover_children'], cgp_modules)
+        toReturn = generalized_cgp_crossover(self, other_func, child_count, self.config['non_crossover_children'], cgp_modules)
+        return toReturn
+
+    def deepcopy(self):
+        newHex = HexFunction(
+            int(self.input_arity),
+            int(self.output_arity),
+            self.counter,
+            copydict(self.config)
+        )
+        newHex.program = self.program.deepcopy()
+        return newHex
     
     def __eq__(self, o: object) -> bool:
         return self.program == o.program

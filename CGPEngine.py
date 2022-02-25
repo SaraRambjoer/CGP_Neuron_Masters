@@ -1,7 +1,7 @@
 from dis import Instruction
 import math
 import random
-from HelperClasses import Counter, randchoice, randcheck, randchoice_scaled
+from HelperClasses import Counter, randchoice, randcheck, randchoice_scaled, copydict
 from numpy.core.fromnumeric import sort, var
 from numpy.lib.function_base import average
 from numpy.ma import count
@@ -538,19 +538,19 @@ class CGPProgram:
     def deepcopy(self):
         # Returns deep copy of self
         #self.validate_nodes()
-        new_copy = CGPProgram(self.input_arity, self.output_arity, self.counter, self.config, self.debugging, False)
+        new_copy = CGPProgram(int(self.input_arity), int(self.output_arity), self.counter, copydict(self.config), self.debugging, False)
         input_node_copy = []
         for input_node in self.input_nodes:
             new_node = InputCGPNode(self.counter, self.debugging)
-            new_node.id = input_node.id
+            new_node.id = int(input_node.id)
             input_node_copy.append(new_node)
         node_copy = []
         #self.validate_nodes()
         for node in self.nodes:
             new_node = CGPNode(node.type, [], self.counter, 0, self.debugging)
-            new_node.id = node.id
-            new_node.row_depth = node.row_depth+1
-            new_node.arity = node.arity
+            new_node.id = int(node.id)
+            new_node.row_depth = int(node.row_depth+1)
+            new_node.arity = int(node.arity)
             node_copy.append(new_node)
         #self.validate_nodes()
         input_ids = [x.id for x in input_node_copy]
@@ -583,7 +583,7 @@ class CGPProgram:
         
 
     def produce_children(self, child_count, cgp_modules = None):
-        alternatives = [self.deepcopy() for num in range(0, child_count)]
+        alternatives = [self.deepcopy() for _ in range(0, child_count)]
         alternatives = [x.simple_mutate(cgp_modules) for x in alternatives]
         return alternatives
 
@@ -661,7 +661,7 @@ class CGPProgram:
                             input_to.add_connection(input_from)
                         else:
                             subgraph_input_arity += 1
-                subgraphs.append(CGPModuleType(subgraph_input_arity, subgraph_partly_copied, 0, self.counter, self.config, self.debugging))
+                subgraphs.append(CGPModuleType(subgraph_input_arity, subgraph_partly_copied, 0, self.counter, copydict(self.config), self.debugging))
             return subgraphs
     
     

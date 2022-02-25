@@ -1,6 +1,6 @@
 from unittest import skip
 
-filepath = "D:\\jonod\\masters\\CGP_Neuron_Masters\\logfiles\\log1645528312.2566803\\statistics.yml"
+filepath = "D:\jonod\masters\CGP_Neuron_masters_idun\log_config_complex_4_1645711657.5639818\statistics.yml"
 
 output = []
 first_iterations_found = True

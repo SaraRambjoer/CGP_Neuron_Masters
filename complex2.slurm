@@ -5,6 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=12000
+#SBATCH --array=1-5
 #SBATCH --job-name="cgp_config_set_2"
 #SBATCH --output=config2_run.out
 #SBATCH --mail-user=jonora@stud.ntnu.no
@@ -27,6 +28,6 @@ pip install numpy --user
 pip install pyyaml --user
 pip install pygame --user
 pip install gym --user
-python /cluster/home/jonora/CGP_Neuron_Masters/runfile.py config_complex_2 "/cluster/work/jonora/CGP_Neuron_masters/logfiles" 
+python /cluster/home/jonora/CGP_Neuron_Masters/runfile.py config_complex_2 "/cluster/work/jonora/CGP_Neuron_masters/logfiles" $SLURM_ARRAY_TASK_ID
 
 uname -a

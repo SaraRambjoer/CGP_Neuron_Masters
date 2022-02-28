@@ -44,12 +44,15 @@ class Logger:
                             self.buffer = []
                 elif message_type == "run_start":
                     self.intermediary_output_dir = self.output_dir + f"/{message[0]}"
-                    mkdir(self.intermediary_output_dir)
+                    if not os.path.exists(self.intermediary_output_dir):
+                        mkdir(self.intermediary_output_dir)
                     self.intermediary_output_dir = self.output_dir + f"/{message[0]}/{message[1]}"
-                    mkdir(self.intermediary_output_dir)
+                    if not os.path.exists(self.intermediary_output_dir):
+                        mkdir(self.intermediary_output_dir)
                 elif message_type == "instance_start":
                     self.intermediary_intermediary_output_dir = self.intermediary_output_dir + f"/{message}"
-                    mkdir(self.intermediary_intermediary_output_dir)
+                    if not os.path.exists(self.intermediary_output_dir):
+                        mkdir(self.intermediary_intermediary_output_dir)
                 elif message_type == "engine_action" or message_type == "instance_solution" or message_type == "instance_results" or message_type == "reward_phase" or message_type == "run_end":
                     self.buffer.append(f"{message}")
                 else:

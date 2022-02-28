@@ -18,6 +18,8 @@ class Genome:
             init_genome = True,
             parent_id = "",
             parent2_id = "",
+            parent1_ancestor_list = [],
+            parent2_ancestor_list = [],
             hypermutation = False) -> None:
         # Should hold a HexSelectorGenome, a set of FunctionGenomes, and a ParameterGenome
         self.hypermutation = hypermutation
@@ -32,6 +34,8 @@ class Genome:
         self.internal_state_variables = internal_state_variables
         self.names = names
         self.logger = logger
+        self.fitnessess = []
+        self.ancestor_ids = []
         if init_genome:
             self.function_chromosomes = []
             for num in range(len(input_arities)): 
@@ -50,6 +54,17 @@ class Genome:
             self.hex_selector_genome = None
             self.parameter_genome = None
     
+    def init_ancestor_ids(self, parent1_id, parent2_id, parent1_ancestor_list, parent_2_ancestor_list):
+        ancestor_list = [parent1_id, parent2_id] + [listitem for sublist in list(zip(parent1_ancestor_list, parent_2_ancestor_list)) for listitem in sublist]
+        if len(ancestor_list) < 14:  # balanced binary graph of depth 3 has 14 nodes
+            return ancestor_list
+        else:
+            return ancestor_list[0:14]
+
+
+    def get_fitness(self):
+        return sum(self.fitnessess)/len(self.fitnessess)
+
     def update_config(self):
         self.hex_selector_genome.set_config(self.config)
         for funcchrom in self.function_chromosomes:
@@ -176,6 +191,8 @@ class Genome:
                 init_genome = False,
                 parent_id = self.unique_id,
                 parent2_id = target.unique_id,
+                parent1_ancestor_list=self.ancestor_ids,
+                parent2_ancestor_list=target.ancestor_ids,
                 hypermutation=self.hypermutation)
             new_genome.hex_selector_genome = hex_selector_child
             new_genome.parameter_genome = parameter_genome_child

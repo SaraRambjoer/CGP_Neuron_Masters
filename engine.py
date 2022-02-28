@@ -2,7 +2,7 @@
 from HelperClasses import randchoice, randcheck, listmult, Counter
 import math
 import numpy as np
-
+import warnings
 
 
 class NeuronEngine():
@@ -1688,7 +1688,8 @@ class Axon(CellObjectSuper):
     def connect(self, target_dendrite, timestep = None):
         if not type(target_dendrite) == OutputNeuron and not type(target_dendrite) == InputNeuron:
             if target_dendrite.neuron == self.neuron:
-                raise Exception("Tried to form auto-connection.")
+                warnings.warn("Tried to form auto-connection.")
+                return False
             target_dendrite.connected_dendrite = self
             self.connected_dendrite = target_dendrite
             target_dendrite.neuron.grid.remove_free_dendrite(target_dendrite)

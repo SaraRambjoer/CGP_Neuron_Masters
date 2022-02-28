@@ -2,6 +2,7 @@ import time
 import json
 
 from numpy import diag
+import numpy
 from engine import NeuronEngine
 from genotype import Genome
 import Logger
@@ -22,6 +23,7 @@ def multiprocess_code_2(child_data_packs):
     if oldstr1 != newstr1 or oldstr2 != newstr2:
         raise Exception("Critical error: Crossover mutates parent genome")
 
+
 def multiprocess_code(engine_problem): 
     engine_problem, return_list = engine_problem
     if engine_problem[5]:
@@ -30,6 +32,7 @@ def multiprocess_code(engine_problem):
         num = engine_problem[5][2]
         to_return = engine.run(problem, num)
         engine_problem[6] = to_return
+        engine_problem[0].fitnessess.append(to_return[0])
         engine_problem[5] = None
     return_list.append(engine_problem)
 
@@ -66,6 +69,36 @@ def process_config(config):
                     config[key] = int(val)
                     break
     return config
+
+def n_best_split(list1, list2):
+    top_n = []
+    bottom_n = []
+    n = len(list1)
+    comblist = list1 + list2
+    comblist = sorted(comblist, key= lambda x: x[0].get_fitness())
+    top_n = comblist[0:n]
+    bottom_n = comblist[n:]
+    return top_n, bottom_n
+
+def historic_best_add(historic_best_list, new_genome, genome_count):
+    if new_genome[0].id not in [x[0].id for x in historic_best_list]:
+        skip = False
+        for ancestor_id in new_genome[0].ancestor_ids:
+            for historic_best in historic_best_list:
+                if ancestor_id in historic_best[0].ancestor_ids:
+                    skip = True
+                    if new_genome[0].get_fitness() < new_genome.get_fitness():
+                        index = historic_best_list.index(historic_best)
+                        historic_best_list[index] = new_genome
+                        return historic_best_list
+        if not skip:
+            if len(historic_best_list) < genome_count:
+                historic_best_list.append(new_genome)
+            else:
+                historic_best_list.append(new_genome)
+                historic_best_list = sorted(historic_best_list, key=lambda x: x[0].get_fitness())
+                historic_best_list = historic_best_list[0:genome_count]
+    return historic_best_list
 
 
 def run(config, config_filename, output_path, print_output = False):
@@ -206,6 +239,7 @@ def run(config, config_filename, output_path, print_output = False):
 
     genome_results = []
     neuron_init, axon_init = genome_to_init_data(genomes[0])
+    engines = []
     for genome in genomes:
         engine = NeuronEngine(
             input_arity = problem.input_arity,
@@ -224,7 +258,9 @@ def run(config, config_filename, output_path, print_output = False):
         )
         result, base_problems = engine.run(one_pole_problem.PoleBalancingProblem(), "setup")
         genome_results.append((result, base_problems))
-    genomes = list(zip(genomes, [x[0] for x in genome_results], [None for x in genome_results], [None for x in genome_results], [None for x in genome_results], [None for x in genome_results], [x for x in genome_results]))
+        engine.reset()
+        engines.append(engine)
+    genomes = list(zip(genomes, [x[0] for x in genome_results], [None for x in genome_results], [None for x in genome_results], [None for x in genome_results], [x for x in engines], [x for x in genome_results]))
     to_return_fitness.append(x[0] for x in genome_results)
     log_genome(genomes, 0)
 
@@ -234,6 +270,7 @@ def run(config, config_filename, output_path, print_output = False):
 
     #print("Setup complete. Beginning evolution.")
 
+    historic_bests = []
     for num in range(learning_iterations):   
         statistic_entry = {}
 
@@ -244,7 +281,6 @@ def run(config, config_filename, output_path, print_output = False):
         time_genes_crossover = 0
         time_genes_skip_check = 0
         egligable_bachelors = [x[0] for x in genomes]
-        child_data = [[] for _ in range(len(genomes))]
         # Make this parallell in pool 
         
         child_data_packs = []
@@ -258,6 +294,7 @@ def run(config, config_filename, output_path, print_output = False):
             if choice2 in egligable_bachelors and choice2 != choice1:
                 egligable_bachelors[egligable_bachelors.index(choice2)] = None
             child_data_packs.append((choice1, choice2, indexes))
+        
 
 
         
@@ -273,20 +310,25 @@ def run(config, config_filename, output_path, print_output = False):
         #for x in threads:
         #    x.join()
         new_genomes = out_list
+        for num in range(len(genomes)):
+            new_genomes.append([[genomes[num][0]], genomes[num][0], genomes[num][0], [num, num]])
         
+        #print(new_genomes)
+
         time_genes_crossover += time.time() - time_genes_crossover_stamp
         time_genes_skip_check_stamp = time.time()
         for numero in range(len(new_genomes)):
             datapack = new_genomes[numero]
-            skip_eval = [False for x in range(len(datapack[0]))]
-            choice1 = datapack[1]
-            choice2 = datapack[2]
-            for numero2 in range(len(datapack[0])):
-                genome = datapack[0][numero2]
-                if genome.equals_no_id(choice1):
-                    skip_eval[numero2] = 1
-                if genome.equals_no_id(choice2):
-                    skip_eval[numero2] = 2
+            skip_eval = [False for _ in range(len(datapack[0]))]
+            # Skip eval is problematic because of randomness. If not random, skip eval can be used for optimization.
+            #choice1 = datapack[1]
+            #choice2 = datapack[2]
+            #for numero2 in range(len(datapack[0])):
+            #    genome = datapack[0][numero2]
+            #    if genome.equals_no_id(choice1):
+            #        skip_eval[numero2] = 1
+            #    if genome.equals_no_id(choice2):
+            #        skip_eval[numero2] = 2
             datapack.append(skip_eval)
             
         time_genes_skip_check += time.time() - time_genes_skip_check_stamp
@@ -363,40 +405,53 @@ def run(config, config_filename, output_path, print_output = False):
         change_neutral = [False for x in range(len(genomes))]
         new_genomes = []
         
-        scores = [x[6][0] for x in genomes]
+        scores = [x[0].get_fitness() for x in genomes]
         old_genomes = [x for x in genomes]
         changed = [False for x in genomes]
         random.shuffle(genome_data)
+
         for num2 in range(len(genome_data)):
             new_genome = genome_data[num2]
-            new_genome_score = new_genome[6][0]
+            new_genome_score = new_genome[0].get_fitness()
             new_genome_parent_indexes = new_genome[3]
-            parent1_score = genomes[new_genome_parent_indexes[0]][6][0]
-            parent2_score = genomes[new_genome_parent_indexes[1]][6][0]
-            if new_genome_score < parent1_score or new_genome_score == parent1_score and not changed[new_genome_parent_indexes[0]]:
-                genomes[new_genome_parent_indexes[0]] = new_genome
-                changed[new_genome_parent_indexes[0]] = True
-                if new_genome_score < parent1_score:
-                    change_better[new_genome_parent_indexes[0]] = True
-                elif new_genome[5]:
-                    if new_genome[0].id != old_genomes[new_genome_parent_indexes[0]].id and new_genome[0].id != old_genomes[new_genome_parent_indexes[1]].id:
-                        change_neutral[new_genome_parent_indexes[0]] = True
-                parent1_score = new_genome_score
-            elif new_genome_score < parent2_score or new_genome_score == parent1_score and not changed[new_genome_parent_indexes[1]]:
-                genomes[new_genome_parent_indexes[1]] = new_genome
-                changed[new_genome_parent_indexes[1]] = True
-                if new_genome_score < parent2_score:
-                    change_better[new_genome_parent_indexes[1]] = True
-                elif new_genome[5]:
-                    if new_genome[0].id != old_genomes[new_genome_parent_indexes[0]].id and new_genome[0].id != old_genomes[new_genome_parent_indexes[1]].id:
-                        change_neutral[new_genome_parent_indexes[1]] = True
+            new_genome_id = new_genome[0].id
+            parent1_id = genomes[new_genome_parent_indexes[0]][0].id
+            parent2_id = genomes[new_genome_parent_indexes[1]][0].id
+            if new_genome_id != parent1_id and new_genome_id != parent2_id:
+                parent1_score = genomes[new_genome_parent_indexes[0]][0].get_fitness()
+                parent2_score = genomes[new_genome_parent_indexes[1]][0].get_fitness()
+                if (new_genome_score < parent1_score) or (new_genome_score == parent1_score and not changed[new_genome_parent_indexes[0]]):
+                    if new_genome[0].id != old_genomes[new_genome_parent_indexes[0]][0].id and new_genome[0].id != old_genomes[new_genome_parent_indexes[1]][0].id:
+                        old_genome = genomes[new_genome_parent_indexes[0]]
+                        historic_best_add(historic_bests, old_genome, config['genome_count'])
+                        genomes[new_genome_parent_indexes[0]] = new_genome
+                        changed[new_genome_parent_indexes[0]] = True
+                        if new_genome_score < parent1_score:
+                            change_better[new_genome_parent_indexes[0]] = True
+                        elif new_genome[5]:
+                            change_neutral[new_genome_parent_indexes[0]] = True
+                        parent1_score = new_genome_score
+                elif (new_genome_score < parent2_score) or (new_genome_score == parent2_score and not changed[new_genome_parent_indexes[1]]):
+                    if new_genome[0].id != old_genomes[new_genome_parent_indexes[0]][0].id and new_genome[0].id != old_genomes[new_genome_parent_indexes[1]][0].id:
+                        old_genome = genomes[new_genome_parent_indexes[1]]
+                        historic_best_add(historic_bests, old_genome, config['genome_count'])
+                        genomes[new_genome_parent_indexes[1]] = new_genome
+                        changed[new_genome_parent_indexes[1]] = True
+                        if new_genome_score < parent2_score:
+                            change_better[new_genome_parent_indexes[1]] = True
+                        elif new_genome[5]:
+                                change_neutral[new_genome_parent_indexes[1]] = True
+
+        # update entries in historic best
+        genomes, historic_bests = n_best_split(genomes, historic_bests)
+               
 
         statistic_entry['replacement_stats'] = {
             'better_changes_percentage' : len([x for x in change_better if x]),
             'neutral_changes_percentage' : len([x for x in change_neutral if x])
         }
 
-        new_scores = scores = [x[6][0] for x in genomes]
+        new_scores = scores = [x[0].get_fitness() for x in genomes]
 
         for num2 in range(len(new_scores)):
             if scores[num2] < new_scores[num2]:
@@ -426,7 +481,7 @@ def run(config, config_filename, output_path, print_output = False):
                 else:
                     genome.config['mutation_chance_node'] = config['hypermutation_mutation_chance']
                     genome.config['mutation_chance_link'] = config['hypermutation_mutation_chance']
-            if genomes[num3][6][0] == 1.0:
+            if genomes[num3][0].get_fitness() == 1.0:
                 genome.hypermutation = True
                 genome.config['mutation_chance_node'] = config['hypermutation_mutation_chance']
                 genome.config['mutation_chance_link'] = config['hypermutation_mutation_chance']
@@ -435,9 +490,9 @@ def run(config, config_filename, output_path, print_output = False):
         times_a_genome_took_population_slot_from_other_genome = 0
         average_takeover_probability = 0
 
-        genome_avg = sum(x[6][0] for x in genomes)/len(genomes)
-        top_genomes = [x for x in genomes if x[6][0] < genome_avg]
-        bottom_genomes = [x for x in genomes if x[6][0] > genome_avg]
+        genome_avg = sum(x[0].get_fitness() for x in genomes)/len(genomes)
+        top_genomes = [x for x in genomes if x[0].get_fitness() < genome_avg]
+        bottom_genomes = [x for x in genomes if x[0].get_fitness() > genome_avg]
         if len(top_genomes) > 0 and len(bottom_genomes) > 0:
             one = randchoice(top_genomes)
             two = randchoice(bottom_genomes)
@@ -445,11 +500,8 @@ def run(config, config_filename, output_path, print_output = False):
             times_a_genome_took_population_slot_from_other_genome += 1
 
 
-        if times_a_genome_took_population_slot_from_other_genome != 0:
-            average_takeover_probability = average_takeover_probability/config['genome_replacement_tries']
         statistic_entry["genome_replacement_stats"] = {
-            "times_a_genome_took_population_slot_from_other_genome" : times_a_genome_took_population_slot_from_other_genome,
-            "average_takeover_probability" : average_takeover_probability
+            "times_a_genome_took_population_slot_from_other_genome" : times_a_genome_took_population_slot_from_other_genome
         }
 
 
@@ -486,11 +538,13 @@ def run(config, config_filename, output_path, print_output = False):
 
             module_size_average = 0
             if len(module_list_recursive) > 0:
-                module_size_average = sum(len(x.program.get_active_nodes()) for x in module_list_recursive)/len(module_list_recursive)
+                # TODO Issue: This does not handle recursive nodes...
+                module_size_average = sum(x.program.get_node_type_counts() for x in module_list_recursive)/len(module_list_recursive)
 
             genome_entry = {
                 "id":genome[0].id,
-                "fitness":genome[6][0],
+                "fitness":genome[0].get_fitness(),
+                "fitness_std":numpy.std(genome[0].fitnessess),
                 "performance_stats":copy.deepcopy(genome[6][1]),
                 "node_mutation_chance":genome[0].config['mutation_chance_node'],
                 "link_mutation_chance":genome[0].config['mutation_chance_link'],
@@ -504,7 +558,7 @@ def run(config, config_filename, output_path, print_output = False):
             genomes_data["genome_list"] += [genome_entry]
 
             #print(genome[0].id)
-            #print(genome[6][0])
+            #print(genome.get_fitness())
             #print(genome[6][1])
             #print(genome[0].config['mutation_chance_node'], genome[0].config['mutation_chance_link'])
         
@@ -521,6 +575,34 @@ def run(config, config_filename, output_path, print_output = False):
             logger.log_statistic_data(diagnostic_data)
             diagnostic_data = {}
             diagnostic_data['iterations'] = []
+        print(num)
+
+    # TODO FIX LOGGER TO WRITE TO SINGLE FILE SO THAT THE SYSTEM IS NICE AND WORKS AND SHIT, MAKE IT WRITE OUT JSON TO ONE FILE,
+    # AND THEN USE A SCRIPT TO SPLIT THAT INTO FILES BECAUSE THE SERVER SYSTEM DOES NOT LIKE WRITING TO MANY FILES
+    #logger.enabled = True
+    #for num in range(len(genomes)):
+    #    genome = genomes[num][0]
+    #    neuron_initialization_data, axon_initialization_data = genome_to_init_data(genome)
+    #    problem = one_pole_problem.PoleBalancingProblem()
+    #    engine = NeuronEngine(
+    #        input_arity = problem.input_arity,
+    #        output_arity = problem.output_arity,
+    #        grid_count = grid_count,
+    #        grid_size = grid_size,
+    #        actions_max = actions_max,
+    #        neuron_initialization_data = neuron_initialization_data,
+    #        axon_initialization_data = axon_initialization_data,
+    #        signal_arity = signal_dimensionality,
+    #        hox_variant_count = hox_variant_count,
+    #        instances_per_iteration = instances_per_iteration,
+    #        logger = logger,
+    #        genome_id = genome.id,
+    #        config_file = copydict(config)
+    #    )
+    #    for num2 in range(10):
+    #        problem = one_pole_problem.PoleBalancingProblem()
+    #        engine.reset()
+    #        engine.run(problem, num)
 
     logger.log_statistic_data(diagnostic_data)
     return to_return_fitness, diagnostic_data

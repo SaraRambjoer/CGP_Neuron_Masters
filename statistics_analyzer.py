@@ -13,8 +13,8 @@ import pandas
 def average(a_list):
     return sum(a_list)/len(a_list)
 
-statistics_folder = r"D:\jonod\masters\CGP_Neuron_masters_idun\log_config_complex_4_1645711657.5639818"
-statistics_files = [r"D:\jonod\masters\CGP_Neuron_masters_idun\log_config_complex_4_1645711657.5639818\statistics.yml"]
+statistics_folder = r"D:\jonod\masters\CGP_Neuron_masters_idun\log_config_complex_2_1645798996.474054"
+statistics_files = [r"D:\jonod\masters\CGP_Neuron_masters_idun\log_config_complex_2_1645798996.474054\statistics.yml"]
 
 
 # Assumes all stat files have the same amount of iterations and tracks all the required statisticks and same amount of genomes
@@ -84,14 +84,11 @@ def plot_average_std_min_max(datas, labels, ylabel, xlabel, figname):
     plt.close(plt.gcf())
 
 # graphs for genome replacement stats
-genome_takeover_probabilities = []
 genome_takeover_counts = []
 for it in range(len(yaml_stats[0]['iterations'])):
-    genome_takeover_probabilities += [stat['iterations'][it]['genome_replacement_stats']['average_takeover_probability'] for stat in yaml_stats]
     genome_takeover_counts += [stat['iterations'][it]['genome_replacement_stats']['times_a_genome_took_population_slot_from_other_genome'] for stat in yaml_stats]
 
 
-plot_basic(genome_takeover_probabilities, "Avg. chance of genome replacing another in pop.", "Iteration", "avg_genome_replacement.png")
 plot_basic(genome_takeover_counts, "Genome takeover counts", "Iteration", "genome_takeover_count.png")
 
 # CGP node type trends: 
@@ -137,17 +134,19 @@ std_fitness = []
 for it in range(len(yaml_stats[0]['iterations'])):
     genome_lists = [x['iterations'][it]['genomes_data']['genome_list'] for x in yaml_stats]
     fitnessess = []
+    fitnessess_std = []
     for genome_list in genome_lists:
         for genome in genome_list:
             fitnessess.append(genome['fitness'])
+            fitnessess_std.append(genome['fitness_std'])
     max_fitness.append(max(fitnessess))
     min_fitness.append(min(fitnessess))
     avg_fitness.append(average(fitnessess))
-    std_fitness.append(np.std(fitnessess))
+    std_fitness.append(average(fitnessess_std))
 
 plot_average_std_min_max(
     [avg_fitness, std_fitness, min_fitness, max_fitness],
-    ["average", "std.", "min", "max"],
+    ["average", "Avg. std. for evals over genomes", "min", "max"],
     "fitness",
     "iteration",
     "fitness.png"
@@ -426,6 +425,44 @@ plot_average_std(
     "neuron_phenotype_count.png"
 )
 
+better_change_avg = []
+better_change_std = []
+neutral_change_avg = []
+neutral_change_std = []
+
+for it in range(len(yaml_stats[0]['iterations'])):
+    genome_lists = [x['iterations'][it]['genomes_data']['genome_list'] for x in yaml_stats]
+    better_change = []
+    neutral_change = []
+    for genome_list in genome_lists:
+        for genome in genome_list:
+            better_change.append(genome['performance_stats']['better_changes_percentage']) 
+            neutral_change.append(genome['performance_stats']['neutral_changes_percentage']) 
+
+    better_change_avg.append(average(better_change))
+    neutral_change_avg.append(average(neutral_change))
+    better_change_std.append(np.std(better_change))
+    neutral_change_std.append(np.std(neutral_change_std))
+
+any_change_avg = listplus(better_change_avg, neutral_change_avg)
+
+plot_average_std(
+    [better_change_avg, better_change_std],
+    ["Better change %", "std"],
+    "%",
+    "Iteration",
+    "better_change.png"
+)
+
+plot_average_std(
+    [neutral_change_avg, neutral_change_std],
+    ["Neutral change %", "std"],
+    "%",
+    "Iteration",
+    "neutral_change.png"
+)
+
+plot_basic(any_change_avg, "Any change %", "Iteration", "any_change.png")
 
 
 x = [

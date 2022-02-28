@@ -346,7 +346,7 @@ class FunctionChromosome:
         for child in childs:
             for num in range(len(self.hex_variants)):
                 if randcheck(self.config['hex_duplication_chance']):
-                    child.hex_variants[num+1%len(self.hex_variants)] = child.hex_variants[num]
+                    child.hex_variants[(num+1)%len(self.hex_variants)] = child.hex_variants[num]
 
 
 

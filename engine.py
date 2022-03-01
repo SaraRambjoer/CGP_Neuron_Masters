@@ -446,10 +446,15 @@ class NeuronEngine():
         neuron.grid.remove_neuron(neuron)
         self.remove_actions_id(nid)
 
+    def _grid_cap(self, pos):
+        pos = int(math.floor(pos))
+        if pos > self.grid_count-1:
+            warnings.warn("Position", pos, "is greater than grid count - 1", self.grid_count-1, "which should not be possible. Handling error by capping value.")
+        return max(pos, self.grid_count-1)
 
     def add_neuron(self, neuron_pos, neuron_internal_state):
         self.changed = True
-        grid = self.grids[neuron_pos[0]//self.grid_size][neuron_pos[1]//self.grid_size][neuron_pos[2]//self.grid_size]
+        grid = self.grids[self._grid_cap(neuron_pos[0]//self.grid_size)][self._grid_cap(neuron_pos[1]//self.grid_size)][self._grid_cap(neuron_pos[2]//self.grid_size)]
         new_neuron = Neuron(
             neuron_initialization_data = self.neuron_initialization_data, 
             axon_initialization_data = self.axon_initialization_data,
@@ -474,7 +479,7 @@ class NeuronEngine():
     def add_neuron_created(self, neuron):
         self.changed = True
         neuron_pos = (neuron.x_glob, neuron.y_glob, neuron.z_glob)
-        grid = self.grids[int(neuron_pos[0]//self.grid_size)][int(neuron_pos[1]//self.grid_size)][int(neuron_pos[2]//self.grid_size)]
+        grid = self.grids[self._grid_cap(neuron_pos[0]//self.grid_size)][self._grid_cap(neuron_pos[1]//self.grid_size)][self._grid_cap(neuron_pos[2]//self.grid_size)]
         neuron.grid = grid
         grid.add_neuron(neuron)
         self.neurons.append(neuron)

@@ -13,8 +13,8 @@ import pandas
 def average(a_list):
     return sum(a_list)/len(a_list)
 
-statistics_folder = r"D:\jonod\masters\CGP_Neuron_masters_idun\log_config_complex_2_1645798996.474054"
-statistics_files = [r"D:\jonod\masters\CGP_Neuron_masters_idun\log_config_complex_2_1645798996.474054\statistics.yml"]
+statistics_folder = r"C:\Users\jonora\Documents\CGP Neuron Masters"
+statistics_files = [r"C:\Users\jonora\Documents\CGP Neuron Masters\statistics.yml"]
 
 
 # Assumes all stat files have the same amount of iterations and tracks all the required statisticks and same amount of genomes
@@ -431,13 +431,13 @@ neutral_change_avg = []
 neutral_change_std = []
 
 for it in range(len(yaml_stats[0]['iterations'])):
-    genome_lists = [x['iterations'][it]['genomes_data']['genome_list'] for x in yaml_stats]
     better_change = []
     neutral_change = []
-    for genome_list in genome_lists:
-        for genome in genome_list:
-            better_change.append(genome['performance_stats']['better_changes_percentage']) 
-            neutral_change.append(genome['performance_stats']['neutral_changes_percentage']) 
+    for genome_dat in [x['iterations'][it] for x in yaml_stats]:
+        better_change.append(genome_dat['replacement_stats']['better_changes_percentage']) 
+        neutral_change.append(genome_dat['replacement_stats']['neutral_changes_percentage']) 
+    
+    
 
     better_change_avg.append(average(better_change))
     neutral_change_avg.append(average(neutral_change))
@@ -487,8 +487,9 @@ x = [
         min_fitness,
         avg_fitness,
         std_fitness,
-        genome_takeover_probabilities,
-        genome_takeover_counts
+        genome_takeover_counts,
+        better_change_avg,
+        neutral_change_avg
     ] + [[y for y in x] for x in cgp_node_type_data.values()]
 
 y = [
@@ -513,8 +514,9 @@ y = [
         'min_fitness',
         'avg_fitness',
         'std_fitness',
-        'genome_takeover_probabilities',
         'genome_takeover_counts',
+        'better_change_avg',
+        'neutral_change_avg'
     ] + [x for x in cgp_node_type_data.keys()]
 
 dataframe = pandas.DataFrame(

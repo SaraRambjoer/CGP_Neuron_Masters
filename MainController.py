@@ -550,7 +550,7 @@ def run(config, config_filename, output_path, print_output = False):
             genome_entry = {
                 "id":genome[0].id,
                 "fitness":genome[0].get_fitness(),
-                "fitness_std":numpy.std(genome[0].fitnessess),
+                "fitness_std":float(numpy.std(genome[0].fitnessess)),
                 "performance_stats":copy.deepcopy(genome[6][1]),
                 "node_mutation_chance":genome[0].config['mutation_chance_node'],
                 "link_mutation_chance":genome[0].config['mutation_chance_link'],
@@ -577,10 +577,12 @@ def run(config, config_filename, output_path, print_output = False):
         #for gen in _genomes:
         #  print(str(gen))
         # To prevent logging data from becoming too large in ram 
-        if num % 50 == 0:
+        if num % 50 == 0 or num == learning_iterations - 1:
             logger.log_statistic_data(diagnostic_data)
             diagnostic_data = {}
             diagnostic_data['iterations'] = []
+
+    logger.log_statistic_data(diagnostic_data)
 
     # TODO FIX LOGGER TO WRITE TO SINGLE FILE SO THAT THE SYSTEM IS NICE AND WORKS AND SHIT, MAKE IT WRITE OUT JSON TO ONE FILE,
     # AND THEN USE A SCRIPT TO SPLIT THAT INTO FILES BECAUSE THE SERVER SYSTEM DOES NOT LIKE WRITING TO MANY FILES
@@ -609,7 +611,6 @@ def run(config, config_filename, output_path, print_output = False):
     #        engine.reset()
     #        engine.run(problem, num)
 
-    logger.log_statistic_data(diagnostic_data)
     return to_return_fitness, diagnostic_data
 
 def runme(config_filename, output_path):

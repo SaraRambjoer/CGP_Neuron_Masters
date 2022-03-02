@@ -1679,9 +1679,7 @@ class Axon(CellObjectSuper):
                 target_dendrite = self.neuron_engine.get_free_dendrite(self.neuron, dist_target)
                 if target_dendrite is None: 
                     break
-                elif type(target_dendrite) is Axon and target_dendrite.connected_dendrite is not None:
-                    raise Exception("Target dendrite is not free")
-                elif type(target_dendrite) is InputNeuron or type(target_dendrite) is OutputNeuron or target_dendrite.neuron != self:
+                elif type(target_dendrite) is InputNeuron or type(target_dendrite) is OutputNeuron or (target_dendrite.neuron != self.neuron and type(target_dendrite) is Axon and target_dendrite.connected_dendrite is not None):
                     if target_dendrite.run_accept_connection(self, timestep) and \
                         self.run_accept_connection(target_dendrite, timestep):
                             return self.connect(target_dendrite, timestep)

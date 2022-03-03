@@ -539,7 +539,7 @@ def run(config, config_filename, output_path, print_output = False):
             module_size_average = 0
             if len(module_list_recursive) > 0:
                 # TODO Issue: This does not handle recursive nodes...
-                length = module_list_recursive
+                length = len(module_list_recursive)
                 module_sizes = [x.program.get_node_type_counts() for x in module_list_recursive]
                 node_count = 0
                 for x in module_sizes:

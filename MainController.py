@@ -539,7 +539,13 @@ def run(config, config_filename, output_path, print_output = False):
             module_size_average = 0
             if len(module_list_recursive) > 0:
                 # TODO Issue: This does not handle recursive nodes...
-                module_size_average = sum(x.program.get_node_type_counts() for x in module_list_recursive)/len(module_list_recursive)
+                length = len(module_list_recursive)
+                module_sizes = [x.program.get_node_type_counts() for x in module_list_recursive]
+                node_count = 0
+                for x in module_sizes:
+                    for val in x.values():
+                        node_count += val
+                module_size_average = node_count/length
 
             genome_entry = {
                 "id":genome[0].id,
@@ -576,7 +582,7 @@ def run(config, config_filename, output_path, print_output = False):
             diagnostic_data = {}
             diagnostic_data['iterations'] = []
 
-    #logger.log_statistic_data(diagnostic_data)
+    logger.log_statistic_data(diagnostic_data)
 
     # TODO FIX LOGGER TO WRITE TO SINGLE FILE SO THAT THE SYSTEM IS NICE AND WORKS AND SHIT, MAKE IT WRITE OUT JSON TO ONE FILE,
     # AND THEN USE A SCRIPT TO SPLIT THAT INTO FILES BECAUSE THE SERVER SYSTEM DOES NOT LIKE WRITING TO MANY FILES

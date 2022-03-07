@@ -602,7 +602,7 @@ class CGPProgram:
         subgraphs = []
         if not len(node_pool) == 0:
             while len(subgraphs) < subgraph_count:
-                target_size = randchoice(range(max_size))
+                target_size = randchoice(range(4, max_size))
                 subgraph_nodes = []
                 origin_node = randchoice_scaled(node_pool, [x.age for x in node_pool])
                 subgraph_nodes += [origin_node]

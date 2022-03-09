@@ -483,6 +483,16 @@ if __name__ == '__main__':
 
     plot_basic(any_change_avg, "Any change %", "Iteration", "any_change.png")
 
+    eval_time_averages = []
+
+    for it in range(len(yaml_stats[0]['iterations'])):
+        eval_times = []
+        for genome_dat in [x['iterations'][it] for x in yaml_stats]:
+            eval_times.append(genome_dat['time']['eval'])
+        eval_time_averages.append(average(eval_times))
+    
+    plot_basic(eval_time_averages, "Eval time average", "Iteration", "eval_times.png")
+
 
     x = [
             total_active_nodes_average,
@@ -508,7 +518,9 @@ if __name__ == '__main__':
             std_fitness,
             genome_takeover_counts,
             better_change_avg,
-            neutral_change_avg
+            neutral_change_avg,
+            eval_time_averages,
+            neuron_counts
         ] + [[y for y in x] for x in cgp_node_type_data.values()]
 
     y = [
@@ -535,7 +547,9 @@ if __name__ == '__main__':
             'std_fitness',
             'genome_takeover_counts',
             'better_change_avg',
-            'neutral_change_avg'
+            'neutral_change_avg',
+            'eval_time_averages',
+            'neuron_counts'
         ] + [x for x in cgp_node_type_data.keys()]
 
     dataframe = pandas.DataFrame(

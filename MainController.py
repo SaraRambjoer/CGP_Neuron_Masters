@@ -428,7 +428,7 @@ def run(config, config_filename, output_path, print_output = False):
                         changed[new_genome_parent_indexes[0]] = True
                         if new_genome_score < parent1_score:
                             change_better[new_genome_parent_indexes[0]] = True
-                        elif new_genome[5]:
+                        elif new_genome[5]: # if it has a neuron engine listing - should always be true
                             change_neutral[new_genome_parent_indexes[0]] = True
                         parent1_score = new_genome_score
                 elif (new_genome_score < parent2_score) or (new_genome_score == parent2_score and not changed[new_genome_parent_indexes[1]]):
@@ -440,7 +440,7 @@ def run(config, config_filename, output_path, print_output = False):
                         if new_genome_score < parent2_score:
                             change_better[new_genome_parent_indexes[1]] = True
                         elif new_genome[5]:
-                                change_neutral[new_genome_parent_indexes[1]] = True
+                            change_neutral[new_genome_parent_indexes[1]] = True
 
         # update entries in historic best
         genomes, historic_bests = n_best_split(genomes, historic_bests)

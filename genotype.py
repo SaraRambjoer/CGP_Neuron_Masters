@@ -36,7 +36,7 @@ class Genome:
         self.logger = logger
         self.fitnessess = []
         self.ancestor_ids = []
-        self.init_ancestor_ids(parent1_ancestor_list, parent2_ancestor_list)
+        self.init_ancestor_ids(parent_id, parent2_id, parent1_ancestor_list, parent2_ancestor_list)
         if init_genome:
             self.function_chromosomes = []
             for num in range(len(input_arities)): 

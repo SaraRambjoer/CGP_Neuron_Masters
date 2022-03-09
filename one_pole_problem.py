@@ -22,7 +22,12 @@ class PoleBalancingProblem():
     # Target is to minimize this
     def error(self, problem, solution, logger, debug = False):
         action = solution[0]
-        if action not in [0, 1]:
+        if action is not None:
+            if action < 0.5:
+                action = 0
+            else:
+                action = 1
+        else:
             self.current_observation, reward, done, _ = self.env.step(randchoice([0, 1]))
             if done:
                 self.current_observation = self.env.reset()

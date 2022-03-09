@@ -4,7 +4,7 @@ import sys
 
 if __name__ == '__main__':
     filepaths = sys.argv[1]
-    filepaths = filepaths.split("|")
+    filepaths = filepaths.split("SPLIT")
 
     for filepath in filepaths:
         output = []

@@ -92,8 +92,9 @@ def plot_average_std_min_max(datas, labels, ylabel, xlabel, figname):
 if __name__ == '__main__':
     statistics_folder = sys.argv[1]
     statistics_files = sys.argv[2]
-    statistics_files = statistics_files.split("|")
-
+    print(statistics_files)
+    statistics_files = statistics_files.split("SPLIT")
+    print(statistics_files)
 
     # Assumes all stat files have the same amount of iterations and tracks all the required statisticks and same amount of genomes
     yaml_stats = []
@@ -104,7 +105,7 @@ if __name__ == '__main__':
     # graphs for genome replacement stats
     genome_takeover_counts = []
     for it in range(len(yaml_stats[0]['iterations'])):
-        genome_takeover_counts += [stat['iterations'][it]['genome_replacement_stats']['times_a_genome_took_population_slot_from_other_genome'] for stat in yaml_stats]
+        genome_takeover_counts.append(average([stat['iterations'][it]['genome_replacement_stats']['times_a_genome_took_population_slot_from_other_genome'] for stat in yaml_stats]))
 
 
     plot_basic(genome_takeover_counts, "Genome takeover counts", "Iteration", "genome_takeover_count.png")

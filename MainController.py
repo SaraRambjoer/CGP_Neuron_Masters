@@ -78,7 +78,7 @@ def n_best_split(list1, list2):
     comblist = sorted(comblist, key= lambda x: x[0].get_fitness())
     top_n = comblist[0:n]
     bottom_n = comblist[n:]
-    return top_n, bottom_n
+    return top_n, bottom_n, len([x for x in list1 if x not in top_n])  # Last term is how many swaps were made
 
 def historic_best_add(historic_best_list, new_genome, genome_count):
     if new_genome[0].id not in [x[0].id for x in historic_best_list]:
@@ -410,6 +410,9 @@ def run(config, config_filename, output_path, print_output = False):
         changed = [False for x in genomes]
         random.shuffle(genome_data)
 
+        better_children = [False for x in range(len(genomes))]
+        neutral_children = [False for x in range(len(genomes))]
+        # just for tracking actual percentage better genomes
         for num2 in range(len(genome_data)):
             new_genome = genome_data[num2]
             new_genome_score = new_genome[0].get_fitness()
@@ -420,35 +423,55 @@ def run(config, config_filename, output_path, print_output = False):
             if new_genome_id != parent1_id and new_genome_id != parent2_id:
                 parent1_score = genomes[new_genome_parent_indexes[0]][0].get_fitness()
                 parent2_score = genomes[new_genome_parent_indexes[1]][0].get_fitness()
-                if (new_genome_score < parent1_score) or (new_genome_score == parent1_score and not changed[new_genome_parent_indexes[0]]):
-                    if new_genome[0].id != old_genomes[new_genome_parent_indexes[0]][0].id and new_genome[0].id != old_genomes[new_genome_parent_indexes[1]][0].id:
-                        old_genome = genomes[new_genome_parent_indexes[0]]
-                        historic_best_add(historic_bests, old_genome, config['genome_count'])
-                        genomes[new_genome_parent_indexes[0]] = new_genome
-                        changed[new_genome_parent_indexes[0]] = True
-                        if new_genome_score < parent1_score:
-                            change_better[new_genome_parent_indexes[0]] = True
-                        elif new_genome[5]: # if it has a neuron engine listing - should always be true
-                            change_neutral[new_genome_parent_indexes[0]] = True
-                        parent1_score = new_genome_score
-                elif (new_genome_score < parent2_score) or (new_genome_score == parent2_score and not changed[new_genome_parent_indexes[1]]):
-                    if new_genome[0].id != old_genomes[new_genome_parent_indexes[0]][0].id and new_genome[0].id != old_genomes[new_genome_parent_indexes[1]][0].id:
-                        old_genome = genomes[new_genome_parent_indexes[1]]
-                        historic_best_add(historic_bests, old_genome, config['genome_count'])
-                        genomes[new_genome_parent_indexes[1]] = new_genome
-                        changed[new_genome_parent_indexes[1]] = True
-                        if new_genome_score < parent2_score:
-                            change_better[new_genome_parent_indexes[1]] = True
-                        elif new_genome[5]:
-                            change_neutral[new_genome_parent_indexes[1]] = True
+                if new_genome_score > parent1_score or new_genome_score > parent2_score:
+                    better_children[num2] = True
+                elif new_genome_score == parent1_score or new_genome_score == parent2_score:
+                    neutral_children[num2] = True
+
+
+        for num2 in range(len(genome_data)):
+            if neutral_children[num2] or better_children[num2]:
+                new_genome = genome_data[num2]
+                new_genome_score = new_genome[0].get_fitness()
+                new_genome_parent_indexes = new_genome[3]
+                new_genome_id = new_genome[0].id
+                parent1_id = genomes[new_genome_parent_indexes[0]][0].id
+                parent2_id = genomes[new_genome_parent_indexes[1]][0].id
+                if new_genome_id != parent1_id and new_genome_id != parent2_id:
+                    parent1_score = genomes[new_genome_parent_indexes[0]][0].get_fitness()
+                    parent2_score = genomes[new_genome_parent_indexes[1]][0].get_fitness()
+                    if (new_genome_score < parent1_score) or (new_genome_score == parent1_score and not changed[new_genome_parent_indexes[0]]):
+                        if new_genome[0].id != old_genomes[new_genome_parent_indexes[0]][0].id and new_genome[0].id != old_genomes[new_genome_parent_indexes[1]][0].id:
+                            old_genome = genomes[new_genome_parent_indexes[0]]
+                            historic_best_add(historic_bests, old_genome, config['genome_count'])
+                            genomes[new_genome_parent_indexes[0]] = new_genome
+                            changed[new_genome_parent_indexes[0]] = True
+                            if new_genome_score < parent1_score:
+                                change_better[new_genome_parent_indexes[0]] = True
+                            elif new_genome[5]: # if it has a neuron engine listing - should always be true
+                                change_neutral[new_genome_parent_indexes[0]] = True
+                            parent1_score = new_genome_score
+                    elif (new_genome_score < parent2_score) or (new_genome_score == parent2_score and not changed[new_genome_parent_indexes[1]]):
+                        if new_genome[0].id != old_genomes[new_genome_parent_indexes[0]][0].id and new_genome[0].id != old_genomes[new_genome_parent_indexes[1]][0].id:
+                            old_genome = genomes[new_genome_parent_indexes[1]]
+                            historic_best_add(historic_bests, old_genome, config['genome_count'])
+                            genomes[new_genome_parent_indexes[1]] = new_genome
+                            changed[new_genome_parent_indexes[1]] = True
+                            if new_genome_score < parent2_score:
+                                change_better[new_genome_parent_indexes[1]] = True
+                            elif new_genome[5]:
+                                change_neutral[new_genome_parent_indexes[1]] = True
 
         # update entries in historic best
-        genomes, historic_bests = n_best_split(genomes, historic_bests)
+        genomes, historic_bests, swaps = n_best_split(genomes, historic_bests)
                
 
         statistic_entry['replacement_stats'] = {
-            'better_changes_percentage' : len([x for x in change_better if x]),
-            'neutral_changes_percentage' : len([x for x in change_neutral if x])
+            'better_population_swaps_percentage' : len([x for x in change_better if x])/len(change_better),
+            'neutral_population_swaps_percentage' : len([x for x in change_neutral if x]/len(change_neutral)),
+            'better_child_percentage' : len([x for x in better_children if x])/len(better_children),
+            'neutral_child_percentage' : len([x for x in neutral_children if x])/len(neutral_children),
+            'historic_best_swaps' : swaps
         }
 
         new_scores = scores = [x[0].get_fitness() for x in genomes]

@@ -6,10 +6,10 @@ from matplotlib import pyplot as plt
 
 runs = []
 environment_timesteps_per_run = 100
-runs_total = 100
+runs_total = 10000
 
 reset_count = 0
-for runnum in range(100):
+for runnum in range(runs_total):
     fitnessess = []
     problem = one_pole_problem.PoleBalancingProblem()
     for num in range(environment_timesteps_per_run):
@@ -30,3 +30,5 @@ for num in range(100):
         val += fitness_list[num]
     
 print("Expected random fitness: ", val/(runs_total*environment_timesteps_per_run))
+
+# expect 0.101643

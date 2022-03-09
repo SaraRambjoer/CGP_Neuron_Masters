@@ -131,6 +131,9 @@ def run(config, config_filename, output_path, print_output = False):
     # also define canonical order of functions - arbitrary, for compatibilitiy with 
     # neuron code
     # RFE move out this order to some single source of knowledge
+
+    # Standarized input ordering: 
+    # OTHER, dimensions, signal dimensionality, internal states, cgp function constant numbers
     neuron_function_order = [
         'axon_birth_program',
         'signal_axon_program',
@@ -144,16 +147,19 @@ def run(config, config_filename, output_path, print_output = False):
         'internal_state_variable_count' # not function but parameter comes here in the order
     ]
     neuron_function_arities = [  # by order above
-        [dimensions+neuron_internal_states+1 + len(config['cgp_function_constant_numbers']), 4+signal_dimensionality+neuron_internal_states],  # axon birth
-        [signal_dimensionality+dimensions+neuron_internal_states + len(config['cgp_function_constant_numbers']), 2 + signal_dimensionality + neuron_internal_states],  # signal axon
-        [signal_dimensionality + dimensions + neuron_internal_states + len(config['cgp_function_constant_numbers']), 2 + neuron_internal_states+signal_dimensionality],  # recieve signal axon
+        [1 + dimensions+ neuron_internal_states + len(config['cgp_function_constant_numbers']), 4+signal_dimensionality+neuron_internal_states],  # axon birth
+        [dimensions + signal_dimensionality+neuron_internal_states + len(config['cgp_function_constant_numbers']), 2 + signal_dimensionality + neuron_internal_states],  # signal axon
+        [dimensions + signal_dimensionality + neuron_internal_states + len(config['cgp_function_constant_numbers']), 2 + neuron_internal_states+signal_dimensionality],  # recieve signal axon
         [1 + dimensions + neuron_internal_states + len(config['cgp_function_constant_numbers']), 2 + neuron_internal_states],  # reciee reward
-        [neuron_internal_states + dimensions + len(config['cgp_function_constant_numbers']), 7+neuron_internal_states],  # move
+        [dimensions + neuron_internal_states + len(config['cgp_function_constant_numbers']), 7+neuron_internal_states],  # move
         [dimensions + neuron_internal_states + len(config['cgp_function_constant_numbers']), 2+neuron_internal_states],  # die
         [dimensions + neuron_internal_states + len(config['cgp_function_constant_numbers']), 2+neuron_internal_states*2],  # neuron birth
-        [neuron_internal_states+dimensions + len(config['cgp_function_constant_numbers']), 9],  # action controller
-        [neuron_internal_states + dimensions + len(config['cgp_function_constant_numbers']), hox_variant_count]  # hox selection
+        [dimensions + neuron_internal_states + len(config['cgp_function_constant_numbers']), 9],  # action controller
+        [dimensions + neuron_internal_states + len(config['cgp_function_constant_numbers']), hox_variant_count]  # hox selection
     ]
+
+    # Standarized input ordering: 
+    # OTHER, dimensions, signal dimensionality, internal states, cgp function constant numbers
 
     dendrite_function_order = [
         'recieve_signal_neuron_program',
@@ -167,15 +173,16 @@ def run(config, config_filename, output_path, print_output = False):
         'action_controller_program'
     ]
     dendrite_function_arities = [
-        [dendrite_internal_states + signal_dimensionality + dimensions + len(config['cgp_function_constant_numbers']), 2+signal_dimensionality+dendrite_internal_states],
-        [dendrite_internal_states + signal_dimensionality + dimensions + len(config['cgp_function_constant_numbers']), 2+signal_dimensionality+dendrite_internal_states],
-        [dimensions + dendrite_internal_states + signal_dimensionality + len(config['cgp_function_constant_numbers']), 4+signal_dimensionality+dendrite_internal_states],
-        [dimensions + dendrite_internal_states + signal_dimensionality + len(config['cgp_function_constant_numbers']), 4+signal_dimensionality+dendrite_internal_states],
+        [dimensions + signal_dimensionality + dendrite_internal_states + len(config['cgp_function_constant_numbers']), 2+signal_dimensionality+dendrite_internal_states],
+        [dimensions + signal_dimensionality + dendrite_internal_states + len(config['cgp_function_constant_numbers']), 2+signal_dimensionality+dendrite_internal_states],
+        [dimensions + signal_dimensionality + dendrite_internal_states + len(config['cgp_function_constant_numbers']), 4+signal_dimensionality+dendrite_internal_states],
+        [dimensions + signal_dimensionality + dendrite_internal_states + len(config['cgp_function_constant_numbers']), 4+signal_dimensionality+dendrite_internal_states],
+        # Note exceptions!!!
         [dimensions + dendrite_internal_states + dimensions + dendrite_internal_states + len(config['cgp_function_constant_numbers']), 2+dendrite_internal_states], # Accept connection
         [dimensions + dendrite_internal_states + dimensions + dendrite_internal_states + len(config['cgp_function_constant_numbers']), 1], # Break connection
-        [dimensions + dendrite_internal_states + 1 + len(config['cgp_function_constant_numbers']), 2 + dendrite_internal_states], # recieve reward
+        [1 + dimensions + dendrite_internal_states + len(config['cgp_function_constant_numbers']), 2 + dendrite_internal_states], # recieve reward
         [dimensions + dendrite_internal_states + len(config['cgp_function_constant_numbers']), 1+signal_dimensionality], # die
-        [dendrite_internal_states + dimensions + len(config['cgp_function_constant_numbers']), 3]
+        [dimensions + dendrite_internal_states + len(config['cgp_function_constant_numbers']), 3]
     ]
 
     # Knowledge duplication thooo
@@ -586,6 +593,29 @@ def run(config, config_filename, output_path, print_output = False):
             }
             genomes_data["genome_list"] += [genome_entry]
 
+            # track use of function constants
+            constant_number_use_count = 0
+            neuron_internal_state_use_count = 0
+            dendrite_internal_state_use_count = 0
+            signal_dimensionality_use_count = 0
+
+            # track stat about use of input and output stuff
+            if len(config['cgp_function_constant_numbers']) > 1:
+                genome_genome = genome[0]
+                programs = genome_genome.hex_selector_genome.program
+                for chrom in genome_genome.function_chromosomes:
+                    for hex_var in chrom.homeobox_variants:
+                        programs.append(hex_var.program)
+                for program in programs:
+                        active_nodes = program.get_active_nodes()
+                        for input_node in program.input_nodes[len(program.input_nodes)-len(config['cgp_function_constant_numbers']):]:
+                            for node in input_node.subscribers:
+                                if node in active_nodes:
+                                    constant_number_use_count += 1
+            
+
+
+            genomes_data["constant_number_use_count"] = constant_number_use_count
             #print(genome[0].id)
             #print(genome.get_fitness())
             #print(genome[6][1])

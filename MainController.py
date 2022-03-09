@@ -148,7 +148,7 @@ def run(config, config_filename, output_path, print_output = False):
     ]
     neuron_function_arities = [  # by order above
         [1 + dimensions+ neuron_internal_states + len(config['cgp_function_constant_numbers']), 4+signal_dimensionality+neuron_internal_states],  # axon birth
-        [dimensions + signal_dimensionality+neuron_internal_states + len(config['cgp_function_constant_numbers']), 2 + signal_dimensionality + neuron_internal_states],  # signal axon
+        [dimensions + signal_dimensionality + neuron_internal_states + len(config['cgp_function_constant_numbers']), 2 + signal_dimensionality + neuron_internal_states],  # signal axon
         [dimensions + signal_dimensionality + neuron_internal_states + len(config['cgp_function_constant_numbers']), 2 + neuron_internal_states+signal_dimensionality],  # recieve signal axon
         [1 + dimensions + neuron_internal_states + len(config['cgp_function_constant_numbers']), 2 + neuron_internal_states],  # reciee reward
         [dimensions + neuron_internal_states + len(config['cgp_function_constant_numbers']), 7+neuron_internal_states],  # move
@@ -598,21 +598,47 @@ def run(config, config_filename, output_path, print_output = False):
             neuron_internal_state_use_count = 0
             dendrite_internal_state_use_count = 0
             signal_dimensionality_use_count = 0
+            neuron_engine_dimensionality_use_count = 0
 
             # track stat about use of input and output stuff
+            genome_genome = genome[0]
+
+            def get_use_value(input_nodes, active_nodes):
+                to_return = 0
+                for node in input_nodes:
+                    for node2 in input_nodes.subscribers:
+                        if node in active_nodes:
+                            to_return += 1
+                return to_return 
+
             if len(config['cgp_function_constant_numbers']) > 1:
-                genome_genome = genome[0]
-                programs = genome_genome.hex_selector_genome.program
+                programs = [genome_genome.hex_selector_genome.program]
                 for chrom in genome_genome.function_chromosomes:
                     for hex_var in chrom.homeobox_variants:
                         programs.append(hex_var.program)
                 for program in programs:
-                        active_nodes = program.get_active_nodes()
-                        for input_node in program.input_nodes[len(program.input_nodes)-len(config['cgp_function_constant_numbers']):]:
-                            for node in input_node.subscribers:
-                                if node in active_nodes:
-                                    constant_number_use_count += 1
-            
+                    input_nodes = program.input_nodes[len(program.input_nodes)-len(config['cgp_function_constant_numbers']):]
+                    active_nodes = program.get_active_nodes()
+                    constant_number_use_count += get_use_value(input_nodes, active_nodes)
+            # axon birth program 
+            axon_birth = genome_genome.function_chromosomes[0]
+            for hex_var in axon_birth.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[1:4], active_nodes)
+                neuron_internal_state_use_count += get_use_value(program.input_nodes[4:4+neuron_internal_states], active_nodes)
+            signal_axon_program = genome_genome.function_chromosomes[1]
+            for hex_var in signal_axon_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+                signal_dimensionality_use_count += get_use_value(program.input_nodes[3:3+signal_dimensionality], active_nodes)
+                neuron_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+neuron_internal_states])
+            # and continue on as so
+
+
 
 
             genomes_data["constant_number_use_count"] = constant_number_use_count

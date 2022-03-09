@@ -20,16 +20,23 @@ class PoleBalancingProblem():
         return self.current_observation
 
     # Target is to minimize this
-    def error(self, problem, solution, logger):
+    def error(self, problem, solution, logger, debug = False):
         action = solution[0]
         if action not in [0, 1]:
             self.current_observation, reward, done, _ = self.env.step(randchoice([0, 1]))
             if done:
                 self.current_observation = self.env.reset()
+                if debug:
+                    return 1, False, 1
+                return 1, False
             return 1, False
         self.current_observation, reward, done, _ = self.env.step(int(action))
         if done:
             self.current_observation = self.env.reset()
+            if debug:
+                return 1, True, 1
+            return 1, True
+            
 
         return 1-reward, True
         #solution = solution[0]

@@ -606,12 +606,12 @@ def run(config, config_filename, output_path, print_output = False):
             def get_use_value(input_nodes, active_nodes):
                 to_return = 0
                 for node in input_nodes:
-                    for node2 in input_nodes.subscribers:
-                        if node in active_nodes:
+                    for node2 in node.subscribers:
+                        if node2 in active_nodes:
                             to_return += 1
                 return to_return 
 
-            if len(config['cgp_function_constant_numbers']) > 1:
+            if len(config['cgp_function_constant_numbers']) >= 1:
                 programs = [genome_genome.hex_selector_genome.program]
                 for chrom in genome_genome.function_chromosomes:
                     for hex_var in chrom.homeobox_variants:
@@ -620,7 +620,7 @@ def run(config, config_filename, output_path, print_output = False):
                     input_nodes = program.input_nodes[len(program.input_nodes)-len(config['cgp_function_constant_numbers']):]
                     active_nodes = program.get_active_nodes()
                     constant_number_use_count += get_use_value(input_nodes, active_nodes)
-            # axon birth program 
+            
             axon_birth = genome_genome.function_chromosomes[0]
             for hex_var in axon_birth.homeobox_variants:
                 program = hex_var.program
@@ -628,6 +628,7 @@ def run(config, config_filename, output_path, print_output = False):
 
                 neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[1:4], active_nodes)
                 neuron_internal_state_use_count += get_use_value(program.input_nodes[4:4+neuron_internal_states], active_nodes)
+            
             signal_axon_program = genome_genome.function_chromosomes[1]
             for hex_var in signal_axon_program.homeobox_variants:
                 program = hex_var.program
@@ -636,12 +637,159 @@ def run(config, config_filename, output_path, print_output = False):
                 neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
                 signal_dimensionality_use_count += get_use_value(program.input_nodes[3:3+signal_dimensionality], active_nodes)
                 neuron_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+neuron_internal_states])
-            # and continue on as so
+            
+            recieve_axon_signal_program = genome_genome.function_chromosomes[2]
+            for hex_var in recieve_axon_signal_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
 
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+                signal_dimensionality_use_count += get_use_value(program.input_nodes[3:3+signal_dimensionality], active_nodes)
+                neuron_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+neuron_internal_states])
+            
+            recieve_reward_signal_program = genome_genome.function_chromosomes[3]
+            for hex_var in recieve_reward_signal_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
 
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[1:4], active_nodes)
+                neuron_internal_state_use_count += get_use_value(program.input_nodes[4:4+neuron_internal_states], active_nodes)
 
+            move_program = genome_genome.function_chromosomes[4]
+            for hex_var in move_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+                neuron_internal_state_use_count += get_use_value(program.input_nodes[3:3+neuron_internal_states], active_nodes)
+
+            die_program = genome_genome.function_chromosomes[5]
+            for hex_var in die_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+                neuron_internal_state_use_count += get_use_value(program.input_nodes[3:3+neuron_internal_states], active_nodes)
+
+            neuron_birth_program = genome_genome.function_chromosomes[6]
+            for hex_var in neuron_birth_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+                neuron_internal_state_use_count += get_use_value(program.input_nodes[3:3+neuron_internal_states], active_nodes)
+
+            action_controller_program = genome_genome.function_chromosomes[7]
+            for hex_var in action_controller_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+                neuron_internal_state_use_count += get_use_value(program.input_nodes[3:3+neuron_internal_states], active_nodes)
+
+            hox_variant_selection_program = genome_genome.hex_selector_genome
+            program = hox_variant_selection_program.program
+            active_nodes = program.get_active_nodes()
+
+            neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+            neuron_internal_state_use_count += get_use_value(program.input_nodes[3:3+neuron_internal_states], active_nodes)
+
+            # DENDRITES
+
+            recieve_signal_neuron_program = genome_genome.function_chromosomes[8]
+            for hex_var in recieve_signal_neuron_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+                signal_dimensionality_use_count += get_use_value(program.input_nodes[3:3+signal_dimensionality], active_nodes)
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+dendrite_internal_states])
+
+            recieve_signal_dendrite_program = genome_genome.function_chromosomes[9]
+            for hex_var in recieve_signal_dendrite_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+                signal_dimensionality_use_count += get_use_value(program.input_nodes[3:3+signal_dimensionality], active_nodes)
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+dendrite_internal_states])
+
+            signal_dendrite_program = genome_genome.function_chromosomes[10]
+            for hex_var in signal_dendrite_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+                signal_dimensionality_use_count += get_use_value(program.input_nodes[3:3+signal_dimensionality], active_nodes)
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+dendrite_internal_states])
+
+            signal_neuron_program = genome_genome.function_chromosomes[11]
+            for hex_var in signal_neuron_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+                signal_dimensionality_use_count += get_use_value(program.input_nodes[3:3+signal_dimensionality], active_nodes)
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+dendrite_internal_states])
+
+            accept_connection_program = genome_genome.function_chromosomes[12]
+            for hex_var in accept_connection_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3:3+dendrite_internal_states], active_nodes)
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[3+dendrite_internal_states:3+dendrite_internal_states+3], active_nodes)
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+dendrite_internal_states+3:3+dendrite_internal_states+3+dendrite_internal_states], active_nodes)
+
+            break_connection_program = genome_genome.function_chromosomes[13]
+            for hex_var in break_connection_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3:3+dendrite_internal_states], active_nodes)
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[3+dendrite_internal_states:3+dendrite_internal_states+3], active_nodes)
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+dendrite_internal_states+3:3+dendrite_internal_states+3+dendrite_internal_states], active_nodes)
+
+            recieve_reward_program = genome_genome.function_chromosomes[14]
+            for hex_var in recieve_reward_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[1:4], active_nodes)
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[4:4+dendrite_internal_states], active_nodes)
+
+            die_program = genome_genome.function_chromosomes[15]
+            for hex_var in die_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3:3+dendrite_internal_states], active_nodes)
+
+            action_controller_program = genome_genome.function_chromosomes[16]
+            for hex_var in action_controller_program.homeobox_variants:
+                program = hex_var.program
+                active_nodes = program.get_active_nodes()
+
+                neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3:3+dendrite_internal_states], active_nodes)
+
+            # assuming 18 neuron and dendrite functions total 
+            if len(config['cgp_function_constant_numbers']) >= 1:
+                constant_number_use_count = constant_number_use_count/(18*config['cgp_function_constant_numbers'])
+            neuron_internal_state_use_count = neuron_internal_state_use_count/(9*neuron_internal_states) 
+            dendrite_internal_state_use_count = dendrite_internal_state_use_count/(9*dendrite_internal_states + 2 * dendrite_internal_states) # because connection functions use twice
+            signal_dimensionality_use_count = signal_dimensionality_use_count/(6*signal_dimensionality)
+            neuron_engine_dimensionality_use_count = neuron_engine_dimensionality_use_count/(9*dimensions+2*dimensions)
 
             genomes_data["constant_number_use_count"] = constant_number_use_count
+            genomes_data["neuron_internal_state_use_count"] = neuron_internal_state_use_count
+            genomes_data["dendrite_internal_state_use_count"] = dendrite_internal_state_use_count
+            genomes_data["signal_dimensionality_use_count"] = signal_dimensionality_use_count
+            genomes_data["neuron_engine_dimensionality_use_count"] = neuron_engine_dimensionality_use_count
+
             #print(genome[0].id)
             #print(genome.get_fitness())
             #print(genome[6][1])

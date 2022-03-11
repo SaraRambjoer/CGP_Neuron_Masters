@@ -491,7 +491,6 @@ def run(config, config_filename, output_path, print_output = False):
         time_genes_post_stamp = time.time()
         for num3 in range(len(genomes)):
             genome = genomes[num3][0]
-            x = (genome.config['mutation_chance_node']+genome.config['mutation_chance_link'])/2
             genome.config['mutation_chance_link'] = x
             genome.config['mutation_chance_node'] = x
             if change_better[num3]:

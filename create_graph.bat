@@ -1,5 +1,8 @@
 @echo off
-set folderpath=C:\Users\jonora\Documents\cgp_neuron_masters\logfiles\config_complex_2\unified
-set filepaths=C:\Users\jonora\Documents\cgp_neuron_masters\logfiles\config_complex_2\1\log_config_complex_2_1646256852.1002836\statistics.ymlSPLITC:\Users\jonora\Documents\cgp_neuron_masters\logfiles\config_complex_2\1\log_config_complex_2_1646334773.3082883\statistics.ymlSPLITC:\Users\jonora\Documents\cgp_neuron_masters\logfiles\config_complex_2\2\log_config_complex_2_1646256852.1003075\statistics.ymlSPLITC:\Users\jonora\Documents\cgp_neuron_masters\logfiles\config_complex_2\2\log_config_complex_2_1646334773.308288\statistics.ymlSPLITC:\Users\jonora\Documents\cgp_neuron_masters\logfiles\config_complex_2\3\log_config_complex_2_1646256857.606281\statistics.ymlSPLITC:\Users\jonora\Documents\cgp_neuron_masters\logfiles\config_complex_2\3\log_config_complex_2_1646334773.308294\statistics.ymlSPLITC:\Users\jonora\Documents\cgp_neuron_masters\logfiles\config_complex_2\4\log_config_complex_2_1646256856.624498\statistics.ymlSPLITC:\Users\jonora\Documents\cgp_neuron_masters\logfiles\config_complex_2\5\log_config_complex_2_1646256856.6244314\statistics.yml
+set folderpath=C:\Users\jonora\Documents\cgp_neuron_masters\logfiles\config_complex_3\5\log_config_complex_3_1646334773.3112342
+set filepaths=C:\Users\jonora\Documents\cgp_neuron_masters\logfiles\config_complex_3\5\log_config_complex_3_1646334773.3112342\statistics.yml
 :: python C:\Users\jonora\Documents\cgp_neuron_masters\CGP_Neuron_Masters\yaml_file_fixer.py %filepaths%
+
+
+
 python C:\Users\jonora\Documents\cgp_neuron_masters\CGP_Neuron_Masters\statistics_analyzer.py %folderpath% %filepaths%

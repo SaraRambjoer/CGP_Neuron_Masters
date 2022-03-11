@@ -33,14 +33,14 @@ def plot_corr(df,size=40):
 
 # TODO ANALYZE 'replacement_stats'
 
-def plot_basic(data, ylabel, xlabel, figname):
+def plot_basic(data, ylabel, xlabel, figname, statistics_folder):
     plt.plot(data)
     plt.ylabel(ylabel)
     plt.xlabel(xlabel)
     plt.savefig(path.join(statistics_folder, figname))
     plt.close(plt.gcf())
 
-def plot_multiple(datas, labels, ylabel, xlabel, figname):
+def plot_multiple(datas, labels, ylabel, xlabel, figname, statistics_folder):
     for num in range(len(datas)):
         plt.plot(datas[num])
     plt.legend(labels)
@@ -55,7 +55,7 @@ def listplus(list1, list2):
 def listmin(list1, list2):
     return [list1[x]-list2[x] for x in range(len(list1))]
 
-def plot_average_std(datas, labels, ylabel, xlabel, figname):
+def plot_average_std(datas, labels, ylabel, xlabel, figname, statistics_folder):
     # assumes data order: Average, std
     plt.plot(datas[0])
     plt.fill_between(range(len(datas[0])), listmin(datas[0], datas[1]), listplus(datas[0], datas[1]), alpha=0.5)
@@ -65,7 +65,7 @@ def plot_average_std(datas, labels, ylabel, xlabel, figname):
     plt.savefig(path.join(statistics_folder, figname))
     plt.close(plt.gcf())
 
-def plot_average_std_double(datas, labels, ylabel, xlabel, figname):
+def plot_average_std_double(datas, labels, ylabel, xlabel, figname, statistics_folder):
     # assumes data order: Average, std
     plt.plot(datas[0])
     plt.fill_between(range(len(datas[0])), listmin(datas[0], datas[1]), listplus(datas[0], datas[1]), alpha=0.5)
@@ -77,7 +77,7 @@ def plot_average_std_double(datas, labels, ylabel, xlabel, figname):
     plt.savefig(path.join(statistics_folder, figname))
     plt.close(plt.gcf())
 
-def plot_average_std_min_max(datas, labels, ylabel, xlabel, figname):
+def plot_average_std_min_max(datas, labels, ylabel, xlabel, figname, statistics_folder):
     # assumes data order: Average, std, min, max
     plt.plot(datas[0])
     plt.fill_between(range(len(datas[0])), listmin(datas[0], datas[1]), listplus(datas[0], datas[1]), alpha=0.5)
@@ -89,9 +89,7 @@ def plot_average_std_min_max(datas, labels, ylabel, xlabel, figname):
     plt.savefig(path.join(statistics_folder, figname))
     plt.close(plt.gcf())
 
-if __name__ == '__main__':
-    statistics_folder = sys.argv[1]
-    statistics_files = sys.argv[2]
+def runme(statistics_folder, statistics_files):
     print(statistics_files)
     statistics_files = statistics_files.split("SPLIT")
     print(statistics_files)
@@ -108,7 +106,7 @@ if __name__ == '__main__':
         genome_takeover_counts.append(average([stat['iterations'][it]['genome_replacement_stats']['times_a_genome_took_population_slot_from_other_genome'] for stat in yaml_stats]))
 
 
-    plot_basic(genome_takeover_counts, "Genome takeover counts", "Iteration", "genome_takeover_count.png")
+    plot_basic(genome_takeover_counts, "Genome takeover counts", "Iteration", "genome_takeover_count.png", statistics_folder)
 
     # CGP node type trends: 
     cgp_node_type_data = {}
@@ -142,7 +140,7 @@ if __name__ == '__main__':
         [key for key, _ in cgp_node_type_data.items()],
         "count",
         "iteration",
-        "cgp_node_type_trends.png"
+        "cgp_node_type_trends.png", statistics_folder
     )
 
     # Fitness over time
@@ -168,7 +166,7 @@ if __name__ == '__main__':
         ["average", "Avg. std. for evals over genomes", "min", "max"],
         "fitness",
         "iteration",
-        "fitness.png"
+        "fitness.png", statistics_folder
     )
 
 
@@ -205,7 +203,7 @@ if __name__ == '__main__':
         ["average", "std.", "min", "max"],
         "link mutation chance",
         "iteration",
-        "link_mutation_chance.png"
+        "link_mutation_chance.png", statistics_folder
     )
 
     plot_average_std_min_max(
@@ -213,7 +211,7 @@ if __name__ == '__main__':
         ["average", "std.", "min", "max"],
         "node mutation chance",
         "iteration",
-        "node_mutation_chance.png"
+        "node_mutation_chance.png", statistics_folder
     )
 
     # hox switch count
@@ -234,7 +232,7 @@ if __name__ == '__main__':
         ["avg", "std"],
         "hox switches per genome evaluation",
         "iteration",
-        "hox_switch.png"
+        "hox_switch.png", statistics_folder
     )
 
     # connectivity
@@ -269,7 +267,7 @@ if __name__ == '__main__':
         ["node avg", "node_std"],
         "connectivity",
         "iteration",
-        "connectivity.png"
+        "connectivity.png", statistics_folder
     )
 
     plot_average_std(
@@ -277,7 +275,7 @@ if __name__ == '__main__':
         ["input node avg", "input node std"],
         "connectivity",
         "iteration",
-        "connectivity_input.png"
+        "connectivity_input.png", statistics_folder
     )
 
     plot_average_std(
@@ -285,7 +283,7 @@ if __name__ == '__main__':
         ["output node avg", "output node std"],
         "connectivity",
         "iteration",
-        "connectivity_output.png"
+        "connectivity_output.png", statistics_folder
     )
 
     # Unique input/output connections
@@ -314,7 +312,7 @@ if __name__ == '__main__':
         ["output avg", "output std"],
         "unique connected nodes to layer",
         "iteration",
-        "out_connections.png"
+        "out_connections.png", statistics_folder
     )
 
     plot_average_std(
@@ -322,7 +320,7 @@ if __name__ == '__main__':
         ["input avg", "input std"],
         "unique connected nodes to layer",
         "iteration",
-        "in_connections.png"
+        "in_connections.png", statistics_folder
     )
 
 
@@ -347,7 +345,7 @@ if __name__ == '__main__':
         ['module size avg', 'module size std'],
         'module size in nodes',
         'iteration',
-        'module_size.png'
+        'module_size.png', statistics_folder
     )
 
     module_count_avg = []
@@ -378,7 +376,7 @@ if __name__ == '__main__':
         ['module count average', 'module count std', 'recursive module count average', 'recursive module count std'],
         'Average module count per genome',
         'iteration',
-        'module_count.png'
+        'module_count.png', statistics_folder
     )
 
     max_module_depth_average = []
@@ -398,7 +396,7 @@ if __name__ == '__main__':
         ['Average max module depth', 'Max module depth std'],
         'Max module depth',
         'Iteration',
-        'max_module_depth.png'
+        'max_module_depth.png', statistics_folder
     )
 
     total_active_nodes_average = []
@@ -420,7 +418,7 @@ if __name__ == '__main__':
         ['Total active nodes avg.', 'Total active nodes std.'],
         'Total active nodes',
         'Iteration',
-        'total_active_nodes.png'
+        'total_active_nodes.png', statistics_folder
     )
 
     neuron_counts_avg = []
@@ -441,7 +439,7 @@ if __name__ == '__main__':
         ["Average neuron count", "Neuron count std."],
         "Neuron phenotype count",
         "Iteration",
-        "neuron_phenotype_count.png"
+        "neuron_phenotype_count.png", statistics_folder
     )
 
     better_change_avg = []
@@ -470,7 +468,7 @@ if __name__ == '__main__':
         ["Better change %", "std"],
         "%",
         "Iteration",
-        "better_change.png"
+        "better_change.png", statistics_folder
     )
 
     plot_average_std(
@@ -478,10 +476,10 @@ if __name__ == '__main__':
         ["Neutral change %", "std"],
         "%",
         "Iteration",
-        "neutral_change.png"
+        "neutral_change.png", statistics_folder
     )
 
-    plot_basic(any_change_avg, "Any change %", "Iteration", "any_change.png")
+    plot_basic(any_change_avg, "Any change %", "Iteration", "any_change.png", statistics_folder)
 
     eval_time_averages = []
 
@@ -491,7 +489,7 @@ if __name__ == '__main__':
             eval_times.append(genome_dat['time']['eval'])
         eval_time_averages.append(average(eval_times))
     
-    plot_basic(eval_time_averages, "Eval time average", "Iteration", "eval_times.png")
+    plot_basic(eval_time_averages, "Eval time average", "Iteration", "eval_times.png", statistics_folder)
 
 
     x = [
@@ -520,7 +518,7 @@ if __name__ == '__main__':
             better_change_avg,
             neutral_change_avg,
             eval_time_averages,
-            neuron_counts
+            neuron_counts_avg
         ] + [[y for y in x] for x in cgp_node_type_data.values()]
 
     y = [
@@ -549,9 +547,9 @@ if __name__ == '__main__':
             'better_change_avg',
             'neutral_change_avg',
             'eval_time_averages',
-            'neuron_counts'
+            'neuron_counts_avg'
         ] + [x for x in cgp_node_type_data.keys()]
-
+    
     dataframe = pandas.DataFrame(
         data = {x[0]:x[1] for x in zip(y, x)},
         columns= y
@@ -560,3 +558,12 @@ if __name__ == '__main__':
     plot_corr(dataframe)
 
     plt.savefig(path.join(statistics_folder, 'correlation_matrix.png'), dpi=300, bbox_inches='tight')
+    plt.close(plt.gcf())
+    plt.plot([1, 2, 3], [1, 2, 3])
+    plt.close(plt.gcf()) 
+
+
+if __name__ == '__main__':
+    statistics_folder = sys.argv[1]
+    statistics_files = sys.argv[2]
+    runme(statistics_folder, statistics_files)

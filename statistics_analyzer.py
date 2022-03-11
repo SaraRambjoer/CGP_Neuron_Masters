@@ -9,6 +9,7 @@ import numpy as np
 import seaborn as sns
 import pandas
 import sys
+import scipy.stats.entropy as entropy
 
 def average(a_list):
     return sum(a_list)/len(a_list)
@@ -442,44 +443,113 @@ def runme(statistics_folder, statistics_files):
         "neuron_phenotype_count.png", statistics_folder
     )
 
-    better_change_avg = []
-    better_change_std = []
-    neutral_change_avg = []
-    neutral_change_std = []
+    population_entropy_avg = []
+    for it in range(len(yaml_stats[0]['iterations'])):
+        inner_avgs = []
+        for genome_dat in [x['iterations'][it] for x in yaml_stats]:
+            id_strings = []
+            for genome in genome_dat['genome_list']:
+                id_strings.append(genome['id'])
+            encountered = []
+            for id in id_strings:
+                if id not in encountered:
+                    encountered[id] = 1
+                else:
+                    encountered[id] += 1
+            inner_avgs.append(entropy(encountered.values()))
+        population_entropy_avg.append(average(inner_avgs))
+    
+    plot_basic(population_entropy_avg,
+        "Average shannon entropy of IDs",
+        "Iterations",
+        "population_shannon_entropy.png",
+        statistics_folder
+    )
+
+        
+    
+    
+
+    better_swap_avg = []
+    better_swap_std = []
+    neutral_swap_avg = []
+    neutral_swap_std = []
 
     for it in range(len(yaml_stats[0]['iterations'])):
-        better_change = []
-        neutral_change = []
+        better_swap = []
+        neutral_swap = []
         for genome_dat in [x['iterations'][it] for x in yaml_stats]:
-            better_change.append(genome_dat['replacement_stats']['better_changes_percentage']) 
-            neutral_change.append(genome_dat['replacement_stats']['neutral_changes_percentage']) 
+            better_swap.append(genome_dat['replacement_stats']['better_population_swaps_percentage']) 
+            neutral_swap.append(genome_dat['replacement_stats']['neutral_population_swaps_percentage']) 
         
         
 
-        better_change_avg.append(average(better_change))
-        neutral_change_avg.append(average(neutral_change))
-        better_change_std.append(np.std(better_change))
-        neutral_change_std.append(np.std(neutral_change_std))
+        better_swap_avg.append(average(better_swap))
+        neutral_swap_avg.append(average(neutral_swap))
+        better_swap_std.append(np.std(better_swap))
+        neutral_swap_std.append(np.std(neutral_swap_std))
 
-    any_change_avg = listplus(better_change_avg, neutral_change_avg)
+    any_swap_avg = listplus(better_swap_avg, neutral_swap_avg)
 
     plot_average_std(
-        [better_change_avg, better_change_std],
-        ["Better change %", "std"],
+        [better_swap_avg, better_swap_std],
+        ["Better swap %", "std"],
         "%",
         "Iteration",
-        "better_change.png", statistics_folder
+        "better_swap.png", statistics_folder
     )
 
     plot_average_std(
-        [neutral_change_avg, neutral_change_std],
-        ["Neutral change %", "std"],
+        [neutral_swap_avg, neutral_swap_std],
+        ["Neutral swap %", "std"],
         "%",
         "Iteration",
-        "neutral_change.png", statistics_folder
+        "neutral_swap.png", statistics_folder
     )
 
+    plot_basic(any_swap_avg, "Any swap %", "Iteration", "any_swap.png", statistics_folder)
+
+
+    better_child_percentage_avg = []
+    better_child_percentage_std = []
+    neutral_child_percentage_avg = []
+    neutral_child_percentage_std = []
+
+    for it in range(len(yaml_stats[0]['iterations'])):
+        better_child_percentage = []
+        neutral_child_percentage = []
+        for genome_dat in [x['iterations'][it] for x in yaml_stats]:
+            better_child_percentage.append(genome_dat['replacement_stats']['better_child_percentage']) 
+            neutral_child_percentage.append(genome_dat['replacement_stats']['neutral_child_percentage']) 
+        
+        
+
+        better_child_percentage_avg.append(average(better_child_percentage))
+        neutral_child_percentage_avg.append(average(neutral_child_percentage))
+        better_child_percentage_std.append(np.std(better_child_percentage))
+        neutral_child_percentage_std.append(np.std(neutral_child_percentage_std))
+
+    any_change_avg = listplus(better_child_percentage_avg, neutral_child_percentage_avg)
+
+    plot_average_std(
+        [better_child_percentage_avg, better_child_percentage_std],
+        ["Better child %", "std"],
+        "%",
+        "Iteration",
+        "better_child.png", statistics_folder
+    )
+
+    plot_average_std(
+        [neutral_child_percentage_avg, neutral_child_percentage_std],
+        ["Neutral child %", "std"],
+        "%",
+        "Iteration",
+        "neutral_child.png", statistics_folder
+    )
     plot_basic(any_change_avg, "Any change %", "Iteration", "any_change.png", statistics_folder)
+
+
+
 
     eval_time_averages = []
 
@@ -515,10 +585,15 @@ def runme(statistics_folder, statistics_files):
             avg_fitness,
             std_fitness,
             genome_takeover_counts,
-            better_change_avg,
-            neutral_change_avg,
             eval_time_averages,
-            neuron_counts_avg
+            neuron_counts_avg,
+            population_entropy_avg,
+            better_swap_avg,
+            neutral_swap_avg,
+            any_swap_avg,
+            better_child_percentage_avg,
+            neutral_child_percentage_avg,
+            any_change_avg
         ] + [[y for y in x] for x in cgp_node_type_data.values()]
 
     y = [
@@ -544,10 +619,15 @@ def runme(statistics_folder, statistics_files):
             'avg_fitness',
             'std_fitness',
             'genome_takeover_counts',
-            'better_change_avg',
-            'neutral_change_avg',
             'eval_time_averages',
-            'neuron_counts_avg'
+            'neuron_counts_avg',
+            "population_id_entropy_avg",
+            'better_swap_avg',
+            'neutral_swap_avg',
+            'any_swap_avg',
+            'better_child_percentage',
+            'neutral_child_percentage',
+            'any_change_child_percentage'
         ] + [x for x in cgp_node_type_data.keys()]
     
     dataframe = pandas.DataFrame(

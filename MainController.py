@@ -263,8 +263,8 @@ def run(config, config_filename, output_path, print_output = False):
             genome_id = genome.id,
             config_file = copydict(config)
         )
-        result, base_problems = engine.run(one_pole_problem.PoleBalancingProblem(), "setup")
-        genome_results.append((result, base_problems))
+        result, base_problems, action_counts = engine.run(one_pole_problem.PoleBalancingProblem(), "setup")
+        genome_results.append((result, base_problems, action_counts))
         engine.reset()
         engines.append(engine)
     genomes = list(zip(genomes, [x[0] for x in genome_results], [None for x in genome_results], [None for x in genome_results], [None for x in genome_results], [x for x in engines], [x for x in genome_results]))
@@ -582,6 +582,7 @@ def run(config, config_filename, output_path, print_output = False):
                 "fitness":genome[0].get_fitness(),
                 "fitness_std":float(numpy.std(genome[0].fitnessess)),
                 "performance_stats":copy.deepcopy(genome[6][1]),
+                "actions_stats":copy.deppcopy(genome[6][2]),
                 "node_mutation_chance":genome[0].config['mutation_chance_node'],
                 "link_mutation_chance":genome[0].config['mutation_chance_link'],
                 "module_count_non_recursive":len(module_list),

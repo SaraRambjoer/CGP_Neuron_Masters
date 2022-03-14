@@ -477,7 +477,7 @@ class CGPProgram:
             output_node_alternatives = [x for x in self_nodes if x.output is not None]
             self.reset()
         for num in range(0, len(self.output_indexes)):
-            if random.random() < node_type_mutate_chance or self_nodes[self.output_indexes[num]] not in output_node_alternatives:
+            if random.random() < node_type_mutate_chance/self_nodes[self.output_indexes[num]].arity or self_nodes[self.output_indexes[num]] not in output_node_alternatives:
                 self.output_indexes[num] = self_nodes.index(randchoice(output_node_alternatives))
         #self.validate_input_node_array()
         self.compile_self()

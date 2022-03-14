@@ -12,6 +12,9 @@ import sys
 from scipy.stats import entropy
 import os
 
+
+runs_per_iteration = 125
+
 def average(a_list):
     return sum(a_list)/len(a_list)
 
@@ -312,7 +315,7 @@ def runme(statistics_folder, statistics_files):
     plot_average_std(
         [unique_output_neuron_connections_avg, unique_output_node_connections_std],
         ["output avg", "output std"],
-        "unique connected nodes to layer",
+        "unique connected neurons to layer",
         "iteration",
         "out_connections.png", statistics_folder
     )
@@ -320,7 +323,7 @@ def runme(statistics_folder, statistics_files):
     plot_average_std(
         [unique_input_neuron_connections_avg, unique_input_node_connections_std],
         ["input avg", "input std"],
-        "unique connected nodes to layer",
+        "unique connected neurons to layer",
         "iteration",
         "in_connections.png", statistics_folder
     )
@@ -590,6 +593,19 @@ def runme(statistics_folder, statistics_files):
     plot_basic(neuron_engine_dim_use_avg, "Avg. CGP connection count to neuron engine dimension input", "Iteration", "cgp_use_neuron_engine.png", statistics_folder)
     plot_basic(signal_dim_use_avg, "Avg. CGP connection count to signal dimension input", "Iteration", "cgp_use_signal_dim.png", statistics_folder)
     plot_basic(neuron_internal_state_avg, "Avg. CGP connection count to neuron state input", "Iteration", "cgp_use_neuron_state.png", statistics_folder)
+
+    corrected_fitness_average = []
+    for it in range(len(yaml_stats[0]['iterations'])):
+        corr_fitness = []
+        for genome_dat in [x['iterations'][it]['genomes_data'] for x in yaml_stats]:
+            for genome_list in genome_dat['genome_list']:
+                fitness = genome_list['fitness']
+                establishment_time = genome_list['performance_stats']['no outputs']
+                corrected = fitness*(runs_per_iteration-establishment_time)/runs_per_iteration
+                corr_fitness.append(corrected)
+        corrected_fitness_average.append(average(corr_fitness))
+    
+    plot_basic(corrected_fitness_average, "Corrected fitness by establishment time (for pole balancing)", "Iteration", "corrected_fitness.png", statistics_folder)
 
 
     _fldr = os.path.join(statistics_folder, "neuron_engine_actions")

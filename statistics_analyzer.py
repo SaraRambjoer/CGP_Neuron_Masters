@@ -13,7 +13,6 @@ from scipy.stats import entropy
 import os
 
 
-runs_per_iteration = 125
 
 def average(a_list):
     return sum(a_list)/len(a_list)
@@ -102,13 +101,22 @@ def runme(statistics_folder, statistics_files):
     # Assumes all stat files have the same amount of iterations and tracks all the required statisticks and same amount of genomes
     yaml_stats = []
 
+
     for statistics_file in statistics_files:
         with open(statistics_file, 'r') as f:
             yaml_stats.append(yaml.load(f, Loader=yaml.SafeLoader))
+    
+    actions_maxes = [x['actions_max'] for x in yaml_stats]
+    runs_per_iteration = actions_maxes[0]
+    for num in actions_maxes:
+        if num != runs_per_iteration:
+            raise Exception("Varying action max in statistics")
+    
     # graphs for genome replacement stats
     genome_takeover_counts = []
     for it in range(len(yaml_stats[0]['iterations'])):
         genome_takeover_counts.append(average([stat['iterations'][it]['genome_replacement_stats']['times_a_genome_took_population_slot_from_other_genome'] for stat in yaml_stats]))
+
 
 
     plot_basic(genome_takeover_counts, "Genome takeover counts", "Iteration", "genome_takeover_count.png", statistics_folder)

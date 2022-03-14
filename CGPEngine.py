@@ -690,14 +690,14 @@ def subgraph_crossover(mate1, mate2, subgraph_extract_count, subgraph_size):
     mate1_subgraphs = mate1.extract_subgraphs(subgraph_size, min(subgraph_extract_count, len(mate1_active_nodes)),mate1_active_nodes)
     mate2_subgraphs = mate2.extract_subgraphs(subgraph_size, min(subgraph_extract_count, len(mate2_active_nodes)),mate2_active_nodes)
     for subgraph in mate1_subgraphs:
-        if len(subgraph.program.get_active_nodes()) > 4:
+        if len(subgraph.program.get_active_nodes()) >= 4:
             if len(mate2_inactive_nodes) != 0:
                 target = randchoice(mate2_inactive_nodes)
             else:
                 target = randchoice(mate2.nodes)
             target.change_type(subgraph)
     for subgraph in mate2_subgraphs:
-        if len(subgraph.program.get_active_nodes()) > 4:
+        if len(subgraph.program.get_active_nodes()) >= 4:
             if len(mate1_inactive_nodes) != 0:
                 target = randchoice(mate1_inactive_nodes)
             else:

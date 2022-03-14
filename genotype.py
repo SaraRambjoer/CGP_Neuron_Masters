@@ -64,7 +64,10 @@ class Genome:
 
 
     def get_fitness(self):
-        return sum(self.fitnessess)/len(self.fitnessess)
+        if len(self.fitnessess) == 0:
+            return 100.0
+        else:
+            return sum(self.fitnessess)/len(self.fitnessess)
 
     def update_config(self):
         self.hex_selector_genome.set_config(self.config)

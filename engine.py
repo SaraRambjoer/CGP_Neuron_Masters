@@ -62,7 +62,7 @@ class NeuronEngine():
         self.debugging = debugging
         self.timestep = 0 
     
-    def get_node_count(self):
+    def get_neuron_count(self):
         return len(self.neurons)
     
     def get_average_hidden_connectivity(self):
@@ -262,6 +262,7 @@ class NeuronEngine():
         return (x0-x1)**2 + (y0-y1)**2 + (z0-z1)**2
     
     def run_sample(self, input_sample, action_counts):
+        self.action_counts = action_counts
         for num in range(len(self.input_neurons)):
             self.input_neurons[num].value = input_sample[num]
         self.action_queue = []
@@ -303,7 +304,7 @@ class NeuronEngine():
                 action()  # runs action
                 self.timestep = timestep
                 self.actions_count += 1
-                action_counts[name] += 1
+                self.action_counts[name] += 1
         outputs = [output_neuron.value for output_neuron in self.output_neurons]
         self.reset_outputs()
         return outputs
@@ -323,7 +324,7 @@ class NeuronEngine():
         exec_instances = 0
 
         # Dendrite/Axon distinction is only made to talk about program flow
-        action_counts = {
+        self.action_counts = {
             'neuron_axon_birth':0,
             'neuron_dendrite_birth':0,
             'neuron_signal_axon':0,
@@ -349,9 +350,10 @@ class NeuronEngine():
             'dendrite_recieve_reward':0,
             'dendrite_die':0,
             'dendrite_action_controller':0,
-            'dendrite_seek_connection':0,  # NOTE: MAY ALSO BE DONE OUTSIDE OF ENGINE ACTION FLOW,
+            'dendrite_seek_connection':0, 
             'dendrite_axon_death_connection_signal':0,
-            'dendrite_axon_death_neuron_signal':0
+            'dendrite_axon_death_neuron_signal':0,
+            'skip_post_death':0
         }
 
         base_problems = {"no outputs" : 0,
@@ -368,7 +370,7 @@ class NeuronEngine():
             exec_instances += 1
             self.changed = False
             instance = problem.get_problem_instance()
-            result = self.run_sample(instance, action_counts)
+            result = self.run_sample(instance, self.action_counts)
             error, valid_output = problem.error(instance, result, self.logger)
             if not valid_output:
                 base_problems["no outputs"] += 1
@@ -426,7 +428,7 @@ class NeuronEngine():
                     action()  # runs action
                     self.timestep = timestep
                     self.actions_count += 1
-                    action_counts[name] += 1
+                    self.action_counts[name] += 1
             if not self.changed:
                 if self.not_changed_count > 10:
                     base_problems = {"Samples tried": exec_instances, **base_problems}
@@ -443,8 +445,8 @@ class NeuronEngine():
             self.logger.log("instance_end", "no_message")
         
         
-        base_problems["node_count"] = self.get_node_count()
-        base_problems["node_connectivity"] = self.get_average_hidden_connectivity()
+        base_problems["neuron_count"] = self.get_neuron_count()
+        base_problems["neuron_connectivity"] = self.get_average_hidden_connectivity()
         base_problems["input_connectivity"] = self.get_input_connectivity()
         base_problems["nodes_connected_to_input_nodes"] = self.get_input_connectivity(True)
         base_problems["output_connectivity"] = self.get_output_connectivity()
@@ -454,9 +456,9 @@ class NeuronEngine():
 
         if smooth_grad:
             # node count penalty: 
-            cumulative_error += max((3-base_problems['node_count'])/3, 0)
+            cumulative_error += max((3-base_problems['neuron_count'])/3, 0)
             # node connectivity penalty
-            cumulative_error += max((3-base_problems['node_connectivity'])/3, 0)
+            cumulative_error += max((3-base_problems['neuron_connectivity'])/3, 0)
             # input connectivity penalty:
             cumulative_error += max(1-base_problems['input_connectivity'], 0)
             # output connectivity penalty
@@ -464,7 +466,7 @@ class NeuronEngine():
 
         self.graph_log("graphlog_run", graphlog_initial_data)
         self.logger.log("run_end", f"{cumulative_error}, {base_problems}")
-        return cumulative_error/exec_instances, base_problems, action_counts
+        return cumulative_error/exec_instances, base_problems, self.action_counts
 
 
     def add_action_to_queue(self, action, timestep, id, action_name):
@@ -478,7 +480,7 @@ class NeuronEngine():
         for num in range(len(self.action_queue)):
             current = self.action_queue[num]
             if current[2] == id:
-                self.action_queue[num] = ("skip", current[1], current[2])
+                self.action_queue[num] = ("skip", current[1], current[2], "skip_post_death")
             
 
     def remove_neuron(self, neuron):
@@ -753,7 +755,7 @@ class Neuron(CellObjectSuper):
         self.config = config
         self.id = counter.counterval()
 
-        self.hox_variant_selection_program = self.neuron_initialization_data['hox_variant_selection']
+        self.hox_variant_selection_program = self.neuron_initialization_data['hox_variant_selection_program']
         self.internal_state_variable_count = self.neuron_initialization_data['internal_state_variable_count']
 
         self.axon_birth_program = None
@@ -796,7 +798,7 @@ class Neuron(CellObjectSuper):
 
     def program_order_lambda_factory(self, timestep, index):
         if index == 0:
-            return lambda: self.run_dendrite_birth(timestep), "neuron_dendrite_birth_program"
+            return lambda: self.run_dendrite_birth(timestep), "neuron_dendrite_birth"
         elif index == 1:
             return lambda: self.run_axon_birth(timestep), 'neuron_axon_birth'
         elif index == 2:
@@ -806,9 +808,9 @@ class Neuron(CellObjectSuper):
         elif index == 4:
             return lambda: self.run_neuron_birth(timestep), 'neuron_neuron_birth'
         elif index == 5:
-            return lambda: self.run_hox_selection(), "neuron_hox_variant_selection_program"
+            return lambda: self.run_hox_selection(), "neuron_hox_variant_selection"
         elif index == 6:
-            return lambda: self.run_action_controller(timestep), "neuron_action_controller_program"
+            return lambda: self.run_action_controller(timestep), "neuron_action_controller"
         else:
             raise Exception("Invalid program order index")
 
@@ -833,7 +835,7 @@ class Neuron(CellObjectSuper):
         for axon_dendrite in self.axons + self.dendrites:
             axon_dendrite.load_hox_programs()
 
-    def addqueue(self, lambdafunc, timestep, action_name):
+    def addqueue_inner(self, lambdafunc, timestep, action_name):
         addqueue(self.neuron_engine, lambdafunc, timestep, self.id, action_name)
 
     def create_new_dendrite(self, dendrite=True):
@@ -875,20 +877,20 @@ class Neuron(CellObjectSuper):
                 self.axons.append(Axon(self.axon_initialization_data, self.neuron_engine, self.signal_arity, self.counter, self, self.logger, self.config))
                 axon = self.axons[-1]
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran axon birth, axon {axon.id} born. Adding axon action controller to queue.")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: axon.run_action_controller(timestep+1), 
                     timestep + 1,
-                    "dendrite_action_controller_program"
+                    "dendrite_action_controller"
                 )
             
             if randcheck(outputs[1]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran axon birth, adding signal to axon and dendrites to queue.")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_signal_axon(outputs[2:2+self.signal_arity], timestep + 1), 
                     timestep + 1,
                     'neuron_signal_axon'
                 )
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_signal_dendrite(outputs[2:2+self.signal_arity], timestep + 1), 
                     timestep + 1,
                     'neuron_signal_dendrite'
@@ -898,7 +900,7 @@ class Neuron(CellObjectSuper):
             
             if randcheck(outputs[-1]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran axon birth, adding own action controller to queue.")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_action_controller(timestep + 1),
                     timestep + 1,
                     'neuron_action_controller'
@@ -923,7 +925,7 @@ class Neuron(CellObjectSuper):
                 self.dendrites.append(Axon(self.axon_initialization_data, self.neuron_engine, self.signal_arity, self.counter, self, self.logger, self.config))
                 dendrite = self.dendrites[-1]
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran dendrite birth program, gave birth to dendrite {dendrite.id}. Adding dendrite action controller to queue.")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: dendrite.run_action_controller(timestep + 1),
                     timestep + 1,
                     'dendrite_action_controller'
@@ -931,12 +933,12 @@ class Neuron(CellObjectSuper):
                 
             if randcheck(outputs[1]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran dendrite birth program. Adding run_signal to axon and dendrites to queue.")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_signal_axon(outputs[2:2+self.signal_arity], timestep + 1), 
                     timestep + 1,
                     'neuron_signal_axon'
                 )
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_signal_dendrite(outputs[2:2+self.signal_arity], timestep + 1), 
                     timestep + 1,
                     'neuron_signal_dendrite'
@@ -946,7 +948,7 @@ class Neuron(CellObjectSuper):
             
             if randcheck(outputs[-1]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran dendrite birth program. Adding own action controller to queue.")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_action_controller(timestep+1),
                     timestep + 1,
                     'neuron_action_controller'
@@ -967,7 +969,7 @@ class Neuron(CellObjectSuper):
             self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran signal dendrites. Recieve signal in dendrites {[x.id for x in self.dendrites]} added to queue.")
             for dendrite in self.dendrites:
                 if same_timestep:
-                    self.addqueue(
+                    self.addqueue_inner(
                         lambda: dendrite.run_recieve_signal_neuron(
                             outputs[1:1+self.signal_arity], 
                             timestep
@@ -976,7 +978,7 @@ class Neuron(CellObjectSuper):
                         'dendrite_recieve_signal_neuron'
                     )
                 else:
-                    self.addqueue(
+                    self.addqueue_inner(
                         lambda: dendrite.run_recieve_signal_neuron(
                             outputs[1:1+self.signal_arity], 
                             timestep + 1
@@ -989,7 +991,7 @@ class Neuron(CellObjectSuper):
         
         if randcheck(outputs[-1]): # TODO this one has too few outputs, this output also has another function, check all functions after juleferie
             self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran signal dendrites. Adding own action controller to queue.")
-            self.addqueue(
+            self.addqueue_inner(
                 lambda: self.run_action_controller(timestep + 1),
                 timestep + 1,
                 'neuron_action_controller'
@@ -1006,13 +1008,13 @@ class Neuron(CellObjectSuper):
 
             self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran recieve signal from dendrite. Adding own signal programs to axon and dendrites to queue. Inputs: {log_inputs}. Outputs: {outputs}")
 
-            self.addqueue(
+            self.addqueue_inner(
                 lambda: self.run_signal_dendrite(outputs[1:self.signal_arity+1], timestep + 1), 
                 timestep + 1,
                 'neuron_signal_dendrite'
             )
 
-            self.addqueue(
+            self.addqueue_inner(
                 lambda: self.run_signal_axon(outputs[1:self.signal_arity+1], timestep + 1), 
                 timestep + 1,
                 'neuron_signal_axon'
@@ -1021,7 +1023,7 @@ class Neuron(CellObjectSuper):
 
             if randcheck(outputs[0]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran recieve signal from dendrite, added own action controller to queue.")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_action_controller(timestep + 1), 
                     timestep + 1,
                     'neuron_action_controller'
@@ -1045,7 +1047,7 @@ class Neuron(CellObjectSuper):
             self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran signal axon. Recieve signal in axons {[x.id for x in self.axons]} added to queue.")
             for axon in self.axons:
                 if same_timestep:
-                    self.addqueue(
+                    self.addqueue_inner(
                         lambda: axon.run_recieve_signal_neuron(
                             outputs[1 + self.internal_state_variable_count:1+self.internal_state_variable_count+self.signal_arity], 
                             timestep
@@ -1054,7 +1056,7 @@ class Neuron(CellObjectSuper):
                         'axon_recieve_signal_neuron'
                     )
                 else:
-                    self.addqueue(
+                    self.addqueue_inner(
                         lambda: axon.run_recieve_signal_neuron(
                             outputs[1 + self.internal_state_variable_count:1+self.internal_state_variable_count+self.signal_arity], 
                             timestep + 1
@@ -1067,7 +1069,7 @@ class Neuron(CellObjectSuper):
         
         if randcheck(outputs[-1]):
             self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran signal axon. Added own action controller to queue.")
-            self.addqueue(
+            self.addqueue_inner(
                 lambda: self.run_action_controller(timestep + 1),
                 timestep + 1,
                 'neuron_action_controller'
@@ -1086,13 +1088,13 @@ class Neuron(CellObjectSuper):
 
             self.update_internal_state(listmult(outputs[1+self.signal_arity:1+self.signal_arity+self.internal_state_variable_count], outputs[1+self.signal_arity+self.internal_state_variable_count]))
 
-            self.addqueue(
+            self.addqueue_inner(
                 lambda: self.run_signal_dendrite(outputs[1:1+self.signal_arity], timestep + 1), 
                 timestep + 1,
                 'neuron_signal_dendrite'
             )
 
-            self.addqueue(
+            self.addqueue_inner(
                 lambda: self.run_signal_axon(outputs[1:1+self.signal_arity], timestep + 1), 
                 timestep + 1,
                 'neuron_signal_axon'
@@ -1101,7 +1103,7 @@ class Neuron(CellObjectSuper):
 
             if randcheck(outputs[0]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran recieve signal axon, added own action controller to queue.")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_action_controller(timestep + 1), 
                     timestep + 1,
                     'neuron_action_controller'
@@ -1123,7 +1125,7 @@ class Neuron(CellObjectSuper):
 
             if randcheck(outputs[0]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran recieve reward, added own action controller to queue. ")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_action_controller(timestep + 1), 
                     timestep + 1,
                     'neuron_action_controller'
@@ -1148,12 +1150,12 @@ class Neuron(CellObjectSuper):
 
             if randcheck(outputs[6]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran move. Adding signal actions to queue.")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_signal_axon(outputs[7:7+self.signal_arity], timestep + 1), 
                     timestep + 1,
                     'neuron_signal_axon'
                 )
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_signal_dendrite(outputs[7:7+self.signal_arity], timestep + 1), 
                     timestep + 1,
                     'neuron_signal_dendrite'
@@ -1200,12 +1202,12 @@ class Neuron(CellObjectSuper):
                 if randcheck(outputs[1]):
                     self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran die, calling run signal axon at this timestep. ")
                     # notice doing it at current timestep, breaking normal sequence, because dendrite.die is called at next timestep
-                    self.addqueue(
+                    self.addqueue_inner(
                         lambda: self.run_signal_axon(outputs[2:2+self.signal_arity], timestep, same_timestep = True), 
                         timestep,
                         'neuron_signal_axon'
                     )
-                    self.addqueue(
+                    self.addqueue_inner(
                         lambda: self.run_signal_dendrite(outputs[2:2+self.signal_arity], timestep, same_timestep = True), 
                         timestep,
                         'neuron_signal_dendrite'
@@ -1246,7 +1248,7 @@ class Neuron(CellObjectSuper):
                 self.update_internal_state(
                     listmult(outputs[2+new_neuron.internal_state_variable_count:2+new_neuron.internal_state_variable_count+self.internal_state_variable_count],
                         outputs[1+new_neuron.internal_state_variable_count]))
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: new_neuron.run_action_controller(timestep + 1), 
                     timestep + 1,
                     'neuron_neuron_birth'
@@ -1272,7 +1274,7 @@ class Neuron(CellObjectSuper):
                 output = outputs[num]
                 if randcheck(output):
                     func, name = self.program_order_lambda_factory(timestep + 1, num)
-                    self.addqueue(
+                    self.addqueue_inner(
                         func,
                         timestep + 1,
                         name
@@ -1404,6 +1406,7 @@ class Axon(CellObjectSuper):
         return True
 
     def seek_dendrite_connection(self, timestep = None):
+        self.neuron.neuron_engine.action_counts['dendrite_seek_connection'] += 1 
         if self.connected_dendrite is None:
             # Because seek_dendrite_connection can be added to the queue for the same axon-dendrite because a queued
             # action does not necessarily entile a future connection it is possible that this function is called when
@@ -1420,6 +1423,7 @@ class Axon(CellObjectSuper):
                 if target_dendrite is None: 
                     break
                 elif type(target_dendrite) is InputNeuron or type(target_dendrite) is OutputNeuron or (target_dendrite.neuron != self.neuron and type(target_dendrite) is Axon and target_dendrite.connected_dendrite is not None):
+                    self.neuron.neuron_engine.action_counts['dendrite_accept_connection'] += 2
                     if target_dendrite.run_accept_connection(self, timestep) and \
                         self.run_accept_connection(target_dendrite, timestep):
                             return self.connect(target_dendrite, timestep)
@@ -1439,17 +1443,17 @@ class Axon(CellObjectSuper):
         self.neuron.remove_dendrite(self)
 
     
-    def addqueue(self, lambdafunc, timestep):
-        addqueue(self.neuron_engine, lambdafunc, timestep, self.id)
+    def addqueue_inner(self, lambdafunc, timestep, action_name):
+        addqueue(self.neuron_engine, lambdafunc, timestep, self.id, action_name)
 
 
     def program_order_lambda_factory(self, timestep, index):
         if index == 0:
-            return lambda: self.run_break_connection(timestep), "dendrite_break_connection_program"
+            return lambda: self.run_break_connection(timestep), "dendrite_break_connection"
         elif index == 1:
-            return lambda: self.run_die(timestep), "dendrite_die_program"
+            return lambda: self.run_die(timestep), "dendrite_die"
         elif index == 2:
-            return lambda: self.run_action_controller(timestep), "dendrite_action_controller_program"
+            return lambda: self.run_action_controller(timestep), "dendrite_action_controller"
         else: 
             raise Exception("Invalid index")
 
@@ -1476,7 +1480,7 @@ class Axon(CellObjectSuper):
         if (not self.dying) and self.connected_dendrite is not None:
             outputs, log_inputs = self.recieve_signal_setup(self.recieve_signal_neuron_program, signals)
             self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran recieve signal neuron. Adding run signals to queue. Inputs: {log_inputs}. Outputs: {outputs}.")
-            self.addqueue(
+            self.addqueue_inner(
                 lambda: self.run_signal_dendrite(outputs[1:1+self.signal_arity], timestep + 1), 
                 timestep + 1,
                 'dendrite_signal_axon'
@@ -1484,7 +1488,7 @@ class Axon(CellObjectSuper):
 
             if randcheck(outputs[0]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Neuron ran recieve signal neuron. Adding own action controller to queue. ")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_action_controller(timestep + 1), 
                     timestep + 1,
                     'dendrite_action_controller'
@@ -1503,7 +1507,7 @@ class Axon(CellObjectSuper):
             outputs, log_inputs = self.recieve_signal_setup(self.recieve_signal_axon_program, signals)
 
             self.logger.log("engine_action", f"{self.id}, {timestep}: Axon ran recieve signal from dendrite. Adding run signals to queue. Inputs: {log_inputs}. Outputs: {outputs}")
-            self.addqueue(
+            self.addqueue_inner(
                 lambda: self.run_signal_dendrite(outputs[1:1+self.signal_arity], timestep + 1), 
                 timestep + 1,
                 'axon_signal_dendrite'
@@ -1511,7 +1515,7 @@ class Axon(CellObjectSuper):
 
             if randcheck(outputs[0]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Axon ran recieve signal from dendrite, added action controller to queue.")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_action_controller(timestep + 1), 
                     timestep + 1,
                     'dendrite_action_controller'
@@ -1532,7 +1536,7 @@ class Axon(CellObjectSuper):
 
             self.logger.log("engine_action", f"{self.id}, {timestep}: Dendrite ran recieve signal from axon. Adding run signals to queue. Inputs: {log_inputs}. Outputs: {outputs}.")
 
-            self.addqueue(
+            self.addqueue_inner(
                 lambda: self.run_signal_neuron(outputs[1:1+self.signal_arity], timestep + 1), 
                 timestep + 1,
                 'dendrite_signal_neuron'
@@ -1540,7 +1544,7 @@ class Axon(CellObjectSuper):
 
             if randcheck(outputs[0]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Dendrite ran recieve signal from axon. Adding own action controller to queue. ")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_action_controller(timestep + 1), 
                     timestep + 1,
                     'dendrite_action_controller'
@@ -1580,7 +1584,7 @@ class Axon(CellObjectSuper):
                                 outputs[1:1+self.signal_arity],
                                 timestep + 1
                             )
-                    self.addqueue(
+                    self.addqueue_inner(
                         lambda: _internal_handler(self, outputs, timestep, dendrite),
                         timestep + 1,
                         'axon_recieve_signal_dendrite'
@@ -1592,9 +1596,10 @@ class Axon(CellObjectSuper):
             self.update_internal_state(listmult(outputs[2+self.signal_arity:2+self.signal_arity+self.internal_state_variable_count], outputs[1+self.signal_arity]))
 
             if randcheck(outputs[-1] >= 1.0):
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_action_controller(timestep + 1),
-                    timestep + 1
+                    timestep + 1,
+                    'dendrite_action_controller'
                 )
             
         if self.connected_dendrite is None:
@@ -1615,7 +1620,7 @@ class Axon(CellObjectSuper):
                 # the queue when communicating between CellObjects - otherwise the class attribute may refer to the wrong entity
                 # upon execution, breaking the temporal sequencing. (Mostly a concern between axon-dendrite outgoing connections
                 # to other axon-dendrites, inputneurons or outputneurons)
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: neuron.run_recieve_signal_axon(
                         outputs[1:1+self.signal_arity],
                         timestep + 1),
@@ -1627,7 +1632,7 @@ class Axon(CellObjectSuper):
 
             if randcheck(outputs[-1]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Axon-dendrite ran signal neuron. Adding own action controller to queue.")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_action_controller(timestep+1),
                     timestep + 1,
                     'dendrite_action_controller'
@@ -1707,7 +1712,7 @@ class Axon(CellObjectSuper):
                         self.connected_dendrite.neuron.grid.add_free_dendrite(self.connected_dendrite)
                         if timestep is not None:
                             dendrite = self.connected_dendrite
-                            self.addqueue(
+                            self.addqueue_inner(
                                 lambda: dendrite.seek_dendrite_connection(), 
                                 timestep + 1,
                                 'dendrite_seek_connection'
@@ -1717,7 +1722,7 @@ class Axon(CellObjectSuper):
                 if not self.dying: # this can never happen though?
                     self.neuron.grid.add_free_dendrite(self)
                     if timestep is not None: 
-                        self.addqueue(
+                        self.addqueue_inner(
                             lambda: self.seek_dendrite_connection(),
                             timestep + 1,
                             'dendrite_seek_connection'
@@ -1738,7 +1743,7 @@ class Axon(CellObjectSuper):
             self.logger.log("engine_action", f"{self.id}, {timestep}: Axon-dendrite ran recieve reward. Inputs: {program_inputs}. Outputs: {outputs}.")
             if randcheck(outputs[0]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Axon-dendrite ran recieve reward. Added aciton-controller to queue.")
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_action_controller(timestep + 1), 
                     timestep + 1,
                     'dendrite_action_controller'
@@ -1758,17 +1763,17 @@ class Axon(CellObjectSuper):
             if randcheck(outputs[0]):
                 self.logger.log("engine_action", f"{self.id}, {timestep}: Axon-dendrite ran die, now dies. Adding run signals to queue..")
                 self.dying = True
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_signal_dendrite(outputs[1:1+self.signal_arity], timestep),
                     timestep,
                     'dendrite_axon_death_connection_signal'
                 )
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.run_signal_neuron(outputs[1:1+self.signal_arity], timestep),
                     timestep,
                     'dendrite_axon_death_neuron_signal'
                 )
-                self.addqueue(
+                self.addqueue_inner(
                     lambda: self.die(timestep + 1), 
                     timestep + 1,
                     'dendrite_die'
@@ -1790,7 +1795,7 @@ class Axon(CellObjectSuper):
                 # For some reason action is sometimes a lambda func inside a tuple. I have no idea why.
                 if type(action) == tuple:
                     action = action[0]
-                self.addqueue(
+                self.addqueue_inner(
                     action,
                     timestep + 1,
                     name

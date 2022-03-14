@@ -40,7 +40,7 @@ def log_genome(genomes, runinfo):
     for genome in genomes:
         initial_data = {
             "genome id" : genome[0].id,
-            "genome fitness" : genome[1],
+            "genome fitness" : genome[0].get_fitness(),
             "run" : runinfo
         }
         genome[0].log(initial_data)
@@ -417,8 +417,8 @@ def run(config, config_filename, output_path, print_output = False):
         changed = [False for x in genomes]
         random.shuffle(genome_data)
 
-        better_children = [False for x in range(len(genomes))]
-        neutral_children = [False for x in range(len(genomes))]
+        better_children = [False for x in range(len(genome_data))]
+        neutral_children = [False for x in range(len(genome_data))]
         # just for tracking actual percentage better genomes
         for num2 in range(len(genome_data)):
             new_genome = genome_data[num2]
@@ -437,35 +437,34 @@ def run(config, config_filename, output_path, print_output = False):
 
 
         for num2 in range(len(genome_data)):
-            if neutral_children[num2] or better_children[num2]:
-                new_genome = genome_data[num2]
-                new_genome_score = new_genome[0].get_fitness()
-                new_genome_parent_indexes = new_genome[3]
-                new_genome_id = new_genome[0].id
-                parent1_id = genomes[new_genome_parent_indexes[0]][0].id
-                parent2_id = genomes[new_genome_parent_indexes[1]][0].id
-                if new_genome_id != parent1_id and new_genome_id != parent2_id:
-                    parent1_score = genomes[new_genome_parent_indexes[0]][0].get_fitness()
-                    parent2_score = genomes[new_genome_parent_indexes[1]][0].get_fitness()
-                    if (new_genome_score < parent1_score) or (new_genome_score == parent1_score and not changed[new_genome_parent_indexes[0]]):
-                        old_genome = genomes[new_genome_parent_indexes[0]]
-                        historic_best_add(historic_bests, old_genome, config['genome_count'])
-                        genomes[new_genome_parent_indexes[0]] = new_genome
-                        changed[new_genome_parent_indexes[0]] = True
-                        if new_genome_score < parent1_score:
-                            change_better[new_genome_parent_indexes[0]] = True
-                        else:
-                            change_neutral[new_genome_parent_indexes[0]] = True
-                        parent1_score = new_genome_score
-                    elif (new_genome_score < parent2_score) or (new_genome_score == parent2_score and not changed[new_genome_parent_indexes[1]]):
-                        old_genome = genomes[new_genome_parent_indexes[1]]
-                        historic_best_add(historic_bests, old_genome, config['genome_count'])
-                        genomes[new_genome_parent_indexes[1]] = new_genome
-                        changed[new_genome_parent_indexes[1]] = True
-                        if new_genome_score < parent2_score:
-                            change_better[new_genome_parent_indexes[1]] = True
-                        else:
-                            change_neutral[new_genome_parent_indexes[1]] = True
+            new_genome = genome_data[num2]
+            new_genome_score = new_genome[0].get_fitness()
+            new_genome_parent_indexes = new_genome[3]
+            new_genome_id = new_genome[0].id
+            parent1_id = genomes[new_genome_parent_indexes[0]][0].id
+            parent2_id = genomes[new_genome_parent_indexes[1]][0].id
+            if new_genome_id != parent1_id and new_genome_id != parent2_id:
+                parent1_score = genomes[new_genome_parent_indexes[0]][0].get_fitness()
+                parent2_score = genomes[new_genome_parent_indexes[1]][0].get_fitness()
+                if (new_genome_score < parent1_score) or (new_genome_score == parent1_score and not changed[new_genome_parent_indexes[0]]):
+                    old_genome = genomes[new_genome_parent_indexes[0]]
+                    historic_best_add(historic_bests, old_genome, config['genome_count'])
+                    genomes[new_genome_parent_indexes[0]] = new_genome
+                    changed[new_genome_parent_indexes[0]] = True
+                    if new_genome_score < parent1_score:
+                        change_better[new_genome_parent_indexes[0]] = True
+                    else:
+                        change_neutral[new_genome_parent_indexes[0]] = True
+                    parent1_score = new_genome_score
+                elif (new_genome_score < parent2_score) or (new_genome_score == parent2_score and not changed[new_genome_parent_indexes[1]]):
+                    old_genome = genomes[new_genome_parent_indexes[1]]
+                    historic_best_add(historic_bests, old_genome, config['genome_count'])
+                    genomes[new_genome_parent_indexes[1]] = new_genome
+                    changed[new_genome_parent_indexes[1]] = True
+                    if new_genome_score < parent2_score:
+                        change_better[new_genome_parent_indexes[1]] = True
+                    else:
+                        change_neutral[new_genome_parent_indexes[1]] = True
 
         # update entries in historic best
         genomes, historic_bests, swaps = n_best_split(genomes, historic_bests)
@@ -473,7 +472,7 @@ def run(config, config_filename, output_path, print_output = False):
 
         statistic_entry['replacement_stats'] = {
             'better_population_swaps_percentage' : len([x for x in change_better if x])/len(change_better),
-            'neutral_population_swaps_percentage' : len([x for x in change_neutral if x]/len(change_neutral)),
+            'neutral_population_swaps_percentage' : len([x for x in change_neutral if x])/len(change_neutral),
             'better_child_percentage' : len([x for x in better_children if x])/len(better_children),
             'neutral_child_percentage' : len([x for x in neutral_children if x])/len(neutral_children),
             'historic_best_swaps' : swaps
@@ -489,8 +488,6 @@ def run(config, config_filename, output_path, print_output = False):
         time_genes_post_stamp = time.time()
         for num3 in range(len(genomes)):
             genome = genomes[num3][0]
-            genome.config['mutation_chance_link'] = x
-            genome.config['mutation_chance_node'] = x
             if change_better[num3]:
                 genome.config['mutation_chance_node'] = min(genome.config['max_mutation_chance_node'], genome.config['mutation_chance_node']*config['neutral_mutation_chance_node_multiplier'])
                 genome.config['mutation_chance_link'] = min(genome.config['max_mutation_chance_link'], genome.config['mutation_chance_link']*config['neutral_mutation_chance_link_multiplier'])
@@ -525,7 +522,7 @@ def run(config, config_filename, output_path, print_output = False):
             two = randchoice(bottom_genomes)
             genomes[genomes.index(two)] = one
             times_a_genome_took_population_slot_from_other_genome += 1
-
+            historic_best_add(historic_bests, two, config['genome_count'])
 
         statistic_entry["genome_replacement_stats"] = {
             "times_a_genome_took_population_slot_from_other_genome" : times_a_genome_took_population_slot_from_other_genome
@@ -579,7 +576,7 @@ def run(config, config_filename, output_path, print_output = False):
                 "fitness":genome[0].get_fitness(),
                 "fitness_std":float(numpy.std(genome[0].fitnessess)),
                 "performance_stats":copy.deepcopy(genome[6][1]),
-                "actions_stats":copy.deppcopy(genome[6][2]),
+                "actions_stats":copy.deepcopy(genome[6][2]),
                 "node_mutation_chance":genome[0].config['mutation_chance_node'],
                 "link_mutation_chance":genome[0].config['mutation_chance_link'],
                 "module_count_non_recursive":len(module_list),
@@ -612,7 +609,7 @@ def run(config, config_filename, output_path, print_output = False):
             if len(config['cgp_function_constant_numbers']) >= 1:
                 programs = [genome_genome.hex_selector_genome.program]
                 for chrom in genome_genome.function_chromosomes:
-                    for hex_var in chrom.homeobox_variants:
+                    for hex_var in chrom.hex_variants:
                         programs.append(hex_var.program)
                 for program in programs:
                     input_nodes = program.input_nodes[len(program.input_nodes)-len(config['cgp_function_constant_numbers']):]
@@ -620,7 +617,7 @@ def run(config, config_filename, output_path, print_output = False):
                     constant_number_use_count += get_use_value(input_nodes, active_nodes)
             
             axon_birth = genome_genome.function_chromosomes[0]
-            for hex_var in axon_birth.homeobox_variants:
+            for hex_var in axon_birth.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
@@ -628,25 +625,25 @@ def run(config, config_filename, output_path, print_output = False):
                 neuron_internal_state_use_count += get_use_value(program.input_nodes[4:4+neuron_internal_states], active_nodes)
             
             signal_axon_program = genome_genome.function_chromosomes[1]
-            for hex_var in signal_axon_program.homeobox_variants:
+            for hex_var in signal_axon_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
                 neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
                 signal_dimensionality_use_count += get_use_value(program.input_nodes[3:3+signal_dimensionality], active_nodes)
-                neuron_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+neuron_internal_states])
+                neuron_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+neuron_internal_states], active_nodes)
             
             recieve_axon_signal_program = genome_genome.function_chromosomes[2]
-            for hex_var in recieve_axon_signal_program.homeobox_variants:
+            for hex_var in recieve_axon_signal_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
                 neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
                 signal_dimensionality_use_count += get_use_value(program.input_nodes[3:3+signal_dimensionality], active_nodes)
-                neuron_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+neuron_internal_states])
+                neuron_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+neuron_internal_states], active_nodes)
             
             recieve_reward_signal_program = genome_genome.function_chromosomes[3]
-            for hex_var in recieve_reward_signal_program.homeobox_variants:
+            for hex_var in recieve_reward_signal_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
@@ -654,7 +651,7 @@ def run(config, config_filename, output_path, print_output = False):
                 neuron_internal_state_use_count += get_use_value(program.input_nodes[4:4+neuron_internal_states], active_nodes)
 
             move_program = genome_genome.function_chromosomes[4]
-            for hex_var in move_program.homeobox_variants:
+            for hex_var in move_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
@@ -662,7 +659,7 @@ def run(config, config_filename, output_path, print_output = False):
                 neuron_internal_state_use_count += get_use_value(program.input_nodes[3:3+neuron_internal_states], active_nodes)
 
             die_program = genome_genome.function_chromosomes[5]
-            for hex_var in die_program.homeobox_variants:
+            for hex_var in die_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
@@ -670,7 +667,7 @@ def run(config, config_filename, output_path, print_output = False):
                 neuron_internal_state_use_count += get_use_value(program.input_nodes[3:3+neuron_internal_states], active_nodes)
 
             neuron_birth_program = genome_genome.function_chromosomes[6]
-            for hex_var in neuron_birth_program.homeobox_variants:
+            for hex_var in neuron_birth_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
@@ -678,7 +675,7 @@ def run(config, config_filename, output_path, print_output = False):
                 neuron_internal_state_use_count += get_use_value(program.input_nodes[3:3+neuron_internal_states], active_nodes)
 
             action_controller_program = genome_genome.function_chromosomes[7]
-            for hex_var in action_controller_program.homeobox_variants:
+            for hex_var in action_controller_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
@@ -695,43 +692,43 @@ def run(config, config_filename, output_path, print_output = False):
             # DENDRITES
 
             recieve_signal_neuron_program = genome_genome.function_chromosomes[8]
-            for hex_var in recieve_signal_neuron_program.homeobox_variants:
+            for hex_var in recieve_signal_neuron_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
                 neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
                 signal_dimensionality_use_count += get_use_value(program.input_nodes[3:3+signal_dimensionality], active_nodes)
-                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+dendrite_internal_states])
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+dendrite_internal_states], active_nodes)
 
             recieve_signal_dendrite_program = genome_genome.function_chromosomes[9]
-            for hex_var in recieve_signal_dendrite_program.homeobox_variants:
+            for hex_var in recieve_signal_dendrite_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
                 neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
                 signal_dimensionality_use_count += get_use_value(program.input_nodes[3:3+signal_dimensionality], active_nodes)
-                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+dendrite_internal_states])
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+dendrite_internal_states], active_nodes)
 
             signal_dendrite_program = genome_genome.function_chromosomes[10]
-            for hex_var in signal_dendrite_program.homeobox_variants:
+            for hex_var in signal_dendrite_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
                 neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
                 signal_dimensionality_use_count += get_use_value(program.input_nodes[3:3+signal_dimensionality], active_nodes)
-                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+dendrite_internal_states])
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+dendrite_internal_states], active_nodes)
 
             signal_neuron_program = genome_genome.function_chromosomes[11]
-            for hex_var in signal_neuron_program.homeobox_variants:
+            for hex_var in signal_neuron_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
                 neuron_engine_dimensionality_use_count += get_use_value(program.input_nodes[0:3], active_nodes)
                 signal_dimensionality_use_count += get_use_value(program.input_nodes[3:3+signal_dimensionality], active_nodes)
-                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+dendrite_internal_states])
+                dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+signal_dimensionality:3+signal_dimensionality+dendrite_internal_states], active_nodes)
 
             accept_connection_program = genome_genome.function_chromosomes[12]
-            for hex_var in accept_connection_program.homeobox_variants:
+            for hex_var in accept_connection_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
@@ -741,7 +738,7 @@ def run(config, config_filename, output_path, print_output = False):
                 dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+dendrite_internal_states+3:3+dendrite_internal_states+3+dendrite_internal_states], active_nodes)
 
             break_connection_program = genome_genome.function_chromosomes[13]
-            for hex_var in break_connection_program.homeobox_variants:
+            for hex_var in break_connection_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
@@ -751,7 +748,7 @@ def run(config, config_filename, output_path, print_output = False):
                 dendrite_internal_state_use_count += get_use_value(program.input_nodes[3+dendrite_internal_states+3:3+dendrite_internal_states+3+dendrite_internal_states], active_nodes)
 
             recieve_reward_program = genome_genome.function_chromosomes[14]
-            for hex_var in recieve_reward_program.homeobox_variants:
+            for hex_var in recieve_reward_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
@@ -759,7 +756,7 @@ def run(config, config_filename, output_path, print_output = False):
                 dendrite_internal_state_use_count += get_use_value(program.input_nodes[4:4+dendrite_internal_states], active_nodes)
 
             die_program = genome_genome.function_chromosomes[15]
-            for hex_var in die_program.homeobox_variants:
+            for hex_var in die_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
@@ -767,7 +764,7 @@ def run(config, config_filename, output_path, print_output = False):
                 dendrite_internal_state_use_count += get_use_value(program.input_nodes[3:3+dendrite_internal_states], active_nodes)
 
             action_controller_program = genome_genome.function_chromosomes[16]
-            for hex_var in action_controller_program.homeobox_variants:
+            for hex_var in action_controller_program.hex_variants:
                 program = hex_var.program
                 active_nodes = program.get_active_nodes()
 
@@ -809,10 +806,11 @@ def run(config, config_filename, output_path, print_output = False):
 
     logger.log_statistic_data(diagnostic_data)
 
-    # TODO FIX LOGGER TO WRITE TO SINGLE FILE SO THAT THE SYSTEM IS NICE AND WORKS AND SHIT, MAKE IT WRITE OUT JSON TO ONE FILE,
-    # AND THEN USE A SCRIPT TO SPLIT THAT INTO FILES BECAUSE THE SERVER SYSTEM DOES NOT LIKE WRITING TO MANY FILES
+    # lets do this when it is good performance yes
+
     #logger.enabled = True
     #for num in range(len(genomes)):
+    #    log_genome(genomes, 0)
     #    genome = genomes[num][0]
     #    neuron_initialization_data, axon_initialization_data = genome_to_init_data(genome)
     #    problem = one_pole_problem.PoleBalancingProblem()
@@ -831,7 +829,7 @@ def run(config, config_filename, output_path, print_output = False):
     #        genome_id = genome.id,
     #        config_file = copydict(config)
     #    )
-    #    for num2 in range(10):
+    #    for num2 in range(4):
     #        problem = one_pole_problem.PoleBalancingProblem()
     #        engine.reset()
     #        engine.run(problem, num)

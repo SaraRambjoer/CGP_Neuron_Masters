@@ -5,7 +5,7 @@ import os
 if __name__ == "__main__":
     config_filename = sys.argv[1]
     output_path = sys.argv[2]
-    if sys.argv[3]:
+    if len(sys.argv) >= 4:
         output_path = os.path.join(output_path, config_filename)
         if not os.path.exists(output_path):
             os.mkdir(output_path)

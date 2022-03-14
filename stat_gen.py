@@ -25,8 +25,9 @@ for num in range(len(base_sub_dirs)):
         for num3 in range(len(sub_sub_dirs)):
             sub_sub_dir = sub_sub_dirs[num3]
             statpath = os.path.join(sub_sub_dir, "statistics.yml")
-            base_sub_statfilepaths[num].append(statpath)
-            run_interface(sub_sub_dir, statpath)
+            if os.path.exists(statpath):
+                base_sub_statfilepaths[num].append(statpath)
+                run_interface(sub_sub_dir, statpath)
     unified_statpath = "SPLIT".join(base_sub_statfilepaths[num])
     run_interface(uni_dir, unified_statpath)
 

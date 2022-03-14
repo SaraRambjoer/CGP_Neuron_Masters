@@ -106,7 +106,7 @@ def runme(statistics_folder, statistics_files):
         with open(statistics_file, 'r') as f:
             yaml_stats.append(yaml.load(f, Loader=yaml.SafeLoader))
     
-    actions_maxes = [x['actions_max'] for x in yaml_stats]
+    actions_maxes = [x['config']['actions_max'] for x in yaml_stats]
     runs_per_iteration = actions_maxes[0]
     for num in actions_maxes:
         if num != runs_per_iteration:

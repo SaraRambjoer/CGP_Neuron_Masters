@@ -9,7 +9,7 @@ import numpy as np
 import seaborn as sns
 import pandas
 import sys
-import scipy.stats.entropy as entropy
+from scipy.stats import entropy
 
 def average(a_list):
     return sum(a_list)/len(a_list)
@@ -548,6 +548,38 @@ def runme(statistics_folder, statistics_files):
     )
     plot_basic(any_change_avg, "Any change %", "Iteration", "any_change.png", statistics_folder)
 
+    dendrite_internal_state_use_count_average = []
+    constant_number_use_avg = []
+    neuron_engine_dim_use_avg = []
+    signal_dim_use_avg = []
+    neuron_internal_state_avg = []
+
+    for it in range(len(yaml_stats[0]['iterations'])):
+        dendrite_use_avg = []
+        constant_avg = []
+        neuron_dim_avg = []
+        signal_dim_avg = []
+        neuron_int_avg = []
+        for genome_dat in [x['iterations'][it] for x in yaml_stats]:
+            dendrite_use_avg.append(genome_dat['dendrite_internal_state_use_count'])
+            constant_avg.append(genome_dat['constant_avg'])
+            neuron_dim_avg.append(genome_dat['neuron_dim_avg'])
+            signal_dim_avg.append(genome_dat['signal_dim_avg'])
+            neuron_int_avg.append(genome_dat['neuron_int_avg'])
+        
+        dendrite_internal_state_use_count_average.append(average(dendrite_use_avg))
+        constant_number_use_avg.append(average(constant_avg))
+        neuron_engine_dim_use_avg.append(average(neuron_dim_avg))
+        signal_dim_use_avg.append(average(signal_dim_avg))
+        neuron_internal_state_avg.append(average(neuron_int_avg))
+    
+    plot_basic(dendrite_internal_state_use_count_average, "Avg. CGP connection count to dendrite state input", "Iteration", "cgp_use_dendrite_state.png", statistics_folder)
+    plot_basic(constant_number_use_avg, "Avg. CGP connection count to constant number input", "Iteration", "cgp_use_constant.png", statistics_folder)
+    plot_basic(neuron_engine_dim_use_avg, "Avg. CGP connection count to neuron engine dimension input", "Iteration", "cgp_use_neuron_engine.png", statistics_folder)
+    plot_basic(signal_dim_use_avg, "Avg. CGP connection count to signal dimension input", "Iteration", "cgp_use_signal_dim.png", statistics_folder)
+    plot_basic(neuron_internal_state_avg, "Avg. CGP connection count to neuron state input", "Iteration", "cgp_use_neuron_state.png", statistics_folder)
+
+
 
 
 
@@ -593,7 +625,12 @@ def runme(statistics_folder, statistics_files):
             any_swap_avg,
             better_child_percentage_avg,
             neutral_child_percentage_avg,
-            any_change_avg
+            any_change_avg,
+            dendrite_internal_state_use_count_average,
+            constant_number_use_avg,
+            neuron_engine_dim_use_avg,
+            signal_dim_use_avg,
+            neuron_internal_state_avg
         ] + [[y for y in x] for x in cgp_node_type_data.values()]
 
     y = [
@@ -627,7 +664,13 @@ def runme(statistics_folder, statistics_files):
             'any_swap_avg',
             'better_child_percentage',
             'neutral_child_percentage',
-            'any_change_child_percentage'
+            'any_change_child_percentage',
+            'dendrite_internal_state_use_count_average',
+            'constant_number_use_avg',
+            'neuron_engine_dim_use_avg',
+            'signal_dim_use_avg',
+            'neuron_internal_state_avg'
+
         ] + [x for x in cgp_node_type_data.keys()]
     
     dataframe = pandas.DataFrame(

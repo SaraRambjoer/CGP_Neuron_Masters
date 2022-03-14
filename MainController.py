@@ -773,7 +773,7 @@ def run(config, config_filename, output_path, print_output = False):
 
             # assuming 18 neuron and dendrite functions total 
             if len(config['cgp_function_constant_numbers']) >= 1:
-                constant_number_use_count = constant_number_use_count/(18*config['cgp_function_constant_numbers'])
+                constant_number_use_count = constant_number_use_count/(18*len(config['cgp_function_constant_numbers']))
             neuron_internal_state_use_count = neuron_internal_state_use_count/(9*neuron_internal_states) 
             dendrite_internal_state_use_count = dendrite_internal_state_use_count/(9*dendrite_internal_states + 2 * dendrite_internal_states) # because connection functions use twice
             signal_dimensionality_use_count = signal_dimensionality_use_count/(6*signal_dimensionality)

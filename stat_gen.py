@@ -6,7 +6,7 @@ import subprocess
 def run_interface(folder, paths):
     subprocess.call("python statistics_analyzer.py " + folder + " " + paths)
 
-basefolder = r'C:\Users\jonora\Desktop\logfiles'
+basefolder = r'C:\Users\jonora\Documents\bugtest_logfile_14_03'
 
 base_sub_dirs = [f.path for f in os.scandir(basefolder)]
 unified_dir = [x for x in base_sub_dirs if "unified" in x][0]

@@ -10,6 +10,7 @@ import seaborn as sns
 import pandas
 import sys
 from scipy.stats import entropy
+import os
 
 def average(a_list):
     return sum(a_list)/len(a_list)
@@ -237,12 +238,12 @@ def runme(statistics_folder, statistics_files):
     )
 
     # connectivity
-    node_connectivity_avg = []
-    node_connectivity_std = []
-    input_node_connectivity_avg = []
-    input_node_connectivity_std = []
-    output_node_connectivity_std = []
-    output_node_connectivity_avg = []
+    neuron_connectivity_avg = []
+    neuron_connectivity_std = []
+    input_neuron_connectivity_avg = []
+    input_neuron_connectivity_std = []
+    output_neuron_connectivity_std = []
+    output_neuron_connectivity_avg = []
 
 
     for it in range(len(yaml_stats[0]['iterations'])):
@@ -253,18 +254,18 @@ def runme(statistics_folder, statistics_files):
         output_node_connectivities = []
         for genome_list in genome_lists:
             for genome in genome_list:
-                node_connectivities.append(genome['performance_stats']['node_connectivity'])
+                node_connectivities.append(genome['performance_stats']['neuron_connectivity'])
                 input_node_connectivities.append(genome['performance_stats']['input_connectivity'])
                 output_node_connectivities.append(genome['performance_stats']['output_connectivity'])
-        node_connectivity_avg.append(average(node_connectivities))
-        node_connectivity_std.append(np.std(node_connectivities))
-        input_node_connectivity_avg.append(average(input_node_connectivities))
-        input_node_connectivity_std.append(np.std(input_node_connectivities))
-        output_node_connectivity_avg.append(average(output_node_connectivities))
-        output_node_connectivity_std.append(np.std(output_node_connectivities))
+        neuron_connectivity_avg.append(average(node_connectivities))
+        neuron_connectivity_std.append(np.std(node_connectivities))
+        input_neuron_connectivity_avg.append(average(input_node_connectivities))
+        input_neuron_connectivity_std.append(np.std(input_node_connectivities))
+        output_neuron_connectivity_avg.append(average(output_node_connectivities))
+        output_neuron_connectivity_std.append(np.std(output_node_connectivities))
 
     plot_average_std(
-        [node_connectivity_avg, node_connectivity_std],
+        [neuron_connectivity_avg, neuron_connectivity_std],
         ["node avg", "node_std"],
         "connectivity",
         "iteration",
@@ -272,7 +273,7 @@ def runme(statistics_folder, statistics_files):
     )
 
     plot_average_std(
-        [input_node_connectivity_avg, input_node_connectivity_std],
+        [input_neuron_connectivity_avg, input_neuron_connectivity_std],
         ["input node avg", "input node std"],
         "connectivity",
         "iteration",
@@ -280,7 +281,7 @@ def runme(statistics_folder, statistics_files):
     )
 
     plot_average_std(
-        [output_node_connectivity_avg, output_node_connectivity_std],
+        [output_neuron_connectivity_avg, output_neuron_connectivity_std],
         ["output node avg", "output node std"],
         "connectivity",
         "iteration",
@@ -289,8 +290,8 @@ def runme(statistics_folder, statistics_files):
 
     # Unique input/output connections
 
-    unique_output_node_connections_avg = []
-    unique_input_node_connections_avg = []
+    unique_output_neuron_connections_avg = []
+    unique_input_neuron_connections_avg = []
     unique_output_node_connections_std = []
     unique_input_node_connections_std = []
 
@@ -303,13 +304,13 @@ def runme(statistics_folder, statistics_files):
                 unique_output_node_connections.append(genome['performance_stats']['nodes_connected_to_output_nodes'])
                 unique_input_node_connections.append(genome['performance_stats']['nodes_connected_to_input_nodes'])
 
-        unique_output_node_connections_avg.append(average(unique_output_node_connections))
-        unique_input_node_connections_avg.append(average(unique_input_node_connections))
+        unique_output_neuron_connections_avg.append(average(unique_output_node_connections))
+        unique_input_neuron_connections_avg.append(average(unique_input_node_connections))
         unique_output_node_connections_std.append(np.std(unique_output_node_connections))
         unique_input_node_connections_std.append(np.std(unique_input_node_connections))
 
     plot_average_std(
-        [unique_output_node_connections_avg, unique_output_node_connections_std],
+        [unique_output_neuron_connections_avg, unique_output_node_connections_std],
         ["output avg", "output std"],
         "unique connected nodes to layer",
         "iteration",
@@ -317,7 +318,7 @@ def runme(statistics_folder, statistics_files):
     )
 
     plot_average_std(
-        [unique_input_node_connections_avg, unique_input_node_connections_std],
+        [unique_input_neuron_connections_avg, unique_input_node_connections_std],
         ["input avg", "input std"],
         "unique connected nodes to layer",
         "iteration",
@@ -430,7 +431,7 @@ def runme(statistics_folder, statistics_files):
         neuron_counts = []
         for genome_list in genome_lists:
             for genome in genome_list:
-                neuron_counts.append(genome['performance_stats']['node_count']) 
+                neuron_counts.append(genome['performance_stats']['neuron_count']) 
 
         neuron_counts_avg.append(average(neuron_counts))
         neuron_counts_std.append(np.std(neuron_counts))
@@ -448,15 +449,15 @@ def runme(statistics_folder, statistics_files):
         inner_avgs = []
         for genome_dat in [x['iterations'][it] for x in yaml_stats]:
             id_strings = []
-            for genome in genome_dat['genome_list']:
+            for genome in genome_dat['genomes_data']['genome_list']:
                 id_strings.append(genome['id'])
-            encountered = []
+            encountered = {}
             for id in id_strings:
                 if id not in encountered:
                     encountered[id] = 1
                 else:
                     encountered[id] += 1
-            inner_avgs.append(entropy(encountered.values()))
+            inner_avgs.append(entropy(list(encountered.values())))
         population_entropy_avg.append(average(inner_avgs))
     
     plot_basic(population_entropy_avg,
@@ -509,6 +510,17 @@ def runme(statistics_folder, statistics_files):
 
     plot_basic(any_swap_avg, "Any swap %", "Iteration", "any_swap.png", statistics_folder)
 
+    historic_best_swap_avg = []
+
+    for it in range(len(yaml_stats[0]['iterations'])):
+        historic_swap = []
+        for genome_dat in [x['iterations'][it] for x in yaml_stats]:
+            historic_swap.append(genome_dat['replacement_stats']['historic_best_swaps'])
+
+        historic_best_swap_avg.append(average(historic_swap))
+
+    plot_basic(historic_best_swap_avg, "Historic list swaps", "Iteration", "historic_best_swaps.png", statistics_folder)
+
 
     better_child_percentage_avg = []
     better_child_percentage_std = []
@@ -560,12 +572,12 @@ def runme(statistics_folder, statistics_files):
         neuron_dim_avg = []
         signal_dim_avg = []
         neuron_int_avg = []
-        for genome_dat in [x['iterations'][it] for x in yaml_stats]:
+        for genome_dat in [x['iterations'][it]['genomes_data'] for x in yaml_stats]:
             dendrite_use_avg.append(genome_dat['dendrite_internal_state_use_count'])
-            constant_avg.append(genome_dat['constant_avg'])
-            neuron_dim_avg.append(genome_dat['neuron_dim_avg'])
-            signal_dim_avg.append(genome_dat['signal_dim_avg'])
-            neuron_int_avg.append(genome_dat['neuron_int_avg'])
+            constant_avg.append(genome_dat['constant_number_use_count'])
+            neuron_dim_avg.append(genome_dat['neuron_engine_dimensionality_use_count'])
+            signal_dim_avg.append(genome_dat['signal_dimensionality_use_count'])
+            neuron_int_avg.append(genome_dat['neuron_internal_state_use_count'])
         
         dendrite_internal_state_use_count_average.append(average(dendrite_use_avg))
         constant_number_use_avg.append(average(constant_avg))
@@ -578,6 +590,52 @@ def runme(statistics_folder, statistics_files):
     plot_basic(neuron_engine_dim_use_avg, "Avg. CGP connection count to neuron engine dimension input", "Iteration", "cgp_use_neuron_engine.png", statistics_folder)
     plot_basic(signal_dim_use_avg, "Avg. CGP connection count to signal dimension input", "Iteration", "cgp_use_signal_dim.png", statistics_folder)
     plot_basic(neuron_internal_state_avg, "Avg. CGP connection count to neuron state input", "Iteration", "cgp_use_neuron_state.png", statistics_folder)
+
+
+    _fldr = os.path.join(statistics_folder, "neuron_engine_actions")
+    if not os.path.exists(_fldr):
+        os.mkdir(_fldr)
+    
+    for name in [
+        'axon_recieve_signal_dendrite',
+        'axon_recieve_signal_neuron',
+        'axon_signal_dendrite',
+        'dendrite_accept_connection',
+        'dendrite_action_controller',
+        'dendrite_axon_death_connection_signal',
+        'dendrite_axon_death_neuron_signal',
+        'dendrite_break_connection',
+        'dendrite_die',
+        'dendrite_recieve_reward',
+        'dendrite_recieve_signal_axon',
+        'dendrite_recieve_signal_dendrite',
+        'dendrite_recieve_signal_neuron',
+        'dendrite_seek_connection',
+        'dendrite_signal_axon',
+        'dendrite_signal_dendrite',
+        'dendrite_signal_neuron',
+        'neuron_action_controller',
+        'neuron_axon_birth',
+        'neuron_dendrite_birth',
+        'neuron_die',
+        'neuron_hox_variant_selection',
+        'neuron_move',
+        'neuron_neuron_birth',
+        'neuron_recieve_axon_signal',
+        'neuron_recieve_reward',
+        'neuron_signal_axon',
+        'neuron_signal_dendrite',
+        'skip_post_death'
+    ]:
+        avg = []
+        for it in range(len(yaml_stats[0]['iterations'])):
+            times = []
+            for genome_dat in [x['iterations'][it]['genomes_data']['genome_list'] for x in yaml_stats]:
+                for genome_entry in genome_dat:
+                    times.append(genome_entry['actions_stats'][name])
+            avg.append(average(times))
+
+        plot_basic(avg, name, "Iteration", name+".png", _fldr)
 
 
 
@@ -600,11 +658,11 @@ def runme(statistics_folder, statistics_files):
             module_count_avg,
             recursive_module_count_avg,
             module_size_avg,
-            unique_output_node_connections_avg,
-            unique_input_node_connections_avg,
-            node_connectivity_avg,
-            input_node_connectivity_avg,
-            output_node_connectivity_avg,
+            unique_output_neuron_connections_avg,
+            unique_input_neuron_connections_avg,
+            neuron_connectivity_avg,
+            input_neuron_connectivity_avg,
+            output_neuron_connectivity_avg,
             hox_switch_count_average,
             max_link_mutation_chances,
             min_link_mutation_chances,
@@ -639,11 +697,11 @@ def runme(statistics_folder, statistics_files):
             'module_count_avg',
             'recursive_module_count_avg',
             'module_size_avg',
-            'unique_output_node_connections_avg',
-            'unique_input_node_connections_avg',
-            'node_connectivity_avg',
-            'input_node_connectivity_avg',
-            'output_node_connectivity_avg',
+            'unique_output_neuron_connections_avg',
+            'unique_input_neuron_connections_avg',
+            'neuron_connectivity_avg',
+            'input_neuron_connectivity_avg',
+            'output_neuron_connectivity_avg',
             'hox_switch_count_average',
             'max_link_mutation_chances',
             'min_link_mutation_chances',

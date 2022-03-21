@@ -343,8 +343,8 @@ class NeuronEngine():
             'axon_recieve_signal_dendrite':0,
             'dendrite_signal_axon':0,
             'axon_signal_dendrite':0,
-            'dendrite_signal_dendrite':0,
             'dendrite_signal_neuron':0,
+            'axon_signal_neuron':0,
             'dendrite_accept_connection':0,
             'dendrite_break_connection':0,
             'dendrite_recieve_reward':0,
@@ -1539,7 +1539,7 @@ class Axon(CellObjectSuper):
             self.addqueue_inner(
                 lambda: self.run_signal_neuron(outputs[1:1+self.signal_arity], timestep + 1), 
                 timestep + 1,
-                'dendrite_signal_neuron'
+                'axon_signal_neuron'
             )
 
             if randcheck(outputs[0]):

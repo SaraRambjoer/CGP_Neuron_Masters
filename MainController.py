@@ -494,11 +494,13 @@ def run(config, config_filename, output_path, print_output = False):
                 genome.hypermutation = False
             elif change_neutral[num3]:
                 genome.hypermutation = False
+                genome.config['mutation_chance_node'] *= 0.99
+                genome.config['mutation_chance_link'] *= 0.99
             else:
                 if not(genome.hypermutation):
                     genome.config['mutation_chance_node'] *= config['fail_mutation_chance_node_multiplier']
                     genome.config['mutation_chance_link'] *= config['fail_mutation_chance_link_multiplier']
-                    if genome.config['mutation_chance_node'] < 0.0001:
+                    if genome.config['mutation_chance_node'] <= 0.0001:
                         genome.hypermutation = True
                         genome.config['mutation_chance_node'] = config['hypermutation_mutation_chance']
                         genome.config['mutation_chance_link'] = config['hypermutation_mutation_chance']

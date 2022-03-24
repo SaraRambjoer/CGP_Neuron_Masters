@@ -10,11 +10,11 @@ from cgp_program_executor import run_code, cap
 
 class NodeAbstract():
     """Abstract superclass for nodes"""
-    def __init__(self, use_miller_funcs, use_miller_and_random) -> None:
+    def __init__(self, use_miller_funcs, miller_and_random) -> None:
         self.subscribers = []
         self.output = None
         self.use_miller_funcs = use_miller_funcs
-        self.use_miller_and_random = use_miller_and_random
+        self.miller_and_random = miller_and_random
         if not use_miller_funcs:
             self.CPGNodeTypes = [
                 "ADDI",
@@ -85,7 +85,7 @@ class NodeAbstract():
                 "tor":2,
                 "rmux":2
             }
-            if use_miller_and_random:
+            if miller_and_random:
                 self.CPGNodeTypes.append("GAUS")
                 self.NodeTypeArity["GAUS"] = 2
 
@@ -145,70 +145,91 @@ class NodeAbstract():
             return cap(result)
         return cap(x0/x1)
 
-    def _miller_abs(x0):
+    def _miller_abs(self, x0):
         return cap(abs(x0))
-    def miller_sqr(x0):
+
+    def _miller_sqr(self, x0):
         return cap(x0*x0)
-    def _miller_sqrt(x0):
+
+    def _miller_sqrt(self, x0):
         return cap(math.sqrt(x0))
-    def _miller_cube(x0):
+
+    def _miller_cube(self, x0):
         return cap(x0*x0*x0)
+
     def _miller_exp(x0):
         z0 = x0
         return cap((2*math.pow(math.e, (z0+1)) - math.pow(math.e, 2) - 1)/(math.pow(math.e, 2) - 1))
-    def _miller_sin(x0):
+
+    def _miller_sin(self, x0):
         return cap(math.sin(x0))
-    def _miller_cos(x0):
+
+    def _miller_cos(self, x0):
         return cap(math.cos(x0))
-    def _miller_tanh(x0):
+
+    def _miller_tanh(self, x0):
         return cap(math.tanh(x0))
-    def _miller_inv(x0):
+
+    def _miller_inv(self, x0):
         return cap(- x0)
-    def _miller_step(x0):
+
+    def _miller_step(self, x0):
         return cap(0.0 if x0 < 0.0 else 1.0)
-    def _miller_hyp(x0, x1):
+
+    def _miller_hyp(self, x0, x1):
         z0 = x0
         z1 = x1
         return cap(math.sqrt((z0*z0 + z1*z1)/2))
-    def _miller_add(x0, x1):
+
+    def _miller_add(self, x0, x1):
         return cap((x0 + x1)/2)
-    def _miller_sub(x0, x1):
+
+    def _miller_sub(self, x0, x1):
         return cap((x0 - x1)/2)
-    def _miller_mult(x0, x1):
+
+    def _miller_mult(self, x0, x1):
         return cap(x0*x1)
-    def _miller_max(x0, x1):
+
+    def _miller_max(self, x0, x1):
         z0 = x0
         z1 = x1
         return cap(z0 if z0 >= z1 else z1)
-    def _miller_min(x0, x1):
+
+    def _miller_min(self, x0, x1):
         z0 = x0
         z1 = x1
         return cap(z0 if z0 <= z1 else z1)
-    def _miller_and(x0, x1):
+
+    def _miller_and(self, x0, x1):
         z0 = x0
         z1 = x1
         return cap(1.0 if (z0 > 0.0 and z1 > 0.0) else 0.0)
-    def _miller_or(x0, x1):
+
+    def _miller_or(self, x0, x1):
         z0 = x0
         z1 = x1
         return cap(1.0 if (z0 > 0.0 or z1 > 0.0) else 0.0)
-    def _miller_rmux(x0, x1, x2):
+
+    def _miller_rmux(self, x0, x1, x2):
         z0 = x0
         z1 = x1
         z2 = x2
         return cap(z0 if z2 > 0.0 else z1)
-    def _miller_imult(x0, x1):
+
+    def _miller_imult(self, x0, x1):
         z0 = x0
         z1 = x1
         return cap(- z0*z1)
-    def _miller_xor(x0, x1):
+    def _miller_xor(self, x0, x1):
         z0 = x0
         z1 = x1
         return cap(-1.0 if ((z0 > 0.0 and z1 > 0.0) or (z0 < 0.0 and z1 < 0.0)) else 1.0)
-    def _miller_istep(x0):
+
+    def _miller_istep(self, x0):
         z0 = x0
         return cap(0.0 if z0 < 1.0 else -1.0)
-    def _miller_tand(x0, x1):
+
+    def _miller_tand(self, x0, x1):
         z0 = x0
         z1 = x1
         if z0 > 0.0 and z1 > 0.0:
@@ -217,7 +238,8 @@ class NodeAbstract():
             return cap(-1.0)
         else:
             return cap(0.0)
-    def _miller_tor(x0, x1):
+
+    def _miller_tor(self, x0, x1):
         z0 = x0
         z1 = x1
         if z0 > 0.0 and z1 > 0.0:
@@ -258,10 +280,10 @@ class NodeAbstract():
             else:
                 parent1 = randchoice(use_nodes)
                 parent2 = randchoice(use_nodes)
-            node = CGPNode(node_type, [parent1, parent2], counter, max((parent1.row_depth, parent2.row_depth))+1, debug, self.use_miller_funcs, self.use_miller_and_random)
+            node = CGPNode(node_type, [parent1, parent2], counter, max((parent1.row_depth, parent2.row_depth))+1, debug, self.use_miller_funcs, self.miller_and_random)
         elif node_type in self.oneary:
             parent1 = randchoice(use_nodes)
-            node = CGPNode(node_type, [parent1], counter, parent1.row_depth+1, debug, self.use_miller_funcs, self.use_miller_and_random)
+            node = CGPNode(node_type, [parent1], counter, parent1.row_depth+1, debug, self.use_miller_funcs, self.miller_and_random)
         node.validate()
         return node
 
@@ -336,7 +358,7 @@ class CGPNode(NodeAbstract):
         if type(self.type) is CGPModuleType and self.ready_inputs == self.arity:
             self.output = self.type.run([x.output for x in self.inputs])
             self.alert_subscribers()
-        elif self.read_inputs == 3 and type(self.type) is not CGPModuleType and self.NodeTypeArity[self.type] == 3:
+        elif self.ready_inputs == 3 and type(self.type) is not CGPModuleType and self.NodeTypeArity[self.type] == 3:
             self.output = self.type_func_map[self.type](self.inputs[0].output, self.inputs[1].output, self.inputs[2].output)
             self.alert_subscribers()    
         elif self.ready_inputs == 2 and type(self.type) is not CGPModuleType and self.NodeTypeArity[self.type] == 2:
@@ -710,7 +732,7 @@ class CGPProgram:
         node_copy = []
         #self.validate_nodes()
         for node in self.nodes:
-            new_node = CGPNode(node.type, [], self.counter, 0, self.debugging, self.use_miller_funcs, self.use_miller_and_random)
+            new_node = CGPNode(node.type, [], self.counter, 0, self.debugging, self.use_miller_funcs, self.miller_and_random)
             new_node.id = int(node.id)
             new_node.row_depth = int(node.row_depth+1)
             new_node.arity = int(node.arity)
@@ -804,7 +826,7 @@ class CGPProgram:
                 subgraph_partly_copied = []
                 # Init copies
                 for node in subgraph_nodes:
-                    copy_node = CGPNode(node.type, [], node.counter, node.row_depth, node.debugging, self.use_miller_funcs, self.use_miller_and_random)
+                    copy_node = CGPNode(node.type, [], node.counter, node.row_depth, node.debugging, self.use_miller_funcs, self.miller_and_random)
                     copy_node.id = node.id
                     copy_node.arity = node.arity
                     subgraph_partly_copied += [copy_node]

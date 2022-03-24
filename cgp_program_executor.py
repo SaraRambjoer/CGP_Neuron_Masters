@@ -36,7 +36,8 @@ def calc_function(function, init_data, function_input_pointers):
                 to_return = init_data[function_input_pointers[0]]/-0.01
             else:
                 to_return = init_data[function_input_pointers[0]]/0.01
-        return init_data[function_input_pointers[0]]/init_data[function_input_pointers[1]]
+        else:
+            to_return = init_data[function_input_pointers[0]]/init_data[function_input_pointers[1]]
     
     # miller functions below
 

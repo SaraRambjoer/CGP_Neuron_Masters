@@ -810,31 +810,31 @@ def run(config, config_filename, output_path, print_output = False):
 
     # lets do this when it is good performance yes
 
-    #logger.enabled = True
-    #for num in range(len(genomes)):
-    #    log_genome(genomes, 0)
-    #    genome = genomes[num][0]
-    #    neuron_initialization_data, axon_initialization_data = genome_to_init_data(genome)
-    #    problem = one_pole_problem.PoleBalancingProblem()
-    #    engine = NeuronEngine(
-    #        input_arity = problem.input_arity,
-    #        output_arity = problem.output_arity,
-    #        grid_count = grid_count,
-    #        grid_size = grid_size,
-    #        actions_max = actions_max,
-    #        neuron_initialization_data = neuron_initialization_data,
-    #        axon_initialization_data = axon_initialization_data,
-    #        signal_arity = signal_dimensionality,
-    #        hox_variant_count = hox_variant_count,
-    #        instances_per_iteration = instances_per_iteration,
-    #        logger = logger,
-    #        genome_id = genome.id,
-    #        config_file = copydict(config)
-    #    )
-    #    for num2 in range(4):
-    #        problem = one_pole_problem.PoleBalancingProblem()
-    #        engine.reset()
-    #        engine.run(problem, num)
+    logger.enabled = True
+    for num in range(len(genomes)):
+        log_genome(genomes, 0)
+        genome = genomes[num][0]
+        neuron_initialization_data, axon_initialization_data = genome_to_init_data(genome)
+        problem = one_pole_problem.PoleBalancingProblem()
+        engine = NeuronEngine(
+            input_arity = problem.input_arity,
+            output_arity = problem.output_arity,
+            grid_count = grid_count,
+            grid_size = grid_size,
+            actions_max = actions_max,
+            neuron_initialization_data = neuron_initialization_data,
+            axon_initialization_data = axon_initialization_data,
+            signal_arity = signal_dimensionality,
+            hox_variant_count = hox_variant_count,
+            instances_per_iteration = instances_per_iteration,
+            logger = logger,
+            genome_id = genome.id,
+            config_file = copydict(config)
+        )
+        for num2 in range(4):
+            problem = one_pole_problem.PoleBalancingProblem()
+            engine.reset()
+            engine.run(problem, num)
 
     return to_return_fitness, diagnostic_data
 

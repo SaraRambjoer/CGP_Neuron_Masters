@@ -38,25 +38,29 @@ class Logger:
         if self.enabled: 
             if message_type not in self.ignored_messages_list:
                 if message_type == "instance_end":
+                    return None  # These things WORK, BUT they require a ridicolous amount of storage, so much so that it doesn't actually work after all. Although it could be made
+                    #  to work, I'm pretty sure IDUN would not like it well enough to run properly.
                     if len(self.buffer) > 0:
-                        with open(self.intermediary_intermediary_output_dir + "/rundat.txt", 'a') as f:
-                            f.writelines("\n".join(self.buffer))
+                        with open(self.target_file, 'a') as f:
+                            f.writelines("\n".join(self.buffer + ["END OF SAMPLE"]))
                             self.buffer = []
                 elif message_type == "run_start":
-                    self.intermediary_output_dir = self.output_dir + f"/{message[0]}"
+                    return None
+                    self.intermediary_output_dir = self.output_dir + r"/detailed_run_output"
                     if not os.path.exists(self.intermediary_output_dir):
                         mkdir(self.intermediary_output_dir)
-                    self.intermediary_output_dir = self.output_dir + f"/{message[0]}/{message[1]}"
-                    if not os.path.exists(self.intermediary_output_dir):
-                        mkdir(self.intermediary_output_dir)
+                    self.target_file = os.path.join(self.intermediary_output_dir, "run_dat.txt")
+                    with open(self.target_file, 'a') as f:
+                        f.writelines("Starting run: " + str(message) + "\n")
                 elif message_type == "instance_start":
-                    self.intermediary_intermediary_output_dir = self.intermediary_output_dir + f"/{message}"
-                    if not os.path.exists(self.intermediary_output_dir):
-                        mkdir(self.intermediary_intermediary_output_dir)
+                    return None
+                    with open(self.target_file, 'a') as f:
+                        f.writelines("Beginning instance: " + str(message) + "\n")
                 elif message_type == "engine_action" or message_type == "instance_solution" or message_type == "instance_results" or message_type == "reward_phase" or message_type == "run_end":
+                    return None
                     self.buffer.append(f"{message}")
                 else:
-                    with open(os.path.join(self.output_dir, self.message_type_to_filepath[message_type]), 'a') as f:
+                    with open(os.path.join(self.intermediary_output_dir, self.message_type_to_filepath[message_type]), 'a') as f:
                         f.writelines(message + "\n")
             
     def log_cgp_program(self, active_nodes, output_nodes):

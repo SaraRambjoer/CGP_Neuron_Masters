@@ -6,30 +6,90 @@ from numpy.core.fromnumeric import sort, var
 from numpy.lib.function_base import average
 from numpy.ma import count
 import numpy
-from cgp_program_executor import run_code
+from cgp_program_executor import run_code, cap
 
 class NodeAbstract():
     """Abstract superclass for nodes"""
-    def __init__(self) -> None:
+    def __init__(self, use_miller_funcs, use_miller_and_random) -> None:
         self.subscribers = []
         self.output = None
-        self.CPGNodeTypes = [
-            "ADDI",
-            "SUBI",
-            "SINU",
-            "GAUS",
-            "DIVI",
-            "MULI"
-        ]
+        self.use_miller_funcs = use_miller_funcs
+        self.use_miller_and_random = use_miller_and_random
+        if not use_miller_funcs:
+            self.CPGNodeTypes = [
+                "ADDI",
+                "SUBI",
+                "SINU",
+                "GAUS",
+                "DIVI",
+                "MULI"
+            ]
+            self.NodeTypeArity = {
+                "ADDI":2,
+                "SUBI":2,
+                "GAUS":2,
+                "SINU":1,
+                "DIVI":2,
+                "MULI":2
+            }
+        else: 
+            self.CPGNodeTypes = [
+                "abs",
+                "sqrt",
+                "sqr",
+                "cube",
+                "exp",
+                "sin",
+                "cos",
+                "tanh",
+                "inv",
+                "step",
+                "hyp",
+                "add",
+                "sub",
+                "mult",
+                "max",
+                "min",
+                "and",
+                "or",
+                "imult",
+                "xor",
+                "istep", 
+                "tand",
+                "tor",
+                "rmux"
+            ]
+            self.NodeTypeArity = {
+                "abs":1,
+                "sqrt":1,
+                "sqr":1,
+                "cube":1,
+                "exp":1,
+                "sin":1,
+                "cos":1,
+                "tanh":1,
+                "inv":1,
+                "step":1,
+                "hyp":2,
+                "add":2,
+                "sub":2,
+                "mult":2,
+                "max":2,
+                "min":2,
+                "and":2,
+                "or":2,
+                "imult":2,
+                "xor":2,
+                "istep":1,
+                "tand":2,
+                "tor":2,
+                "rmux":2
+            }
+            if use_miller_and_random:
+                self.CPGNodeTypes.append("GAUS")
+                self.NodeTypeArity["GAUS"] = 2
 
-        self.NodeTypeArity = {
-            "ADDI":2,
-            "SUBI":2,
-            "GAUS":2,
-            "SINU":1,
-            "DIVI":2,
-            "MULI":2
-        }
+
         self.oneary = [x[0] for x in self.NodeTypeArity.items() if x[1] == 1]
         self.twoary = [x[0] for x in self.NodeTypeArity.items() if x[1] == 2]
         self.type_func_map = {
@@ -38,36 +98,134 @@ class NodeAbstract():
             "SINU": self._sinu,
             "GAUS": self._gaus,
             "MULI": self._muli,
-            "DIVI": self._divi
+            "DIVI": self._divi,
+            "abs": self._miller_abs,
+            "sqrt": self._miller_sqrt,
+            "sqr": self._miller_sqr,
+            "cube": self._miller_cube,
+            "exp": self._miller_exp,
+            "sin": self._miller_sin,
+            "cos": self._miller_cos,
+            "tanh": self._miller_tanh,
+            "inv": self._miller_inv,
+            "step": self._miller_step,
+            "hyp": self._miller_hyp,
+            "add": self._miller_add,
+            "sub": self._miller_sub,
+            "mult": self._miller_mult,
+            "max": self._miller_max,
+            "min": self._miller_min,
+            "and": self._miller_and,
+            "or": self._miller_or,
+            "imult": self._miller_imult,
+            "xor": self._miller_xor,
+            "istep": self._miller_istep,
+            "tand": self._miller_tand,
+            "tor": self._miller_tor,
+            "rmux": self._miller_rmux
         }  
 
     def _addi(self, x0, x1):
-        return x0+x1
+        return cap(x0+x1)
     def _subi(self, x0, x1):
-        return x0-x1
+        return cap(x0-x1)
     def _sinu(self, x0):
-        return numpy.sin(x0)
+        return cap(numpy.sin(x0))
     def _gaus(self, x0, x1):
-        return numpy.random.normal(numpy.absolute(x0), numpy.absolute(x1))
+        return cap(numpy.random.normal(numpy.absolute(x0), numpy.absolute(x1)))
     def _muli(self, x0, x1):
         result = x0*x1
-        if result < -100.0:
-            return -100.0
-        elif result > 100.0:
-            return 100.0
-        return result
+        return cap(result)
     def _divi(self, x0, x1):
         if abs(x1) < 0.01:
             if x1 < 0.0:
                 result = x0/-0.01
             else:
                 result = x0/0.01
-            if result < -100.0:
-                return -100.0
-            elif result > 100.0:
-                return 100.0
-            return result
-        return x0/x1
+            return cap(result)
+        return cap(x0/x1)
+
+    def _miller_abs(x0):
+        return cap(abs(x0))
+    def miller_sqr(x0):
+        return cap(x0*x0)
+    def _miller_sqrt(x0):
+        return cap(math.sqrt(x0))
+    def _miller_cube(x0):
+        return cap(x0*x0*x0)
+    def _miller_exp(x0):
+        z0 = x0
+        return cap((2*math.pow(math.e, (z0+1)) - math.pow(math.e, 2) - 1)/(math.pow(math.e, 2) - 1))
+    def _miller_sin(x0):
+        return cap(math.sin(x0))
+    def _miller_cos(x0):
+        return cap(math.cos(x0))
+    def _miller_tanh(x0):
+        return cap(math.tanh(x0))
+    def _miller_inv(x0):
+        return cap(- x0)
+    def _miller_step(x0):
+        return cap(0.0 if x0 < 0.0 else 1.0)
+    def _miller_hyp(x0, x1):
+        z0 = x0
+        z1 = x1
+        return cap(math.sqrt((z0*z0 + z1*z1)/2))
+    def _miller_add(x0, x1):
+        return cap((x0 + x1)/2)
+    def _miller_sub(x0, x1):
+        return cap((x0 - x1)/2)
+    def _miller_mult(x0, x1):
+        return cap(x0*x1)
+    def _miller_max(x0, x1):
+        z0 = x0
+        z1 = x1
+        return cap(z0 if z0 >= z1 else z1)
+    def _miller_min(x0, x1):
+        z0 = x0
+        z1 = x1
+        return cap(z0 if z0 <= z1 else z1)
+    def _miller_and(x0, x1):
+        z0 = x0
+        z1 = x1
+        return cap(1.0 if (z0 > 0.0 and z1 > 0.0) else 0.0)
+    def _miller_or(x0, x1):
+        z0 = x0
+        z1 = x1
+        return cap(1.0 if (z0 > 0.0 or z1 > 0.0) else 0.0)
+    def _miller_rmux(x0, x1, x2):
+        z0 = x0
+        z1 = x1
+        z2 = x2
+        return cap(z0 if z2 > 0.0 else z1)
+    def _miller_imult(x0, x1):
+        z0 = x0
+        z1 = x1
+        return cap(- z0*z1)
+    def _miller_xor(x0, x1):
+        z0 = x0
+        z1 = x1
+        return cap(-1.0 if ((z0 > 0.0 and z1 > 0.0) or (z0 < 0.0 and z1 < 0.0)) else 1.0)
+    def _miller_istep(x0):
+        z0 = x0
+        return cap(0.0 if z0 < 1.0 else -1.0)
+    def _miller_tand(x0, x1):
+        z0 = x0
+        z1 = x1
+        if z0 > 0.0 and z1 > 0.0:
+            return cap(1.0)
+        elif z0 < 0.0 and z1 < 0.0:
+            return cap(-1.0)
+        else:
+            return cap(0.0)
+    def _miller_tor(x0, x1):
+        z0 = x0
+        z1 = x1
+        if z0 > 0.0 and z1 > 0.0:
+            return cap(1.0)
+        elif z0 < 0.0 and z1 < 0.0:
+            return cap(-1.0)
+        else:
+            return cap(0.0)
 
 
 
@@ -100,17 +258,17 @@ class NodeAbstract():
             else:
                 parent1 = randchoice(use_nodes)
                 parent2 = randchoice(use_nodes)
-            node = CGPNode(node_type, [parent1, parent2], counter, max((parent1.row_depth, parent2.row_depth))+1, debug)
+            node = CGPNode(node_type, [parent1, parent2], counter, max((parent1.row_depth, parent2.row_depth))+1, debug, self.use_miller_funcs, self.use_miller_and_random)
         elif node_type in self.oneary:
             parent1 = randchoice(use_nodes)
-            node = CGPNode(node_type, [parent1], counter, parent1.row_depth+1, debug)
+            node = CGPNode(node_type, [parent1], counter, parent1.row_depth+1, debug, self.use_miller_funcs, self.use_miller_and_random)
         node.validate()
         return node
 
 
 
 class CGPNode(NodeAbstract):
-    def __init__(self, node_function_type, inputs, counter, row_depth, debugging=False) -> None:
+    def __init__(self, node_function_type, inputs, counter, row_depth, debugging=False, use_miller_funcs = False, miller_and_random = False) -> None:
         """Node for CGP, non-recursive
 
         Args:
@@ -122,7 +280,7 @@ class CGPNode(NodeAbstract):
         """
         # Written to be slightly tolerant of incorrect input arity, but not really
         # Written for non-recursive CGP
-        super().__init__()
+        super().__init__(use_miller_funcs, miller_and_random)
         self.counter = counter
         self.type = node_function_type
         self.ready_inputs = 0
@@ -177,6 +335,9 @@ class CGPNode(NodeAbstract):
         self.ready_inputs += 1
         if type(self.type) is CGPModuleType and self.ready_inputs == self.arity:
             self.output = self.type.run([x.output for x in self.inputs])
+            self.alert_subscribers()
+        elif self.read_inputs == 3 and type(self.type) is not CGPModuleType and self.NodeTypeArity[self.type] == 3:
+            self.output = self.type_func_map[self.type](self.inputs[0].output, self.inputs[1].output, self.inputs[2].output)
             self.alert_subscribers()    
         elif self.ready_inputs == 2 and type(self.type) is not CGPModuleType and self.NodeTypeArity[self.type] == 2:
             self.output = self.type_func_map[self.type](self.inputs[0].output, self.inputs[1].output)
@@ -245,7 +406,7 @@ class CGPNode(NodeAbstract):
 class InputCGPNode(NodeAbstract):
     def __init__(self, counter, debugging = False):
         self.counter = counter
-        super().__init__()
+        super().__init__(False, False)
         self.id = self.counter.counterval()
         self.row_depth = 0
         self.debugging = debugging
@@ -296,6 +457,8 @@ class CGPProgram:
         self.nodes = []
         self.output_arity = output_arity
         self.debugging = True
+        self.use_miller_funcs = self.config['use_miller_funcs']
+        self.miller_and_random = self.config['miller_and_random']
         if max_size is None:
             self.max_size = self.config['cgp_program_size']
         else:
@@ -309,7 +472,7 @@ class CGPProgram:
                 self.nodes.append(new_node)
             for _ in range(self.max_size - self.output_arity):
                 node_type = randchoice(_dummy_node.CPGNodeTypes)
-                new_node = CGPNode(node_type, [], self.counter, 0, self.debugging)
+                new_node = CGPNode(node_type, [], self.counter, 0, self.debugging, self.use_miller_funcs, self.miller_and_random)
                 self.nodes.append(new_node)
         self.output_indexes = [x for x in range(0, output_arity)] 
         self.compiled = None
@@ -547,7 +710,7 @@ class CGPProgram:
         node_copy = []
         #self.validate_nodes()
         for node in self.nodes:
-            new_node = CGPNode(node.type, [], self.counter, 0, self.debugging)
+            new_node = CGPNode(node.type, [], self.counter, 0, self.debugging, self.use_miller_funcs, self.use_miller_and_random)
             new_node.id = int(node.id)
             new_node.row_depth = int(node.row_depth+1)
             new_node.arity = int(node.arity)
@@ -641,7 +804,7 @@ class CGPProgram:
                 subgraph_partly_copied = []
                 # Init copies
                 for node in subgraph_nodes:
-                    copy_node = CGPNode(node.type, [], node.counter, node.row_depth, node.debugging)
+                    copy_node = CGPNode(node.type, [], node.counter, node.row_depth, node.debugging, self.use_miller_funcs, self.use_miller_and_random)
                     copy_node.id = node.id
                     copy_node.arity = node.arity
                     subgraph_partly_copied += [copy_node]

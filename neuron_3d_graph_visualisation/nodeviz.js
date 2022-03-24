@@ -13,7 +13,9 @@ let h = 40;
 let parsed_neuron_array = [];
 let selected_array = 0;
 let current_ancestor = "q"
-const position_scaling = 2;
+const position_scaling = 4;
+let processed_arrays = [];
+
 
 const inputElement = document.getElementById("neuronfile");
 inputElement.addEventListener("change", handleFiles, false);
@@ -127,6 +129,26 @@ function draw() {
   let spheres = []
   if (parsed_neuron_array.length > 0) {
     const neudict = parsed_neuron_array[selected_array]; //#* fix selection of selected array
+
+    // "Wiggle" positions a bit so that neurons in the same position become shuffled
+    if (!(processed_arrays.includes(selected_array))) {
+        for (let i0 = 0; i0 < neudict.neurons.length; i0++) {
+            const neuron_id = neudict.neurons[i0];
+            if (!(neudict.inputs.includes(neuron_id)) && !(neudict.outputs.includes(neuron_id))) {
+                for (let i1 = 0; i1 < neudict.neuron_id_to_pos.length; i1++) {
+                    const current_tuple = neudict.neuron_id_to_pos[i1];
+                    if (current_tuple[0] === neuron_id) {
+                        position = current_tuple[1];
+                        position[0] += (Math.random()-0.5)*2;
+                        position[1] += (Math.random()-0.5)*2;
+                        position[2] += (Math.random()-0.5)*2;
+                    }
+                }
+            }
+        }
+        processed_arrays.push(selected_array);
+    }
+
     for (let i0 = 0; i0 < neudict.neurons.length; i0++) {
       const neuron_id = neudict.neurons[i0];
       if (neudict.inputs.includes(neuron_id)) {

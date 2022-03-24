@@ -620,8 +620,7 @@ def runme(statistics_folder, statistics_files):
     if not os.path.exists(_fldr):
         os.mkdir(_fldr)
     
-    for name in [
-        'axon_recieve_signal_dendrite',
+    names = ['axon_recieve_signal_dendrite',
         'axon_recieve_signal_neuron',
         'axon_signal_dendrite',
         'dendrite_accept_connection',
@@ -649,20 +648,19 @@ def runme(statistics_folder, statistics_files):
         'neuron_recieve_reward',
         'neuron_signal_axon',
         'neuron_signal_dendrite',
-        'skip_post_death'
-    ]:
-        avg = []
-        for it in range(len(yaml_stats[0]['iterations'])):
-            times = []
-            for genome_dat in [x['iterations'][it]['genomes_data']['genome_list'] for x in yaml_stats]:
-                for genome_entry in genome_dat:
-                    times.append(genome_entry['actions_stats'][name])
-            avg.append(average(times))
+        'skip_post_death']
+    with open(os.path.join(_fldr, 'stat_output.txt'), 'w') as f:
+        for name in names:
+            avg = []
+            for it in range(len(yaml_stats[0]['iterations'])):
+                times = []
+                for genome_dat in [x['iterations'][it]['genomes_data']['genome_list'] for x in yaml_stats]:
+                    for genome_entry in genome_dat:
+                        times.append(genome_entry['actions_stats'][name])
+                avg.append(average(times))
 
-        plot_basic(avg, name, "Iteration", name+".png", _fldr)
-        with open(os.path.join(_fldr, 'stat_output.txt'), 'w') as f:
-            for nam in name:
-                f.writelines(nam + ", " + str(average(avg[-50:])) + ", " + str(np.std(avg[-50:])) + "\n")
+            plot_basic(avg, name, "Iteration", name+".png", _fldr)
+            f.writelines(name + ", " + str(average(avg[-50:])) + ", " + str(np.std(avg[-50:])) + "\n")
 
 
 

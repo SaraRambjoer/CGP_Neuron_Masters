@@ -80,9 +80,14 @@ def n_best_split(list1, list2):
     bottom_n = comblist[n:]
     return top_n, bottom_n, len([x for x in list1 if x not in top_n])  # Last term is how many swaps were made
 
-def historic_best_add(historic_best_list, new_genome, genome_count):
+def historic_best_add(historic_best_list, new_genome, genome_count, genomes):
     if new_genome[0].id not in [x[0].id for x in historic_best_list]:
         skip = False
+        for genome in genomes: 
+            for ancestor_id in new_genome[0].ancestor_ids:
+                for ancestor_id_2 in genome.ancestor_ids:
+                    if ancestor_id_2 == ancestor_id:
+                        skip = True
         for ancestor_id in new_genome[0].ancestor_ids:
             for historic_best in historic_best_list:
                 if ancestor_id in historic_best[0].ancestor_ids:
@@ -448,7 +453,7 @@ def run(config, config_filename, output_path, print_output = False):
                 parent2_score = genomes[new_genome_parent_indexes[1]][0].get_fitness()
                 if (new_genome_score < parent1_score) or (new_genome_score == parent1_score and not changed[new_genome_parent_indexes[0]]):
                     old_genome = genomes[new_genome_parent_indexes[0]]
-                    historic_best_add(historic_bests, old_genome, config['genome_count'])
+                    historic_best_add(historic_bests, old_genome, config['genome_count'], [x[0] for x in genomes])
                     genomes[new_genome_parent_indexes[0]] = new_genome
                     changed[new_genome_parent_indexes[0]] = True
                     if new_genome_score < parent1_score:
@@ -458,7 +463,7 @@ def run(config, config_filename, output_path, print_output = False):
                     parent1_score = new_genome_score
                 elif (new_genome_score < parent2_score) or (new_genome_score == parent2_score and not changed[new_genome_parent_indexes[1]]):
                     old_genome = genomes[new_genome_parent_indexes[1]]
-                    historic_best_add(historic_bests, old_genome, config['genome_count'])
+                    historic_best_add(historic_bests, old_genome, config['genome_count'], [x[0] for x in genomes])
                     genomes[new_genome_parent_indexes[1]] = new_genome
                     changed[new_genome_parent_indexes[1]] = True
                     if new_genome_score < parent2_score:
@@ -524,7 +529,7 @@ def run(config, config_filename, output_path, print_output = False):
             two = randchoice(bottom_genomes)
             genomes[genomes.index(two)] = one
             times_a_genome_took_population_slot_from_other_genome += 1
-            historic_best_add(historic_bests, two, config['genome_count'])
+            historic_best_add(historic_bests, two, config['genome_count'], [x[0] for x in genomes])
 
         statistic_entry["genome_replacement_stats"] = {
             "times_a_genome_took_population_slot_from_other_genome" : times_a_genome_took_population_slot_from_other_genome

@@ -57,10 +57,10 @@ class Genome:
     
     def init_ancestor_ids(self, parent1_id, parent2_id, parent1_ancestor_list, parent_2_ancestor_list):
         ancestor_list = [parent1_id, parent2_id] + [listitem for sublist in list(zip(parent1_ancestor_list, parent_2_ancestor_list)) for listitem in sublist]
-        if len(ancestor_list) < 14:  # balanced binary graph of depth 3 has 14 nodes
+        if len(ancestor_list) < 64:  # balanced binary graph of depth 6 has 64 nodes
             return ancestor_list
         else:
-            return ancestor_list[0:14]
+            return ancestor_list[0:63]
 
 
     def get_fitness(self):

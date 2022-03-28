@@ -1,6 +1,7 @@
 import math
 import numpy
 
+
 def cap(val):
     if val < -100.0:
         return -100.0
@@ -9,10 +10,11 @@ def cap(val):
     return val
 
 def calc_function(function, init_data, function_input_pointers):
+    x0 = init_data[function_input_pointers[0]]
     if function == "SINU":
-        to_return = numpy.sin(init_data[function_input_pointers[0]])
+        to_return = numpy.sin(x0)
     elif function == "ADDI":
-        to_return = init_data[function_input_pointers[0]] + init_data[function_input_pointers[1]]
+        to_return = x0 + init_data[function_input_pointers[1]]
     elif function == "GAUS":
         to_return = numpy.random.normal(
             numpy.absolute(
@@ -25,87 +27,88 @@ def calc_function(function, init_data, function_input_pointers):
                 )
             )
     elif function == "SUBI":
-        to_return = init_data[function_input_pointers[0]] - init_data[function_input_pointers[1]]
+        to_return = x0 - init_data[function_input_pointers[1]]
     
     elif function == "MULI": 
-        to_return = init_data[function_input_pointers[0]]*init_data[function_input_pointers[1]]
+        to_return = x0*init_data[function_input_pointers[1]]
     
     elif function == "DIVI":
         if abs(init_data[function_input_pointers[1]]) < 0.01:
             if init_data[function_input_pointers[1]] < 0.0:
-                to_return = init_data[function_input_pointers[0]]/-0.01
+                to_return = x0/-0.01
             else:
-                to_return = init_data[function_input_pointers[0]]/0.01
+                to_return = x0/0.01
         else:
-            to_return = init_data[function_input_pointers[0]]/init_data[function_input_pointers[1]]
+            to_return = x0/init_data[function_input_pointers[1]]
     
     # miller functions below
 
     elif function == "abs":
-        to_return = abs(init_data[function_input_pointers[0]])
+        to_return = abs(x0)
     elif function =="sqr":
-        to_return = init_data[function_input_pointers[0]]*init_data[function_input_pointers[0]]
+        to_return = x0*x0
     elif function == "sqrt":
-        to_return = math.sqrt(init_data[function_input_pointers[0]])
+        x0 = x0
+        to_return = math.sqrt(abs(x0))
     elif function == "cube":
-        to_return = init_data[function_input_pointers[0]]*init_data[function_input_pointers[0]]*init_data[function_input_pointers[0]]
+        to_return = x0*x0*x0
     elif function == "exp":
-        z0 = init_data[function_input_pointers[0]]
+        z0 = x0
         to_return = (2*math.pow(math.e, (z0+1)) - math.pow(math.e, 2) - 1)/(math.pow(math.e, 2) - 1)
     elif function == "sin":
-        to_return = math.sin(init_data[function_input_pointers[0]])
+        to_return = math.sin(x0)
     elif function == "cos":
-        to_return = math.cos(init_data[function_input_pointers[0]])
+        to_return = math.cos(x0)
     elif function == "tanh":
-        to_return = math.tanh(init_data[function_input_pointers[0]])
+        to_return = math.tanh(x0)
     elif function == "inv":
-        to_return = - init_data[function_input_pointers[0]]
+        to_return = - x0
     elif function == "step":
-        to_return = 0.0 if init_data[function_input_pointers[0]] < 0.0 else 1.0
+        to_return = 0.0 if x0 < 0.0 else 1.0
     elif function == "hyp":
-        z0 = init_data[function_input_pointers[0]]
+        z0 = x0
         z1 = init_data[function_input_pointers[1]]
         to_return = math.sqrt((z0*z0 + z1*z1)/2)
     elif function == "add":
-        to_return = (init_data[function_input_pointers[0]] + init_data[function_input_pointers[1]])/2
+        to_return = (x0 + init_data[function_input_pointers[1]])/2
     elif function == "sub":
-        to_return = (init_data[function_input_pointers[0]] - init_data[function_input_pointers[1]])/2
+        to_return = (x0 - init_data[function_input_pointers[1]])/2
     elif function == "mult":
-        to_return = init_data[function_input_pointers[0]]*init_data[function_input_pointers[1]]
+        to_return = x0*init_data[function_input_pointers[1]]
     elif function == "max":
-        z0 = init_data[function_input_pointers[0]]
+        z0 = x0
         z1 = init_data[function_input_pointers[1]]
         to_return = z0 if z0 >= z1 else z1
     elif function == "min":
-        z0 = init_data[function_input_pointers[0]]
+        z0 = x0
         z1 = init_data[function_input_pointers[1]]
         to_return = z0 if z0 <= z1 else z1
     elif function == "and":
-        z0 = init_data[function_input_pointers[0]]
+        z0 = x0
         z1 = init_data[function_input_pointers[1]]
         to_return = 1.0 if (z0 > 0.0 and z1 > 0.0) else 0.0
     elif function == "or":
-        z0 = init_data[function_input_pointers[0]]
+        z0 = x0
         z1 = init_data[function_input_pointers[1]]
         to_return = 1.0 if (z0 > 0.0 or z1 > 0.0) else 0.0
     elif function == "rmux":
-        z0 = init_data[function_input_pointers[0]]
+        z0 = x0
         z1 = init_data[function_input_pointers[1]]
         z2 = init_data[function_input_pointers[2]]
         to_return = z0 if z2 > 0.0 else z1
     elif function == "imult":
-        z0 = init_data[function_input_pointers[0]]
+        z0 = x0
         z1 = init_data[function_input_pointers[1]]
         to_return = - z0*z1
     elif function == "xor":
-        z0 = init_data[function_input_pointers[0]]
+        z0 = x0
         z1 = init_data[function_input_pointers[1]]
         to_return = -1.0 if ((z0 > 0.0 and z1 > 0.0) or (z0 < 0.0 and z1 < 0.0)) else 1.0
     elif function == "istep":
-        z0 = init_data[function_input_pointers[0]]
+        z0 = x0
         to_return = 0.0 if z0 < 1.0 else -1.0
     elif function == "tand":
-        z0 = init_data[function_input_pointers[0]]
+        z0 = x0
         z1 = init_data[function_input_pointers[1]]
         if z0 > 0.0 and z1 > 0.0:
             to_return = 1.0
@@ -114,7 +117,7 @@ def calc_function(function, init_data, function_input_pointers):
         else:
             to_return = 0.0
     elif function == "tor":
-        z0 = init_data[function_input_pointers[0]]
+        z0 = x0
         z1 = init_data[function_input_pointers[1]]
         if z0 > 0.0 and z1 > 0.0:
             to_return = 1.0
@@ -143,7 +146,7 @@ def vm_run(instructions, inputs, instruction_length, input_length):
 
     data = [x for x in inputs]
 
-    function_input_pointers = [0, 0]  # Must be max length of function input possible
+    function_input_pointers = [0, 0, 0]  # Must be max length of function input possible
 
     func_input_length = 0
     function = ""

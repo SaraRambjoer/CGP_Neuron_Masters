@@ -8,6 +8,8 @@ from numpy.ma import count
 import numpy
 from cgp_program_executor import run_code, cap
 
+
+
 class NodeAbstract():
     """Abstract superclass for nodes"""
     def __init__(self, use_miller_funcs, miller_and_random) -> None:
@@ -83,7 +85,7 @@ class NodeAbstract():
                 "istep":1,
                 "tand":2,
                 "tor":2,
-                "rmux":2
+                "rmux":3
             }
             if miller_and_random:
                 self.CPGNodeTypes.append("GAUS")
@@ -92,6 +94,7 @@ class NodeAbstract():
 
         self.oneary = [x[0] for x in self.NodeTypeArity.items() if x[1] == 1]
         self.twoary = [x[0] for x in self.NodeTypeArity.items() if x[1] == 2]
+        self.threeary = [x[0] for x in self.NodeTypeArity.items() if x[1] == 3]
         self.type_func_map = {
             "ADDI": self._addi,
             "SUBI": self._subi,
@@ -152,12 +155,13 @@ class NodeAbstract():
         return cap(x0*x0)
 
     def _miller_sqrt(self, x0):
-        return cap(math.sqrt(x0))
+        # Kinda modified from miller, this is sign preserving absolute magnitude sqrt I guess
+        return cap(math.sqrt(abs(x0)))
 
     def _miller_cube(self, x0):
         return cap(x0*x0*x0)
 
-    def _miller_exp(x0):
+    def _miller_exp(self, x0):
         z0 = x0
         return cap((2*math.pow(math.e, (z0+1)) - math.pow(math.e, 2) - 1)/(math.pow(math.e, 2) - 1))
 
@@ -272,11 +276,36 @@ class NodeAbstract():
         else:
             use_nodes = existing_nodes
         node_type = randchoice(self.CPGNodeTypes)
-        if node_type in self.twoary:
+        if node_type in self.threeary:
+            if len(use_nodes) < 3:
+                if priority_nodes:
+                    if len(use_nodes) == 1:
+                        parent1 = use_nodes[0]
+                        parent2 = randchoice(existing_nodes)
+                        parent3 = randchoice(existing_nodes)
+                    elif len(use_nodes) == 2:
+                        parent1 = use_nodes[0]
+                        parent2 = use_nodes[1]
+                        parent3 = randchoice(existing_nodes)
+                    else:
+                        parent1 = randchoice(existing_nodes)
+                        parent2 = randchoice(existing_nodes)
+                        parent3 = randchoice(existing_nodes)
+            else:
+                parent1 = randchoice(use_nodes)
+                parent2 = randchoice(use_nodes)
+                parent3 = randchoice(use_nodes)
+            node = CGPNode(node_type, [parent1, parent2, parent3], counter, max((parent1.row_depth, parent2.row_depth, parent3.row_depth))+1, debug, self.use_miller_funcs, self.miller_and_random)
+
+        elif node_type in self.twoary:
             if len(use_nodes) < 2:
                 if priority_nodes:
-                    parent1 = use_nodes[0]
-                    parent2 = randchoice(existing_nodes)
+                    if len(use_nodes) == 1: 
+                        parent1 = use_nodes[0]
+                        parent2 = randchoice(existing_nodes)
+                    else: 
+                        parent1 = randchoice(existing_nodes)
+                        parent2 = randchoice(existing_nodes)
             else:
                 parent1 = randchoice(use_nodes)
                 parent2 = randchoice(use_nodes)
@@ -426,9 +455,9 @@ class CGPNode(NodeAbstract):
 
 
 class InputCGPNode(NodeAbstract):
-    def __init__(self, counter, debugging = False):
+    def __init__(self, counter, debugging = False, use_miller_funcs = False, miller_and_random = False):
         self.counter = counter
-        super().__init__(False, False)
+        super().__init__(use_miller_funcs, miller_and_random)
         self.id = self.counter.counterval()
         self.row_depth = 0
         self.debugging = debugging
@@ -487,7 +516,7 @@ class CGPProgram:
             self.max_size = max_size
         self.output_absolute_maxvalue = 10**4
 
-        _dummy_node = InputCGPNode(self.counter, debugging)
+        _dummy_node = InputCGPNode(self.counter, debugging, self.use_miller_funcs, self.miller_and_random)
         if init_nodes:
             for _ in range(self.output_arity):
                 new_node = _dummy_node.genRandomNode(self.input_nodes + self.nodes, counter, None, self.debugging)

@@ -44,7 +44,8 @@ class NeuronEngine():
 
         self.hox_switches_diagnostic = 0
 
-        
+        self.current_timestep_index = 0
+
         self.input_arity = input_arity
         self.output_arity = output_arity
         self.grid_count = grid_count  # Grids in grid grid per dimension
@@ -310,12 +311,25 @@ class NeuronEngine():
             action, timestep, _, name = self.action_queue.pop()
             if not action == "skip":
                 action()  # runs action
-                self.timestep = timestep
+                self.update_current_timestep(timestep)
                 self.actions_count += 1
                 self.action_counts[name] += 1
         outputs = [output_neuron.value for output_neuron in self.output_neurons]
         self.reset_outputs()
         return outputs
+
+    def update_current_timestep(self, timestep):
+        if timestep == self.timestep:
+            self.current_timestep_index = max(self.current_timestep_index-1, 0)
+        else:
+            self.timestep = timestep
+            indx = 0
+            for _, t, _, _ in self.action_queue:
+                if t == timestep:
+                    indx += 1
+                if t > timestep:
+                    break
+            self.current_timestep_index = indx
 
     def reset_outputs(self):
         for output_neuron in self.output_neurons: 
@@ -434,7 +448,7 @@ class NeuronEngine():
                 action, timestep, _, name = self.action_queue.pop()
                 if not action == "skip":
                     action()  # runs action
-                    self.timestep = timestep
+                    self.update_current_timestep(timestep)
                     self.actions_count += 1
                     self.action_counts[name] += 1
             if not self.changed:
@@ -479,7 +493,8 @@ class NeuronEngine():
 
     def add_action_to_queue(self, action, timestep, id, action_name):
         if len(self.action_queue) == 0 or timestep == self.action_queue[0][1]:
-            self.action_queue.insert(0, (action, timestep, id, action_name))
+            self.action_queue.insert(self.current_timestep_index, (action, timestep, id, action_name))
+            self.current_timestep_index += 1
         else:
             self.action_queue.append((action, timestep, id, action_name))
     

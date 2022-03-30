@@ -635,7 +635,7 @@ def runme(statistics_folder, statistics_files):
         'dendrite_recieve_signal_neuron',
         'dendrite_seek_connection',
         'dendrite_signal_axon',
-        'dendrite_signal_dendrite',
+        'axon_signal_dendrite',
         'dendrite_signal_neuron',
         'neuron_action_controller',
         'neuron_axon_birth',

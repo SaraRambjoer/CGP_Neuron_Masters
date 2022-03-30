@@ -95,6 +95,8 @@ class Genome:
         def _log_program(program, program_name, log_data):
             active_nodes = program.get_active_nodes() + program.input_nodes
             output_nodes = [(program.nodes[program.output_indexes[x]].id, x) for x in range(len(program.output_indexes))]
+            if len(output_nodes) < program.output_arity:
+                raise Exception("Critical error, output node length is lower than actual arity")
             input_nodes = [(program.input_nodes[x].id, x) for x in range(len(program.input_nodes))]
             connection_pairs = []
             for node in active_nodes:

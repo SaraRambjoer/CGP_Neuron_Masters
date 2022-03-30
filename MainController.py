@@ -80,14 +80,19 @@ def n_best_split(list1, list2):
     bottom_n = comblist[n:]
     return top_n, bottom_n, len([x for x in list1 if x not in top_n])  # Last term is how many swaps were made
 
+def common_ancestor_check(genome1, genome2):
+    for ancestor_id in genome1.ancestor_ids:
+        for ancestor_id_2 in genome2.ancestor_ids:
+            if ancestor_id_2 == ancestor_id:
+                return True
+    return False
+
 def historic_best_add(historic_best_list, new_genome, genome_count, genomes):
     if new_genome[0].id not in [x[0].id for x in historic_best_list]:
         skip = False
         for genome in genomes: 
-            for ancestor_id in new_genome[0].ancestor_ids:
-                for ancestor_id_2 in genome.ancestor_ids:
-                    if ancestor_id_2 == ancestor_id:
-                        skip = True
+            if common_ancestor_check(new_genome[0], genome):
+                skip = True
         for ancestor_id in new_genome[0].ancestor_ids:
             for historic_best in historic_best_list:
                 if ancestor_id in historic_best[0].ancestor_ids:
@@ -527,9 +532,10 @@ def run(config, config_filename, output_path, print_output = False):
         if len(top_genomes) > 0 and len(bottom_genomes) > 0:
             one = randchoice(top_genomes)
             two = randchoice(bottom_genomes)
-            genomes[genomes.index(two)] = one
-            times_a_genome_took_population_slot_from_other_genome += 1
-            historic_best_add(historic_bests, two, config['genome_count'], [x[0] for x in genomes])
+            if not common_ancestor_check(one[0], two[0]):
+                genomes[genomes.index(two)] = one
+                times_a_genome_took_population_slot_from_other_genome += 1
+                historic_best_add(historic_bests, two, config['genome_count'], [x[0] for x in genomes])
 
         statistic_entry["genome_replacement_stats"] = {
             "times_a_genome_took_population_slot_from_other_genome" : times_a_genome_took_population_slot_from_other_genome

@@ -607,6 +607,10 @@ class CGPProgram:
         active_nodes = [x for x in self_nodes if x.output is not None]
 
         output_nodes = [self_nodes[x] for x in self.output_indexes if self_nodes[x] in active_nodes]
+        for node in output_nodes:
+            if node.id not in [y.id for y in active_nodes]:
+                raise Exception("Critical failure, output node not in set of active nodes, output nodes: ", [x.id for x in output_nodes], "\n active nodes: ", [x.id for x in active_nodes])
+
         frontier = [x for x in output_nodes]
         active_nodes2 = [x for x in output_nodes]
         while len(frontier) > 0:
@@ -619,6 +623,9 @@ class CGPProgram:
             frontier = new_frontier
         self.reset()
         active_nodes = list(set(active_nodes2))
+        for node in output_nodes:
+            if node.id not in [y.id for y in active_nodes]:
+                raise Exception("Critical failure, output node not in set of active nodes, output nodes: ", [x.id for x in output_nodes], "\n active nodes: ", [x.id for x in active_nodes])
         return active_nodes
 
     def get_active_modules(self, recursive=False):
@@ -694,6 +701,7 @@ class CGPProgram:
             if random.random() < node_type_mutate_chance/self_nodes[self.output_indexes[num]].arity or self_nodes[self.output_indexes[num]] not in output_node_alternatives:
                 self.output_indexes[num] = self_nodes.index(randchoice(output_node_alternatives))
         #self.validate_input_node_array()
+        self.nodes = self_nodes
         self.compile_self()
         return self
 

@@ -28,6 +28,6 @@ pip install numpy --user
 pip install pyyaml --user
 pip install pygame --user
 pip install gym --user
-python /cluster/home/jonora/CGP_Neuron_Masters/runfile.py config_complex_4_v2 "/cluster/work/jonora/CGP_Neuron_masters/logfiles" $SLURM_ARRAY_TASK_ID
+python /cluster/home/jonora/CGP_Neuron_Masters/runfile.py config_complex_4_v3 "/cluster/work/jonora/CGP_Neuron_masters/logfiles" $SLURM_ARRAY_TASK_ID
 
 uname -a

@@ -261,6 +261,7 @@ function draw() {
               if (genome['active_nodes'].includes(connection[1]) && !(new_frontier.includes(connection[1]))) {
                 new_frontier.push(connection[1]);
               }
+			  new_frontier.push(connection[1]);
             }
           }
         }

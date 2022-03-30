@@ -6,7 +6,9 @@ import subprocess
 def run_interface(folder, paths):
     subprocess.call("python statistics_analyzer.py " + folder + " " + paths)
 
-basefolder = r'C:\Users\jonod\Desktop\logfiles'
+basefolder = r'C:\Users\jonod\Desktop\phenotypes_experiment_2_grouping_2'
+full = False
+
 
 base_sub_dirs = [f.path for f in os.scandir(basefolder)]
 unified_dir = [x for x in base_sub_dirs if "unified" in x][0]
@@ -27,7 +29,8 @@ for num in range(len(base_sub_dirs)):
             statpath = os.path.join(sub_sub_dir, "statistics.yml")
             if os.path.exists(statpath):
                 base_sub_statfilepaths[num].append(statpath)
-                run_interface(sub_sub_dir, statpath)
+                if full:
+                    run_interface(sub_sub_dir, statpath)
     unified_statpath = "SPLIT".join(base_sub_statfilepaths[num])
     run_interface(uni_dir, unified_statpath)
 

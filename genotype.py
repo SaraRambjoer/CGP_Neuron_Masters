@@ -120,7 +120,7 @@ class Genome:
             func_name = func_chrom.func_name
             for hexnum in range(len(func_chrom.hex_variants)):
                 program = func_chrom.hex_variants[hexnum].program
-                _log_program(program, func_name, log_data)
+                _log_program(program, func_name + "_hex_var_" + str(hexnum), log_data)
 
         log_data["adaptive_parameters"] = self.parameter_genome.log()
         if log:

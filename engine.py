@@ -53,8 +53,9 @@ class NeuronEngine():
         self.actions_max = actions_max
         self.actions_count = 0  # For counting how many actions engine is allowed to take
         self.input_neurons = []
-        self.middle_grid_input = math.floor(grid_count/2)
-        self.middle_grid_output = math.floor(grid_count/2+1)
+        self.middle_grid_input = math.floor(grid_count/5)
+        self.middle_grid_output = grid_count-math.floor(grid_count/5)
+        self.middle_grid = math.floor(grid_count//2)
         self.init_grids()
         if input_arity > grid_size:
             raise Exception("grid size too small to contain inputs")
@@ -203,8 +204,9 @@ class NeuronEngine():
 
 
     def init_neurons(self):
-        self.add_neuron((self.middle_grid_input, self.middle_grid_input, self.middle_grid_input), 
+        self.add_neuron((self.middle_grid*self.grid_size, self.middle_grid*self.grid_size, self.middle_grid*self.grid_size), 
                          [0 for _ in range(self.neuron_initialization_data['internal_state_variable_count'])])
+        neuron = self.neurons[0]
         for num in range(self.input_arity):
             # think input neurons (sensors) and output neurons
             # (acuators) are close together in the human brain, right?
@@ -217,8 +219,10 @@ class NeuronEngine():
                 self.logger, 
                 self.counter,
                 self))
+            dendrite = neuron.create_new_dendrite(False)
+            dendrite.connect(self.input_neurons[-1])
         self.output_neurons = []
-        for _ in range(self.output_arity):
+        for num in range(self.output_arity):
             self.output_neurons.append(OutputNeuron(
                 self.grids[self.middle_grid_output][self.middle_grid_output][self.middle_grid_output],
                 self.middle_grid_output*self.grid_size + num,
@@ -295,18 +299,19 @@ class NeuronEngine():
             axon_ids += inner_axon_ids
         self.timestep = 0
         self.actions_count = 0
-        #comment out
-        neuron_ids = []
-        for neuron in self.neurons:
-            if neuron.id in neuron_ids:
-                raise Exception(f"Neuron id {neuron.id} in neurons list several times")
-            self.add_action_to_queue(
-                lambda: neuron.run_action_controller(0),
-                0,
-                neuron.id,
-                'neuron_action_controller'
-            )
-            neuron_ids.append(neuron)
+
+        #neuron_ids = []
+        #for neuron in self.neurons:
+        #    if neuron.id in neuron_ids:
+        #        raise Exception(f"Neuron id {neuron.id} in neurons list several times")
+        #    self.add_action_to_queue(
+        #        lambda: neuron.run_action_controller(0),
+        #        0,
+        #        neuron.id,
+        #        'neuron_action_controller'
+        #    )
+        #    neuron_ids.append(neuron)
+
         while len(self.action_queue) > 0 and self.actions_count < self.actions_max:
             action, timestep, _, name = self.action_queue.pop()
             if not action == "skip":
@@ -497,7 +502,13 @@ class NeuronEngine():
             self.current_timestep_index += 1
         else:
             self.action_queue.append((action, timestep, id, action_name))
-    
+
+        _t = -1
+        for _, timestep, _, _ in self.action_queue:
+            if timestep < _t:
+                raise Exception("Illegal order in action queue")
+            else:
+                _t = timestep 
 
     def remove_actions_id(self, id):
         for num in range(len(self.action_queue)):

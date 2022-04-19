@@ -799,7 +799,7 @@ def run(config, config_filename, output_path, print_output = False):
             genomes_data["neuron_engine_dimensionality_use_count"] = neuron_engine_dimensionality_use_count
 
             #print(genome[0].id)
-            #print(genome.get_fitness())
+            #print(genome[0].get_fitness())
             #print(genome[6][1])
             #print(genome[0].config['mutation_chance_node'], genome[0].config['mutation_chance_link'])
         

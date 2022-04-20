@@ -9,6 +9,8 @@ const input_col = [255, 0, 0];
 const reg_col = [0, 0, 255];
 const output_col = [0, 255, 0];
 
+let hex_var = 0
+
 let x_view_offset = 0;
 let y_view_offset = 0;
 
@@ -120,6 +122,14 @@ document.getElementById("prevdifferent").addEventListener("click", function() {
   }
 });
 
+document.getElementById("next_hex_var").addEventListener("click", function() {
+    hex_var += 1;
+});
+
+document.getElementById("prev_hex_var").addEventListener("click", function() {
+    hex_var -= 1;
+});
+
 //document.getElementById("nextsame").addEventListener("click", function() {
 //  if (parsed_neuron_array.length > 0) {
 //    current_genome_id = parsed_neuron_array[selected_array].genome_id
@@ -143,6 +153,8 @@ document.getElementById("prevdifferent").addEventListener("click", function() {
 //    }
 //  }
 //});
+
+
 
 
 function setup() {
@@ -207,26 +219,28 @@ function draw() {
   if (parsed_neuron_array.length > 0) {
     let genome = parsed_neuron_array[selected_array];
     document.getElementById("rawdata").innerHTML = JSON.stringify(genome, null, 20); 
-    const fitness = genome['genome fitness']; // TODO display these
+    const fitness = genome['genome fitness'];
     const id = genome['genome id'];
     document.getElementById("genomeid").innerHTML = "ID: " + id.toString();
     document.getElementById("genomefitness").innerHTML = "Fitness: " + fitness.toString();
-    if (viewModularFunctions) {
+    document.getElementById("hex_var").innerHTML = "Hex var: " + hex_var.toString();
+    let func_ending = "_hex_var_" + hex_var.toString();
+    // if (viewModularFunctions) {
       // TODO
-    }
-    else {
-      if (selected_neuron_func_bool) {
+    //}
+    // else {
+    if (selected_neuron_func_bool) {
         if (neuron_function_order[selected_func_index] == "hox_variant_selection_program") {
-          genome = genome["hex_selector"];
+            genome = genome["hex_selector" + func_ending];
         }
         else {
-          genome = genome[neuron_function_order[selected_func_index]];
+            genome = genome[neuron_function_order[selected_func_index] + func_ending];
         }
-      }
-      else {
-        genome = genome[axon_dendrite_function_order[selected_func_index]];
-      }
     }
+    else {
+        genome = genome[axon_dendrite_function_order[selected_func_index] + func_ending];
+    }
+    // }
     // Get order through depth
     let node_depths = [];
     // add input_nodes at depth 0 

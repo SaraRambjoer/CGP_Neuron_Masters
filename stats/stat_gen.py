@@ -6,7 +6,7 @@ import subprocess
 def run_interface(folder, paths):
     subprocess.call("python statistics_analyzer.py " + folder + " " + paths)
 
-basefolder = r'C:\Users\jonod\Desktop\phenotypes_experiment_2_grouping_2'
+basefolder = r'C:\Users\jonod\Desktop\logfiles_15_april_other_categorization'
 full = False
 
 

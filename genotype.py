@@ -56,6 +56,7 @@ class Genome:
             self.parameter_genome = None
     
     def init_ancestor_ids(self, parent1_id, parent2_id, parent1_ancestor_list, parent_2_ancestor_list):
+        """Ancestor list for checks for historic best list"""
         ancestor_list = [parent1_id, parent2_id] + [listitem for sublist in list(zip(parent1_ancestor_list, parent_2_ancestor_list)) for listitem in sublist]
         if len(ancestor_list) < 64:  # balanced binary graph of depth 6 has 64 nodes
             return ancestor_list
@@ -64,22 +65,25 @@ class Genome:
 
 
     def get_fitness(self):
+        """Returns fitness score. Necessary as when using randomness phenotypes are evaluated several times"""
         if len(self.fitnessess) == 0:
             return 100.0
         else:
             return sum(self.fitnessess)/len(self.fitnessess)
 
     def update_config(self):
+        """ Used to update mutation rates """
         self.hex_selector_genome.set_config(self.config)
         for funcchrom in self.function_chromosomes:
             funcchrom.set_config(self.config)
 
     def load(self, sf):
-      self.id = sf['genome_id']
-      self.unique_id = sf['genome_id'].split("->")[1][1:]
-      self.hex_selector_genome.load(sf['hex_selector'])
-      for num in range(len(self.function_chromosomes)):
-        self.function_chromosomes.load(sf[num+6])
+        """Think this is deprecated"""
+        self.id = sf['genome_id']
+        self.unique_id = sf['genome_id'].split("->")[1][1:]
+        self.hex_selector_genome.load(sf['hex_selector'])
+        for num in range(len(self.function_chromosomes)):
+            self.function_chromosomes.load(sf[num+6])
 
 
     def mutate(self) -> None: 
@@ -130,6 +134,8 @@ class Genome:
         return log_data
     
     def equals_no_id(self, other):
+        """Sort of deep equals. Should work if programs are literally identical, but not if they
+        have isomorphisms or something which make them functionally identical"""
         selflog = self.log({}, False)
         olog = other.log({}, False)
         del selflog['genome_id']
@@ -153,6 +159,7 @@ class Genome:
         return node_type_counts
         
     def add_cgp_modules_to_list(self, input_list, genome, recursive=False):
+        """Extracts CGP modules from CGP programs"""
         maxdepth = 0
         cgp_modules, depth = genome.hex_selector_genome.program.get_active_modules(recursive)
         maxdepth = max(maxdepth, depth)
@@ -220,6 +227,7 @@ class Genome:
 
 # TODO use parameters in parameter genome for controlling this
 def generalized_cgp_crossover(parent1, parent2, child_count, samemut, cgp_modules = None):
+    """ The crossover code """
     if samemut:
         program_child_1 = parent1.program.deepcopy()
         program_child_2 = parent2.program.deepcopy()

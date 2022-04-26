@@ -13,8 +13,8 @@ class IrisProblem:
         self.correct_solution = 0
 
     def get_problem_instance(self):
-        to_return = self.data[self.index][0:3]
-        self.correct_solution = self.data[self.index][3]
+        to_return = self.data[self.index][0:4]
+        self.correct_solution = self.data[self.index][4]
         self.index += 1
         if self.index == len(self.data):
             self.index = 0
@@ -31,7 +31,10 @@ class IrisProblem:
         for num in range(0, 3):
             if solution[num] is not None:
                 outputs_sum += solution[num]
-        normalized_output = output_on_correct/outputs_sum
+        if outputs_sum > 0:
+            normalized_output = output_on_correct/outputs_sum
+        else:
+            normalized_output = output_on_correct
         return (1-normalized_output)*(1-normalized_output), True
 
     def get_reward(self, error):

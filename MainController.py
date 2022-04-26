@@ -1,19 +1,17 @@
 import time
 import json
 
-from numpy import diag
 import numpy
 from engine import NeuronEngine
 from genotype import Genome
 import Logger
 import one_pole_problem
 import random
-from HelperClasses import Counter, randchoice, copydict, randcheck, copydict
-import os
-from multiprocessing import Lock
-import threading
+from HelperClasses import Counter, randchoice, copydict, copydict, process_iris
 import copy
+from engine import NeuronEngine
 import datetime
+import iris_problem
 
 def multiprocess_code_2(child_data_packs):
     x, return_list = child_data_packs
@@ -28,12 +26,13 @@ def multiprocess_code(engine_problem):
     engine_problem, return_list = engine_problem
     if engine_problem[5]:
         engine = engine_problem[5][0]
-        problem = engine_problem[5][1]
+        problem, problem2 = engine_problem[5][1]
         num = engine_problem[5][2]
-        to_return = engine.run(problem, num)
+        to_return = engine.run(problem, problem2, num)
         engine_problem[6] = to_return
-        engine_problem[0].fitnessess.append(to_return[0])
+        engine_problem[0].fitnessess.append(to_return[0][0])
         engine_problem[5] = None
+        engine_problem[7] = to_return[0][1]
     return_list.append(engine_problem)
 
 def log_genome(genomes, runinfo):
@@ -112,8 +111,9 @@ def historic_best_add(historic_best_list, new_genome, genome_count, genomes):
 
 
 def run(config, config_filename, output_path, print_output = False):
+    training_data, validation_data = process_iris(r"IRIS.csv")
     # Setup problems
-    problem = one_pole_problem.PoleBalancingProblem()
+    problem = iris_problem.IrisProblem(training_data)
     # Setup logging
     # ["CGPProgram image", "cgp_function_exec_prio1", "cgp_function_exec_prio2", "graphlog_instance", "graphlog_run", "setup_info"]
     logger = Logger.Logger(output_path + "/log_" + config_filename + "_", config['logger_ignore_messages'], config['advanced_logging'])
@@ -242,7 +242,6 @@ def run(config, config_filename, output_path, print_output = False):
             config = config)) # TODO RN assumes equal amount of axon and neuron internal state variables
 
 
-    from engine import NeuronEngine
     # learning loop
 
     to_return_fitness = []
@@ -273,11 +272,11 @@ def run(config, config_filename, output_path, print_output = False):
             genome_id = genome.id,
             config_file = copydict(config)
         )
-        result, base_problems, action_counts = engine.run(one_pole_problem.PoleBalancingProblem(), "setup")
-        genome_results.append((result, base_problems, action_counts))
+        result, base_problems, action_counts = engine.run(iris_problem.IrisProblem(training_data), iris_problem.IrisProblem(validation_data), "setup")
+        genome_results.append((result[0], base_problems, action_counts, result[1]))
         engine.reset()
         engines.append(engine)
-    genomes = list(zip(genomes, [x[0] for x in genome_results], [None for x in genome_results], [None for x in genome_results], [None for x in genome_results], [x for x in engines], [x for x in genome_results]))
+    genomes = list(zip(genomes, [x[0] for x in genome_results], [None for x in genome_results], [None for x in genome_results], [None for x in genome_results], [x for x in engines], [x for x in genome_results], [x[1] for x in genome_results]))
     to_return_fitness.append(x[0] for x in genome_results)
     log_genome(genomes, 0)
 
@@ -288,7 +287,7 @@ def run(config, config_filename, output_path, print_output = False):
     #print("Setup complete. Beginning evolution.")
 
     historic_bests = []
-    for num in range(learning_iterations):   
+    for number in range(learning_iterations):   
         statistic_entry = {}
 
         time_genes = 0
@@ -357,6 +356,7 @@ def run(config, config_filename, output_path, print_output = False):
         for num2 in range(len(new_genomes)):
             new_genomes[num2].append(False)
             new_genomes[num2].append([False for x in range(len(new_genomes[num2][0]))])
+            new_genomes[num2].append(False)
             engine_problems = []
             indexes = new_genomes[num2][3]
             for num3 in range(len(new_genomes[num2][0])):
@@ -379,7 +379,7 @@ def run(config, config_filename, output_path, print_output = False):
                         genome_id = genome.id,
                         config_file = copydict(config)
                     )
-                    engine_problems.append((engine, one_pole_problem.PoleBalancingProblem(), num))
+                    engine_problems.append((engine, (iris_problem.IrisProblem(training_data), iris_problem.IrisProblem(validation_data)), num))
                 elif skip_eval == 1:
                     engine_problems.append(False)
                     new_genomes[num2][0][num3] = genomes[indexes[0]][0]
@@ -393,11 +393,9 @@ def run(config, config_filename, output_path, print_output = False):
 
         new_new_genomes = []
         for num2 in range(len(new_genomes)):
-            num2_copy = num2
             for num3 in range(len(new_genomes[num2][0])):
-                num3_copy = num3
                 new_new_genomes.append([new_genomes[num2][0][num3], new_genomes[num2][1], new_genomes[num2][2],
-                                        new_genomes[num2][3], new_genomes[num2][4], new_genomes[num2][5][num3], new_genomes[num2][6][num3]])
+                                        new_genomes[num2][3], new_genomes[num2][4], new_genomes[num2][5][num3], new_genomes[num2][6][num3], new_genomes[num2][7]])
         new_genomes = new_new_genomes
         for num2 in range(len(new_genomes)):
             if new_genomes[num2][5]:
@@ -566,6 +564,8 @@ def run(config, config_filename, output_path, print_output = False):
         genomes_data = {
             "genome_list":[]
         }
+
+        print(number)
         for genome in genomes: 
         
             module_list, _ = genome[0].add_cgp_modules_to_list([], genome[0])
@@ -587,6 +587,7 @@ def run(config, config_filename, output_path, print_output = False):
             genome_entry = {
                 "id":genome[0].id,
                 "fitness":genome[0].get_fitness(),
+                "fitness_validation":genome[-1],
                 "fitness_std":float(numpy.std(genome[0].fitnessess)),
                 "performance_stats":copy.deepcopy(genome[6][1]),
                 "actions_stats":copy.deepcopy(genome[6][2]),
@@ -799,7 +800,7 @@ def run(config, config_filename, output_path, print_output = False):
             genomes_data["neuron_engine_dimensionality_use_count"] = neuron_engine_dimensionality_use_count
 
             #print(genome[0].id)
-            #print(genome[0].get_fitness())
+            print(genome[0].get_fitness(), genome[-1])
             #print(genome[6][1])
             #print(genome[0].config['mutation_chance_node'], genome[0].config['mutation_chance_link'])
         
@@ -826,7 +827,7 @@ def run(config, config_filename, output_path, print_output = False):
         log_genome(genomes, 0)
         genome = genomes[num][0]
         neuron_initialization_data, axon_initialization_data = genome_to_init_data(genome)
-        problem = one_pole_problem.PoleBalancingProblem()
+        problem = iris_problem.IrisProblem(training_data)
         engine = NeuronEngine(
             input_arity = problem.input_arity,
             output_arity = problem.output_arity,
@@ -843,9 +844,8 @@ def run(config, config_filename, output_path, print_output = False):
             config_file = copydict(config)
         )
         for num2 in range(4):
-            problem = one_pole_problem.PoleBalancingProblem()
             engine.reset()
-            engine.run(problem, num)
+            engine.run(iris_problem.IrisProblem(training_data), iris_problem.IrisProblem(validation_data), num)
 
     return to_return_fitness, diagnostic_data
 
@@ -863,161 +863,9 @@ def runme(config_filename, output_path):
     if config['mode'] == 'run':
         print("We are running")
         #print("Running evolution")
-        import cProfile
         run(config, config_filename, output_path, print_output=True)
         #cProfile.run("run(config, #print_output=True")
-        now = datetime.datetime.now()
         #print ("Endtime")
         #print (now.strftime("%H:%M:%S"))
         print("We are done running")
 
-    elif config['mode'][0] == 'load':
-        # TODO not fully implemented
-        # TODO if fully implementing unify code with run function better, outdated due to code duplications
-        #print("Loading program")
-        loadfile = config['mode'][1]
-        loadprogram = config['mode'][2]
-
-        # get specific cgp program
-
-        with open(loadfile, 'r') as f:
-            data = f.readlines()
-
-        data = data[0]
-        
-        genomes = data.split('|')
-
-        correct_genome = None
-        for genome in genomes:
-            gene_dat = json.loads(genome)
-            if gene_dat['genome_id'].split("->")[1][1:] == loadprogram:
-                correct_genome = gene_dat
-                break
-        
-        if correct_genome is None:
-            #print(f"Genome {loadprogram} not found")
-            pass
-        else:
-            #print("Genome found")
-            neuron_internal_states = config['neuron_internal_state_count']
-            dendrite_internal_states = config['axon_dendrite_internal_state_count']
-            signal_dimensionality = config['signal_dimensionality']
-            dimensions = 3  # other dimensions not supported - code in engine.py specific to 3d grid
-            hox_variant_count = config['hox_variant_count']
-            genome_counter = Counter()
-            genome_count = config['genome_count']
-            seed = config['seed']
-            random.seed(seed)
-            neuron_function_order = [
-                'axon_birth_program',
-                'signal_axon_program',
-                'recieve_axon_signal_program',
-                'recieve_reward_program',
-                'move_program',
-                'die_program',
-                'neuron_birth_program',
-                'action_controller_program',
-                'hox_variant_selection_program',
-                'internal_state_variable_count' # not function but parameter comes here in the order
-            ]
-            neuron_function_arities = [  # by order above
-                [dimensions+neuron_internal_states+1, 4+signal_dimensionality+neuron_internal_states],  # axon birth
-                [signal_dimensionality+dimensions+neuron_internal_states, 2 + signal_dimensionality + neuron_internal_states],  # signal axon
-                [signal_dimensionality + dimensions + neuron_internal_states, 2 + neuron_internal_states+signal_dimensionality],  # recieve signal axon
-                [1 + dimensions + neuron_internal_states, 2 + neuron_internal_states],  # reciee reward
-                [neuron_internal_states + dimensions, 7+neuron_internal_states],  # move
-                [dimensions + neuron_internal_states, 2+neuron_internal_states],  # die
-                [dimensions + neuron_internal_states, 2+neuron_internal_states*2],  # neuron birth
-                [neuron_internal_states+dimensions, 9],  # action controller
-                [neuron_internal_states + dimensions, hox_variant_count]  # hox selection
-            ]
-
-            dendrite_function_order = [
-                'recieve_signal_neuron_program',
-                'recieve_signal_dendrite_program',
-                'signal_dendrite_program',
-                'signal_neuron_program',
-                'accept_connection_program',
-                'break_connection_program',
-                'recieve_reward_program',
-                'die_program',
-                'action_controller_program'
-            ]
-            dendrite_function_arities = [
-                [dendrite_internal_states + signal_dimensionality + dimensions, 2+signal_dimensionality+dendrite_internal_states],
-                [dendrite_internal_states + signal_dimensionality + dimensions, 2+signal_dimensionality+dendrite_internal_states],
-                [dimensions + dendrite_internal_states + signal_dimensionality, 4+signal_dimensionality+dendrite_internal_states],
-                [dimensions + dendrite_internal_states + signal_dimensionality, 4+signal_dimensionality+dendrite_internal_states],
-                [dimensions + dendrite_internal_states + dimensions + dendrite_internal_states, 2+dendrite_internal_states], # Accept connection
-                [dimensions + dendrite_internal_states + dimensions + dendrite_internal_states, 1], # Break connection
-                [dimensions + dendrite_internal_states + 1, 2 + dendrite_internal_states], # recieve reward
-                [dimensions + dendrite_internal_states, 1+signal_dimensionality], # die
-                [dendrite_internal_states + dimensions, 3]
-            ]
-            logger = Logger.Logger("/cluster/work/jonora/CGP_Neuron_masters/logfiles" + "/log_" + config_filename, config['logger_ignore_messages'], config['advanced_logging'])
-            genome_successor_count = 4
-            if not config['non_crossover_children']:
-                genome_successor_count = 2
-            all_function_arities = neuron_function_arities + dendrite_function_arities
-
-            genome = Genome(
-                homeobox_variants = hox_variant_count,
-                successor_count = genome_successor_count,
-                input_arities = all_function_arities,
-                counter = genome_counter,
-                internal_state_variables = neuron_internal_states,
-                names = neuron_function_order[:-1] + dendrite_function_order,
-                logger = logger,
-                genome_counter = genome_counter,
-                config = config)
-
-            genome.load(correct_genome)
-
-            problem = one_pole_problem.PoleBalancingProblem()
-
-            def genome_to_init_data(genome):
-                neuron_init_data = {
-                    'axon_birth_programs' : genome.function_chromosomes[0],
-                    'signal_axon_programs' : genome.function_chromosomes[1],
-                    'recieve_axon_signal_programs': genome.function_chromosomes[2],
-                    'recieve_reward_programs': genome.function_chromosomes[3],
-                    'move_programs': genome.function_chromosomes[4],
-                    'die_programs': genome.function_chromosomes[5],
-                    'neuron_birth_programs': genome.function_chromosomes[6],
-                    'action_controller_programs': genome.function_chromosomes[7],
-                    'hox_variant_selection_program': genome.hex_selector_genome.program,
-                    'internal_state_variable_count': neuron_internal_states
-                }
-                axon_init_data = {
-                    'recieve_signal_neuron_programs' : genome.function_chromosomes[8],
-                    'recieve_signal_dendrite_programs' : genome.function_chromosomes[9],
-                    'signal_dendrite_programs' : genome.function_chromosomes[10],
-                    'signal_neuron_programs' : genome.function_chromosomes[11],
-                    'accept_connection_programs' : genome.function_chromosomes[12],
-                    'break_connection_programs' : genome.function_chromosomes[13],
-                    'recieve_reward_programs' : genome.function_chromosomes[14],
-                    'die_programs' : genome.function_chromosomes[15],
-                    'action_controller_programs' : genome.function_chromosomes[16],
-                    'internal_state_variable_count': dendrite_internal_states
-                }
-
-                return neuron_init_data, axon_init_data
-
-            neuron_init, axon_init = genome_to_init_data(genome)
-            engine = NeuronEngine(
-                input_arity = problem.input_arity,
-                output_arity = problem.output_arity,
-                grid_count = 6,
-                grid_size = 10,
-                actions_max = 120,
-                neuron_initialization_data = neuron_init,
-                axon_initialization_data = axon_init,
-                signal_arity = signal_dimensionality,
-                hox_variant_count = hox_variant_count,
-                instances_per_iteration = 50,
-                logger = logger,
-                genome_id = genome.id,
-                config_file = copydict(config)
-            )
-
-            engine.run(problem, 0)

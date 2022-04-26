@@ -9,6 +9,7 @@ from threading import Lock
 
 
 class Counter:
+    """ Implements a counter, should be concurrency safe but concurrency is not used for other reasons (pickling problems) """
     def __init__(self) -> None:
         self.count = 0
         self.counter_lock = Lock()
@@ -20,14 +21,8 @@ class Counter:
         self.counter_lock.release()
         return self.count
 
-
-# TODO I think the reason that randomness is not correctly seeded is that the correct seed is never set in these helper functions. 
-# Solution would be to put these in a class object, such that they can be seeded, and passing around the class object. 
-# But to be honest, I think it is a better idea to just forego the idea of proper seeding, and rather focus on multicore parallell
-# evaluation of genomes - which would introduce a resource conflict on seeding anyway, unless one want's to reseed the randomness
-# for each time a genome is evaluated. Reseeding seems dumb, as the program may evolve to take advantage of the deterministic
-# random outcomes in that case. s
 def randchoice(alternative_list):
+    """ Returns random value from list """
     randval = random.random()
     max = len(alternative_list)-1
     index = int(math.ceil(randval*max))
@@ -58,11 +53,13 @@ def randcheck(val):
     return random.random() <= val
 
 def listmult(the_list, val):
+    """ Multiples each list element with value (assumes int/float inputs)"""
     val = min(val, 1.0)
     return [x*val for x in the_list]
 
 
 def copydict(input_dict):
+    """ Deep copies a dicitonary """
     newdict = {}
     if type(input_dict) == dict:
         for key, item in input_dict.items():
@@ -72,6 +69,7 @@ def copydict(input_dict):
         return input_dict
 
 def dict_merge(source, destination):
+    """ Deep merges dictionaries """
     for key, value in source.items():
         if isinstance(value, dict):
             node = destination.setdefault(key, {})
@@ -80,3 +78,21 @@ def dict_merge(source, destination):
             destination[key] = value
 
     return destination
+
+def process_iris(filepath):
+    # loads and processess a csv iris dataset into the right format. 
+    typemap = {
+        "Iris-setosa":0,
+        "Iris-versicolor":1,
+        "Iris-virginica":2
+    }
+    with open(filepath, 'r') as f:
+        text = f.readlines()
+    text = text[1:]
+    datalist = []
+    for ele in text:
+        ele = ele.split(",")
+        flowertype = ele[4][:-1]
+        datalist.append((float(ele[0]), float(ele[1]), float(ele[2]), float(ele[3]), typemap[flowertype]))
+    random.shuffle(datalist)
+    return datalist[0:120], datalist[120:]

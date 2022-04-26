@@ -10,6 +10,8 @@ def random_check(val, config):
     else:
         return val >= 1.0
 
+# Implements main execution loop, action queue, the geometric space and
+# control logic
 class NeuronEngine():
     def __init__(self,
                  input_arity, 
@@ -74,12 +76,14 @@ class NeuronEngine():
         return len(self.neurons)
     
     def get_average_hidden_connectivity(self):
+        """Average amount of connections"""
         connection_count = 0
         for neuron in self.neurons:
             connection_count += len([x for x in neuron.axons + neuron.dendrites if x.connected_dendrite is not None])
         return connection_count/len(self.neurons)
     
     def get_output_connectivity(self, unique=False):
+        """Average amount of connections for output neurons or unique neuron connections"""
         neurons = []
         for neuron in self.output_neurons:
             neurons += [x.neuron for x in neuron.subscribers]
@@ -88,6 +92,7 @@ class NeuronEngine():
         return len(neurons)/len(self.output_neurons)
     
     def get_input_connectivity(self, unique=False):
+        """Average amount of connections for input neurons or unique neuron connections"""
         neurons = []
         for neuron in self.input_neurons:
             neurons += [x.neuron for x in neuron.subscribers]
@@ -103,6 +108,7 @@ class NeuronEngine():
         return self.timestep
 
     def get_free_dendrite(self, neuron, target_distance, from_axon):
+        """If found, returns a free dendrite"""
         _target_dist = target_distance // self.grid_size
         if len(self.free_connection_grids) != 0:
             if _target_dist == 0 and neuron.grid in self.free_connection_grids:
@@ -126,6 +132,7 @@ class NeuronEngine():
 
     # RFE assumes knowledge of neuron class properties
     def update_neuron_position(self, neuron, neuron_pos_loc):
+        """Updates neuron position w.r.t. moving between grids and capping to max/min geometric space"""
         self.changed = True
         neuron_grid = neuron.grid
         (xg, yg, zg) = (neuron_grid.x, neuron_grid.y, neuron_grid.z)
@@ -181,6 +188,7 @@ class NeuronEngine():
 
 
     def init_grids(self):
+        """Initializes neuron grids"""
         self.grids = [[[None for _ in range(self.grid_count)] for _ in range(self.grid_count)] for _ in range(self.grid_count)]
         for n1 in range(self.grid_count):
             for n2 in range(self.grid_count):
@@ -192,6 +200,7 @@ class NeuronEngine():
         ]
 
     def get_neuron_auto_connections(self):
+        """Get amount of times neurons are directly connected to themselves"""
         neuron_auto_connections = 0
         for neuron in self.neurons:
             for connection in neuron.axons + neuron.dendrites:
@@ -204,6 +213,7 @@ class NeuronEngine():
 
 
     def init_neurons(self):
+        """Initializes neurons"""
         self.add_neuron((self.middle_grid*self.grid_size, self.middle_grid*self.grid_size, self.middle_grid*self.grid_size), 
                          [0 for _ in range(self.neuron_initialization_data['internal_state_variable_count'])])
         neuron = self.neurons[0]
@@ -273,12 +283,12 @@ class NeuronEngine():
         return (x0-x1)**2 + (y0-y1)**2 + (z0-z1)**2
     
     def run_sample(self, input_sample, action_counts):
+        """Code for making phenotype evaluate a sample"""
         self.action_counts = action_counts
         for num in range(len(self.input_neurons)):
             self.input_neurons[num].value = input_sample[num]
         self.action_queue = []
         axon_ids = []
-        #and comment out respectively
         for input_neuron in self.input_neurons:
             inner_axon_ids = []
             for axon in input_neuron.subscribers:
@@ -300,6 +310,7 @@ class NeuronEngine():
         self.timestep = 0
         self.actions_count = 0
 
+        # Uncomment to add neuron action controllers to initial action queue again
         #neuron_ids = []
         #for neuron in self.neurons:
         #    if neuron.id in neuron_ids:
@@ -340,7 +351,7 @@ class NeuronEngine():
         for output_neuron in self.output_neurons: 
             output_neuron.value = None
 
-    def run(self, problem, runnum):
+    def run(self, problem, problem2, runnum):
         # for every sample in inputs run it, some way of evaluating result as well
         # run run_sample for each sample some amount of times
         # then use eval function of problem class to give reward
@@ -493,7 +504,18 @@ class NeuronEngine():
 
         self.graph_log("graphlog_run", graphlog_initial_data)
         self.logger.log("run_end", f"{cumulative_error}, {base_problems}")
-        return cumulative_error/exec_instances, base_problems, self.action_counts
+
+        validation_score = 0
+        for num in range(len(problem2.data)):
+            problemsample = problem2.get_problem_instance()
+            result = self.run_sample(problemsample, self.action_counts)
+            error, valid_output = problem2.error(instance, result, self.logger)
+            reward = problem2.get_reward(error)
+            validation_score += error
+
+        validation_score = validation_score/len(problem2.data)
+
+        return (cumulative_error/exec_instances, validation_score), base_problems, self.action_counts
 
 
     def add_action_to_queue(self, action, timestep, id, action_name):
@@ -599,6 +621,7 @@ class NeuronEngine():
 
 
 class Grid():
+    """Geometric space is subdivided into grids"""
     def __init__(self, x, y, z, size, neuron_engine, logger) -> None:
         self.logger = logger
         self.x = x
@@ -894,6 +917,7 @@ class Neuron(CellObjectSuper):
         for num in range(len(signals)):
             program.input_nodes[num+offset].set_output(signals[num])
 
+    # From this point onwards code for executing and interpreting CGP programs
     def run_axon_birth(self, timestep):
         if not self.dying:
             self.axon_birth_program.reset()
